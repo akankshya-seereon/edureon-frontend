@@ -80,7 +80,7 @@ import { CourseDetails }    from "../pages/Student/Courses/CourseDetails";
 import { ModuleContent }    from "../pages/Student/Courses/ModuleContent";
 import {StudentAttendance}    from "../pages/Student/Attendance/StudentAttendance";
 import {Exam}                 from "../pages/Student/Exams/Exam";
-import {Assignment}           from "../pages/Student/Assignments/Assignment";
+import {Assignments}           from "../pages/Student/Assignments/Assignment";
 import {AssignmentDetails}    from "../pages/Student/Assignments/AssignmentDetails.jsx";
 import {StudentFees}          from "../pages/Student/Fees/StudentFees";
 import {Notification}         from "../pages/Student/Notification/Notifications";
@@ -228,7 +228,7 @@ export const AppRouter = () => (
       <Route path="courses"                 element={<MyCourses />} />
       <Route path="courses/view"            element={<CourseDetails />} />
       <Route path="courses/module"          element={<ModuleContent />} />
-      <Route path="assignments"             element={<Assignment />} />
+      <Route path="assignments"             element={<Assignments />} />
       <Route path="assignments/:id"         element={<AssignmentDetails />} />
       <Route path="attendance"              element={<StudentAttendance />} />
       <Route path="exams"                   element={<Exam />} />

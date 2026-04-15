@@ -21,7 +21,7 @@ const getAuthConfig = () => {
   return config;
 };
 
-const Assignments = () => {
+export const Assignments = () => {
   const [assignments, setAssignments] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -116,4 +116,4 @@ const Assignments = () => {
   );
 };
 
-export default Assignments;
+// export default Assignments;
