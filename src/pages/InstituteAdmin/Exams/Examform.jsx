@@ -255,7 +255,7 @@ const EMPTY = {
 };
 
 // ─── Main Component ───────────────────────────────────────────────────────────
-const ExamForm = () => {
+export const ExamForm = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const editExam = location.state?.exam || null;
@@ -694,4 +694,4 @@ const ExamForm = () => {
   );
 };
 
-export default ExamForm;
+// export default ExamForm;
