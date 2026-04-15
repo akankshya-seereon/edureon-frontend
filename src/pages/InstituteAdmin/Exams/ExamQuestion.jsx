@@ -146,7 +146,7 @@ const FileUploadZone = ({ files, onAdd, onRemove }) => {
 };
 
 // ─── Main Component ───────────────────────────────────────────────────────────
-const ExamQuestion = () => {
+export const ExamQuestion = () => {
   const [form, setForm]           = useState(INITIAL_FORM);
   const [questions, setQuestions] = useState([]);
   const [errors, setErrors]       = useState({});
@@ -587,4 +587,4 @@ const ExamQuestion = () => {
   );
 };
 
-export default ExamQuestion;
+// export default ExamQuestion;
