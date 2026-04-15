@@ -25,7 +25,7 @@ const formatDate = (dateString) => {
   return new Date(dateString).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 };
 
-export default function Exam() {
+export const Exam = () => {
   const [activeTab, setActiveTab] = useState('exams');
   const [upcomingExams, setUpcomingExams] = useState([]);
   const [examResults, setExamResults] = useState([]);
