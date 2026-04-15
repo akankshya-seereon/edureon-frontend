@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Award, Download, Eye, Loader2, FileOutput } from 'lucide-react';
 
-export default function StudentCertificates() {
+export const StudentCertificates = () => {
   const [documents, setDocuments] = useState([]);
   const [loading, setLoading] = useState(true);
 
