@@ -11,7 +11,7 @@ import {
   Loader2
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-
+import apiBaseUrl from "../../config/baseurl";
 export const FacultyDashboard = () => {
   const navigate = useNavigate();
 
@@ -41,7 +41,7 @@ export const FacultyDashboard = () => {
         // 3. Fetch Dashboard Data from Backend
         // 🎯 Note: We don't need the "Authorization: Bearer" header here anymore
         // because axios will automatically send the Cookie thanks to `withCredentials: true` in api.js!
-        const response = await axios.get("http://localhost:5000/api/faculty/dashboard", {
+        const response = await axios.get(`${apiBaseUrl}/faculty/dashboard`, {
             withCredentials: true // Ensures the cookie goes with the request
         });
 
