@@ -85,7 +85,7 @@ import {AssignmentDetails}    from "../pages/Student/Assignments/AssignmentDetai
 import {StudentFees}          from "../pages/Student/Fees/StudentFees";
 import {Notification}         from "../pages/Student/Notification/Notifications";
 import {Calendar}             from "../pages/Student/Calendar/Calendar";
-import {Help}          from "../pages/Student/Help/Help";
+// import {Help}          from "../pages/Student/Help/Help";
 
 // IMPORTS REAL CERTIFICATE PAGE (STUDENT)
 import {StudentCertificates}  from "../pages/Student/Certificates/StudentCertificates";
