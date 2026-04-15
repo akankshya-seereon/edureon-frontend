@@ -70,7 +70,7 @@ const StatCard = ({ label, value, icon, color }) => (
 );
 
 // ─── Component ────────────────────────────────────────────────────────────────
-const Examlist = () => {
+export const Examlist = () => {
   const navigate = useNavigate();
   const [exams, setExams]       = useState([]);
   const [filters, setFilters]   = useState({ semester: "", batch: "", year: "", status: "" });
@@ -358,4 +358,3 @@ const Examlist = () => {
   );
 };
 
-export default Examlist;
