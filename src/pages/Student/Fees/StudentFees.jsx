@@ -157,7 +157,7 @@ const getStatusConfig = (status, dueDate) => {
 };
 
 // ── Main Component ─────────────────────────────────────────────────────────────
-export default function StudentFees() {
+export const StudentFees = () => {
   const [activeTab, setActiveTab] = useState('fees');
   const [feeDetails, setFeeDetails] = useState([]);
   const [loading, setLoading] = useState(true);
