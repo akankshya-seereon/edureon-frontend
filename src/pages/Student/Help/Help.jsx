@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { AlertCircle, Plus, MessageSquare, Check, Clock, X } from 'lucide-react';
 
-export default function Help() {
+export const Help = () => {
   const [activeTab, setActiveTab] = useState('help'); // 'help' or 'myTickets'
   const [tickets, setTickets] = useState(() => {
     const saved = localStorage?.getItem('support_tickets');
