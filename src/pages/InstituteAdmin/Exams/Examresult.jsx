@@ -15,7 +15,7 @@ const getGrade = (marks, total) => {
 };
 
 // ─── Component ────────────────────────────────────────────────────────────────
-const Examresult = () => {
+export const Examresult = () => {
   const navigate    = useNavigate();
   const location    = useLocation();
   const defaultExam = location.state?.examId || "";
@@ -379,4 +379,4 @@ const Examresult = () => {
   );
 };
 
-export default Examresult;
+// export default Examresult;

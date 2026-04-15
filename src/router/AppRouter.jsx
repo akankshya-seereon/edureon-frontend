@@ -51,7 +51,7 @@ import Certificates from "../pages/InstituteAdmin/Certificates/Certificates";
 import  {Examlist }    from "../pages/InstituteAdmin/Exams/Examlist";
 import { ExamForm }    from "../pages/InstituteAdmin/Exams/Examform";
 import { ExamQuestion } from "../pages/InstituteAdmin/Exams/ExamQuestion";
-import {ExamResults}  from "../pages/InstituteAdmin/Exams/Examresult";
+import {Examresult}  from "../pages/InstituteAdmin/Exams/Examresult";
 
 // Faculty
 import { FacultyDashboard }        from "../pages/Faculty/FacultyDashboard";
@@ -177,7 +177,7 @@ export const AppRouter = () => (
       <Route path="exams"            element={<Examlist />} />
       <Route path="exams/create"     element={<ExamForm />} />
       <Route path="exams/questions"  element={<ExamQuestion />} />
-      <Route path="exams/results"    element={<ExamResults />} />
+      <Route path="exams/results"    element={<Examresult />} />
     </Route>
 
     {/* ── FACULTY + HOD ─────────────────────────────────────────────────────── */}
