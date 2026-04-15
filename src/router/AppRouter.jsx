@@ -48,7 +48,7 @@ import InstituteAttendance from "../pages/InstituteAdmin/Attendance/InstituteAtt
 import Certificates from "../pages/InstituteAdmin/Certificates/Certificates";
 
 // Exams
-import  {Examlist }    from "../pages/InstituteAdmin/Exams/ExamList";
+import  {Examlist }    from "../pages/InstituteAdmin/Exams/Examlist";
 import { ExamForm }    from "../pages/InstituteAdmin/Exams/Examform";
 import { ExamQuestion } from "../pages/InstituteAdmin/Exams/ExamQuestion";
 import {ExamResults}  from "../pages/InstituteAdmin/Exams/Examresult";
