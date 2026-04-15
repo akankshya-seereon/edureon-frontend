@@ -121,7 +121,7 @@ function PunchCard() {
 
 // ─── Faculty Page ───────────────────────────────────────────────────
 // ─── Faculty Page ───────────────────────────────────────────────────
-function FacultyAttendance({ user, onSwitch }) {
+export function FacultyAttendance({ user, onSwitch }) {
   // 🎯 Added 'verify' as the default tab so teachers see pending requests immediately
   const [activeTab, setActiveTab] = useState('verify'); 
   const [form, setForm] = useState({ date: getTodayDate(), department:'', classAssigned:'', period:'', remarks:'' });
@@ -374,7 +374,7 @@ function FacultyAttendance({ user, onSwitch }) {
   );
 }
 // ─── Student Page ───────────────────────────────────────────────────
-function StudentAttendance({ user, onSwitch }) {
+export function StudentAttendance({ user, onSwitch }) {
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(false);
 
