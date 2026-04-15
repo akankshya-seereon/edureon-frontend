@@ -17,7 +17,7 @@ import {
   Check,
   X,
 } from "lucide-react";
-import { VideoUploadModal } from "./VideoUploadModal";
+import { VideoUploadModal } from "./Videouploadmodal";
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
