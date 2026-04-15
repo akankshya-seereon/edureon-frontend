@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, BookOpen, Award, CheckSquare, Umbrella } from 'lucide-react';
 
-export default function Calendar() {
+export const Calendar = () => {
   const [currentDate, setCurrentDate] = useState(new Date(2026, 1, 3)); // February 3, 2026
   const [selectedDate, setSelectedDate] = useState(new Date(2026, 1, 3));
   const [filters, setFilters] = useState({
