@@ -48,10 +48,10 @@ import InstituteAttendance from "../pages/InstituteAdmin/Attendance/InstituteAtt
 import Certificates from "../pages/InstituteAdmin/Certificates/Certificates";
 
 // Exams
-import ExamList     from "../pages/InstituteAdmin/Exams/ExamList";
-import ExamForm     from "../pages/InstituteAdmin/Exams/Examform";
-import ExamQuestion from "../pages/InstituteAdmin/Exams/ExamQuestion";
-import ExamResults  from "../pages/InstituteAdmin/Exams/Examresult";
+import{ExamList }    from "../pages/InstituteAdmin/Exams/ExamList";
+import { ExamForm }    from "../pages/InstituteAdmin/Exams/Examform";
+import { ExamQuestion } from "../pages/InstituteAdmin/Exams/ExamQuestion";
+import {ExamResults}  from "../pages/InstituteAdmin/Exams/Examresult";
 
 // Faculty
 import { FacultyDashboard }        from "../pages/Faculty/FacultyDashboard";
@@ -78,17 +78,17 @@ import { StudentProfile }   from "../pages/Student/Profile/StudentProfile";
 import { MyCourses }        from "../pages/Student/Courses/MyCourses";
 import { CourseDetails }    from "../pages/Student/Courses/CourseDetails";
 import { ModuleContent }    from "../pages/Student/Courses/ModuleContent";
-import StudentAttendance    from "../pages/Student/Attendance/StudentAttendance";
-import Exam                 from "../pages/Student/Exams/Exam";
-import Assignment           from "../pages/Student/Assignments/Assignment";
-import AssignmentDetails    from "../pages/Student/Assignments/AssignmentDetails.jsx";
-import StudentFees          from "../pages/Student/Fees/StudentFees";
-import Notification         from "../pages/Student/Notification/Notifications";
-import Calendar             from "../pages/Student/Calendar/Calendar";
-import StudentHelp          from "../pages/Student/Help/Help";
+import {StudentAttendance}    from "../pages/Student/Attendance/StudentAttendance";
+import {Exam}                 from "../pages/Student/Exams/Exam";
+import {Assignment}           from "../pages/Student/Assignments/Assignment";
+import {AssignmentDetails}    from "../pages/Student/Assignments/AssignmentDetails.jsx";
+import {StudentFees}          from "../pages/Student/Fees/StudentFees";
+import {Notification}         from "../pages/Student/Notification/Notifications";
+import {Calendar}             from "../pages/Student/Calendar/Calendar";
+import {StudentHelp}          from "../pages/Student/Help/Help";
 
 // IMPORTS REAL CERTIFICATE PAGE (STUDENT)
-import StudentCertificates  from "../pages/Student/Certificates/StudentCertificates";
+import {StudentCertificates}  from "../pages/Student/Certificates/StudentCertificates";
 
 
 // TEMPORARY PLACEHOLDER FOR FACULTY CERTIFICATE ROUTES
