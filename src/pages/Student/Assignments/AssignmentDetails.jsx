@@ -42,7 +42,7 @@ const StatusIcon = ({ status, className = "w-4 h-4" }) => {
   return null;
 };
 
-export default function AssignmentDetails() {
+export const AssignmentDetails = () => {
   const navigate  = useNavigate();
   const { id }    = useParams();
   const { state } = useLocation();
