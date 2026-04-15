@@ -83,7 +83,7 @@ import {Exam}                 from "../pages/Student/Exams/Exam";
 import {Assignments}           from "../pages/Student/Assignments/Assignment";
 import {AssignmentDetails}    from "../pages/Student/Assignments/AssignmentDetails.jsx";
 import {StudentFees}          from "../pages/Student/Fees/StudentFees";
-import {Notification}         from "../pages/Student/Notification/Notifications";
+import {Notification}         from "../pages/Student/Notification/Notification";
 import {Calendar}             from "../pages/Student/Calendar/Calendar";
 import {StudentHelp}          from "../pages/Student/Help/Help";
 

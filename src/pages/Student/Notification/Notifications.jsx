@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Bell, CheckCircle, X, Mail } from 'lucide-react';
 
-export default function Notification() {
+export const Notification = () => {
   const [notifications, setNotifications] = useState([]);
   const [stats, setStats] = useState({
     total: 0,
