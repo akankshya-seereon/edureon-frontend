@@ -1,16 +1,18 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import {
   Loader2, Briefcase, GraduationCap, UserPlus, 
-  Eye, EyeOff, Upload, FileText, X, CheckCircle, AlertCircle, Image, File
+  Eye, EyeOff, Upload, FileText, X, CheckCircle, AlertCircle, Image, File, Save
 } from 'lucide-react';
-import apiBaseUrl from "../../../config/baseurl"; // Base URL for API calls
+import apiBaseUrl from "../../../config/baseurl";
 
 // ─── AXIOS CONFIGURATION ──────────────────────────────────────────────────────
 const api = axios.create({
   baseURL: apiBaseUrl,
   headers: { 'Content-Type': 'application/json' },
 });
+
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('token');
   if (token) config.headers.Authorization = `Bearer ${token}`;
@@ -24,10 +26,7 @@ const QUALIFICATIONS = ['PhD', 'M.Tech', 'M.Sc', 'MBA', 'B.Tech', 'B.Sc', 'B.Com
 const GENDERS = ['Male', 'Female', 'Other'];
 const BLOOD_GROUPS = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
 
-const REQUIRED_FIELDS = {
-  personal: ['firstName', 'lastName', 'email', 'phone', 'password'],
-  professional: ['employeeId', 'designation'],
-};
+const REQUIRED_PROFESSIONAL = ['employeeId', 'designation'];
 
 const DEFAULT_STAFF_FORM = {
   staffType: 'Academic', firstName: '', lastName: '', email: '', phone: '',
@@ -42,10 +41,11 @@ const DEFAULT_DOCS = {
 };
 
 // ─── SHARED UI COMPONENTS ─────────────────────────────────────────────────────
-const FormField = ({ label, required, children }) => (
+const FormField = ({ label, required, children, hint }) => (
   <div className="flex flex-col gap-1.5 text-left">
-    <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">
-      {label}{required && <span className="text-red-500 ml-0.5">*</span>}
+    <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider flex items-center justify-between">
+      <span>{label}{required && <span className="text-red-500 ml-0.5">*</span>}</span>
+      {hint && <span className="text-[9px] text-blue-400 normal-case">{hint}</span>}
     </label>
     {children}
   </div>
@@ -71,7 +71,7 @@ function FileDropZone({ label, accept, file, onChange, onRemove, hint, icon: Ico
         <div onClick={() => inputRef.current?.click()} onDragOver={(e) => { e.preventDefault(); setDrag(true); }} onDragLeave={() => setDrag(false)} onDrop={handleDrop}
           className={`flex flex-col items-center justify-center gap-2 px-4 py-5 border-2 border-dashed rounded-xl cursor-pointer transition-all ${drag ? 'border-blue-400 bg-blue-50' : 'border-gray-200 bg-gray-50 hover:bg-gray-100'}`}>
           <Upload size={16} className="text-gray-400" />
-          <div className="text-center"><p className="text-xs font-bold text-gray-600">Click or drag to upload</p>{hint && <p className="text-[10px] text-gray-400 mt-0.5">{hint}</p>}</div>
+          <div className="text-center"><p className="text-xs font-bold text-gray-600">Click to upload new file</p>{hint && <p className="text-[10px] text-gray-400 mt-0.5">{hint}</p>}</div>
           <input ref={inputRef} type="file" accept={accept} className="hidden" onChange={e => e.target.files[0] && onChange(e.target.files[0])} />
         </div>
       ) : (
@@ -121,7 +121,7 @@ function MultiFileDropZone({ files, onChange }) {
 
 // ─── FORM SECTIONS ────────────────────────────────────────────────────────────
 
-function PersonalInfoSection({ formData, setField, showPassword, onTogglePassword }) {
+function PersonalInfoSection({ formData, setField, showPassword, onTogglePassword, isEditing }) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 text-left">
       <FormField label="First Name" required><input type="text" placeholder="e.g. Rajesh" value={formData.firstName} onChange={e => setField('firstName', e.target.value)} className="form-input text-left" /></FormField>
@@ -131,12 +131,15 @@ function PersonalInfoSection({ formData, setField, showPassword, onTogglePasswor
       <FormField label="Blood Group"><select value={formData.bloodGroup} onChange={e => setField('bloodGroup', e.target.value)} className="form-input cursor-pointer text-left"><option value="">Select</option>{BLOOD_GROUPS.map(b => <option key={b}>{b}</option>)}</select></FormField>
       <FormField label="Phone" required><input type="tel" placeholder="10-digit mobile" value={formData.phone} onChange={e => setField('phone', e.target.value)} className="form-input text-left" /></FormField>
       <FormField label="Email Address" required><input type="email" placeholder="staff@college.edu" value={formData.email} onChange={e => setField('email', e.target.value)} className="form-input text-left" /></FormField>
-      <FormField label="Login Password" required>
+      
+      {/* Password is required for New, optional for Edit */}
+      <FormField label={isEditing ? "Update Password" : "Login Password"} required={!isEditing} hint={isEditing ? "(Leave blank to keep current)" : ""}>
         <div className="relative">
-          <input type={showPassword ? 'text' : 'password'} placeholder="Set login password" value={formData.password} onChange={e => setField('password', e.target.value)} className="form-input pr-10 text-left" />
+          <input type={showPassword ? 'text' : 'password'} placeholder={isEditing ? "Enter new password..." : "Set login password"} value={formData.password} onChange={e => setField('password', e.target.value)} className="form-input pr-10 text-left" />
           <button type="button" onClick={onTogglePassword} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">{showPassword ? <EyeOff size={15} /> : <Eye size={15} />}</button>
         </div>
       </FormField>
+      
       <FormField label="Residential Address"><input type="text" placeholder="Street, City" value={formData.address} onChange={e => setField('address', e.target.value)} className="form-input text-left" /></FormField>
     </div>
   );
@@ -144,8 +147,6 @@ function PersonalInfoSection({ formData, setField, showPassword, onTogglePasswor
 
 function ProfessionalInfoSection({ formData, setField, staffTab, departments }) {
   const designations = staffTab === 'Academic' ? ACADEMIC_DESIGNATIONS : NON_ACADEMIC_DESIGNATIONS;
-  
-  // 🚀 FIX: Ensure departments is treated as an array to prevent .filter() crashes
   const safeDepartments = Array.isArray(departments) ? departments : [];
   const deptOptions = safeDepartments.filter(d => d.type === staffTab);
   
@@ -156,7 +157,7 @@ function ProfessionalInfoSection({ formData, setField, staffTab, departments }) 
       <FormField label="Highest Qualification"><select value={formData.qualification} onChange={e => setField('qualification', e.target.value)} className="form-input cursor-pointer text-left"><option value="">Select</option>{QUALIFICATIONS.map(q => <option key={q}>{q}</option>)}</select></FormField>
       <FormField label="Joining Date"><input type="date" value={formData.joiningDate} onChange={e => setField('joiningDate', e.target.value)} className="form-input cursor-pointer text-left" /></FormField>
       <FormField label="Assigned Department">
-        <select value={formData.departmentId} onChange={e => setField('departmentId', e.target.value)} className="form-input cursor-pointer text-left">
+        <select value={formData.departmentId || ''} onChange={e => setField('departmentId', e.target.value)} className="form-input cursor-pointer text-left">
           <option value="">Select Department</option>{deptOptions.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
         </select>
       </FormField>
@@ -170,11 +171,11 @@ function ProfessionalInfoSection({ formData, setField, staffTab, departments }) 
 }
 
 function DocumentsSection({ formData, setField, docs, setDocField, setDocs }) {
-  const panVal = formData.panNumber.toUpperCase();
+  const panVal = (formData.panNumber || '').toUpperCase();
   const panValid = /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/.test(panVal);
   const panTouched = panVal.length > 0;
   
-  const aadhaarRaw = formData.aadhaarNumber.replace(/\s/g, '');
+  const aadhaarRaw = (formData.aadhaarNumber || '').replace(/\s/g, '');
   const aadhaarValid = /^\d{12}$/.test(aadhaarRaw);
   const aadhaarTouched = aadhaarRaw.length > 0;
 
@@ -229,26 +230,61 @@ function DocumentsSection({ formData, setField, docs, setDocField, setDocs }) {
 
 // ─── MAIN COMPONENT ──────────────────────────────────────────────
 
-export default function Employee() {
+export const Employee = () => {
+  const { id } = useParams(); // 🚀 NEW: Grab ID from URL to detect Edit Mode
+  const navigate = useNavigate();
+  const isEditing = Boolean(id);
+
   const [formData, setFormData] = useState({ ...DEFAULT_STAFF_FORM });
   const [docs, setDocs] = useState({ ...DEFAULT_DOCS, otherDocs: [] });
   const [staffTab, setStaffTab] = useState('Academic');
+  
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoadingData, setIsLoadingData] = useState(isEditing); // Loading state for Edit Mode
   
-  // Fetch departments so this component is independent
   const [departments, setDepartments] = useState([]);
   
+  // Fetch Departments
   useEffect(() => {
     api.get('/admin/departments')
        .then(res => { 
-         if (res.data?.success) {
-           // 🚀 FIX: Safely enforce array structure to prevent .filter() crashes
-           setDepartments(Array.isArray(res.data.data) ? res.data.data : []); 
-         } 
+         if (res.data?.success) setDepartments(Array.isArray(res.data.data) ? res.data.data : []); 
        })
        .catch(err => console.error("Failed to load departments", err));
   }, []);
+
+  // 🚀 NEW: Fetch Employee Data if in Edit Mode
+  useEffect(() => {
+    if (isEditing) {
+      api.get(`/admin/employees/${id}`)
+        .then(res => {
+          if (res.data?.success) {
+            const emp = res.data.data;
+            
+            // Format dates correctly for <input type="date">
+            const formattedDob = emp.dob ? emp.dob.split('T')[0] : '';
+            const formattedJoining = emp.joiningDate ? emp.joiningDate.split('T')[0] : '';
+
+            setFormData({
+              ...DEFAULT_STAFF_FORM,
+              ...emp,
+              dob: formattedDob,
+              joiningDate: formattedJoining,
+              password: '' // Keep password blank so it doesn't get accidentally overwritten
+            });
+            
+            setStaffTab(emp.staffType || 'Academic');
+          }
+        })
+        .catch(err => {
+          console.error("Failed to fetch employee", err);
+          alert("Could not load employee details.");
+          navigate('/admin/employees/directory');
+        })
+        .finally(() => setIsLoadingData(false));
+    }
+  }, [id, isEditing, navigate]);
 
   const setField    = useCallback((k, v) => setFormData(p => ({ ...p, [k]: v })), []);
   const setDocField = useCallback((k, v) => setDocs(p => ({ ...p, [k]: v })), []);
@@ -259,13 +295,23 @@ export default function Employee() {
     setShowPassword(false);
   }, []);
 
-  const handleTabChange = (tab) => { setStaffTab(tab); resetForm(tab); };
+  const handleTabChange = (tab) => { 
+    if (isEditing) return; // Prevent changing staff type while editing
+    setStaffTab(tab); 
+    resetForm(tab); 
+  };
 
   const validate = () => {
-    const allReq = [...REQUIRED_FIELDS.personal, ...REQUIRED_FIELDS.professional];
-    const missing = allReq.filter(k => !formData[k]?.trim());
+    // Password is only required when NOT editing
+    const personalReq = isEditing 
+      ? ['firstName', 'lastName', 'email', 'phone'] 
+      : ['firstName', 'lastName', 'email', 'phone', 'password'];
+      
+    const allReq = [...personalReq, ...REQUIRED_PROFESSIONAL];
+    const missing = allReq.filter(k => !formData[k] || !String(formData[k]).trim());
+    
     if (missing.length) {
-      alert(`Please fill in: ${missing.join(', ')}`);
+      alert(`Please fill in all required fields. Missing: ${missing.join(', ')}`);
       return false;
     }
     return true;
@@ -283,28 +329,54 @@ export default function Employee() {
       });
       docs.otherDocs.forEach(f => payload.append('otherDocs', f));
       
-      const res = await api.post('/admin/employees/register', payload, { headers: { 'Content-Type': 'multipart/form-data' } });
-      
-      if (res.data.success) {
-        resetForm(staffTab);
+      // 🚀 ROUTING MAGIC: POST for new, PUT for updates
+      if (isEditing) {
+        // Ensure you have a PUT route setup in your employeeRoutes.js!
+        await api.put(`/admin/employees/${id}`, payload, { headers: { 'Content-Type': 'multipart/form-data' } });
+        alert('Employee updated successfully!');
+        navigate(-1); // Go back to profile or directory
+      } else {
+        await api.post('/admin/employees/register', payload, { headers: { 'Content-Type': 'multipart/form-data' } });
         alert('Employee registered successfully!');
+        resetForm(staffTab);
         window.scrollTo(0,0);
       }
     } catch (err) {
-      alert(err.response?.data?.message || 'Failed to register employee.');
+      console.error("Save Error:", err);
+      const errorMessage = err.response?.data?.message || 'Network error or failed to save employee. Please check your connection.';
+      alert(`Save Failed: ${errorMessage}`);
     } finally {
       setIsSubmitting(false);
     }
   };
+
+  if (isLoadingData) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <Loader2 size={40} className="animate-spin text-blue-600" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 p-4 md:p-8 font-sans text-left">
       <style>{`.form-input { width: 100%; padding: 0.75rem 1rem; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 0.75rem; font-size: 0.85rem; font-weight: 600; color: #1e293b; outline: none; transition: border-color 0.15s, background 0.15s; text-align: left; } .form-input:focus { border-color: #3b82f6; background: #fff; }`}</style>
       
       <div className="max-w-8xl mx-auto">
-        <div className="mb-6 space-y-1 text-left">
-           <h1 className="text-3xl font-black text-slate-900 tracking-tight">Onboard Employee</h1>
-           <p className="text-sm font-medium text-slate-500 italic">Register a new academic or non-academic staff member into the system.</p>
+        <div className="mb-6 space-y-1 text-left flex justify-between items-end">
+           <div>
+             <h1 className="text-3xl font-black text-slate-900 tracking-tight">
+               {isEditing ? 'Edit Employee Profile' : 'Onboard Employee'}
+             </h1>
+             <p className="text-sm font-medium text-slate-500 italic">
+               {isEditing ? 'Update the details for this existing staff member.' : 'Register a new academic or non-academic staff member into the system.'}
+             </p>
+           </div>
+           {isEditing && (
+             <button onClick={() => navigate(-1)} className="px-4 py-2 text-sm font-bold text-gray-500 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+               Cancel Edit
+             </button>
+           )}
         </div>
 
         <div className="bg-white rounded-[2rem] border border-gray-200 shadow-sm overflow-hidden mb-12 text-left">
@@ -312,11 +384,13 @@ export default function Employee() {
           <div className="flex flex-col md:flex-row items-start md:items-center justify-between px-8 py-5 bg-white border-b border-gray-100 gap-4">
             <div className="flex items-center gap-4">
               <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center shadow-md shadow-blue-100">
-                <UserPlus size={18} className="text-white" />
+                {isEditing ? <FileText size={18} className="text-white" /> : <UserPlus size={18} className="text-white" />}
               </div>
-              <h2 className="text-lg font-black text-gray-900 tracking-tight">Registration Form</h2>
+              <h2 className="text-lg font-black text-gray-900 tracking-tight">
+                {isEditing ? `Updating: ${formData.firstName} ${formData.lastName}` : 'Registration Form'}
+              </h2>
             </div>
-            <div className="flex gap-2 bg-gray-100 p-1.5 rounded-xl">
+            <div className={`flex gap-2 bg-gray-100 p-1.5 rounded-xl ${isEditing ? 'opacity-70 pointer-events-none' : ''}`}>
               {['Academic', 'Non-Academic'].map(tab => (
                 <button key={tab} type="button" onClick={() => handleTabChange(tab)}
                   className={`px-5 py-2 rounded-lg text-xs font-black transition-all ${
@@ -339,7 +413,7 @@ export default function Employee() {
                   <div className="flex items-center justify-center w-6 h-6 rounded-full bg-blue-100 text-blue-600 text-xs font-black">1</div>
                   <h3 className="text-lg font-black text-gray-800 tracking-tight">Personal Information</h3>
                 </div>
-                <PersonalInfoSection formData={formData} setField={setField} showPassword={showPassword} onTogglePassword={() => setShowPassword(p => !p)} />
+                <PersonalInfoSection formData={formData} setField={setField} showPassword={showPassword} onTogglePassword={() => setShowPassword(p => !p)} isEditing={isEditing} />
               </div>
 
               <hr className="border-gray-100" />
@@ -373,8 +447,8 @@ export default function Employee() {
               </p>
               <button type="submit" disabled={isSubmitting}
                 className="w-full sm:w-auto px-10 py-3.5 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 text-white text-sm font-black rounded-xl flex items-center justify-center gap-2 transition shadow-xl shadow-blue-200">
-                {isSubmitting ? <Loader2 size={18} className="animate-spin" /> : <UserPlus size={18} />}
-                Register Employee
+                {isSubmitting ? <Loader2 size={18} className="animate-spin" /> : (isEditing ? <Save size={18} /> : <UserPlus size={18} />)}
+                {isEditing ? 'Update Employee' : 'Register Employee'}
               </button>
             </div>
           </form>

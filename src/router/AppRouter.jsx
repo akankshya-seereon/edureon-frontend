@@ -20,13 +20,16 @@ import PrincipalDashboard from "../pages/InstituteAdmin/Principal/PrincipalDashb
 import Institute from "../pages/InstituteAdmin/Institute/Institute";
 import InfrastructurePage from "../pages/InstituteAdmin/Infrastructure/InfrastructurePage.jsx";
 import InstituteForm from "../pages/InstituteAdmin/Institute/InstituteForm";
-import AcademicSetup from "../pages/InstituteAdmin/Academics/AcademicSetup";
 
-// 🚀 ADDED: Academic Programs, Departments, Syllabus, and Employee Master
+// 🚀 Academic Programs, Departments, Syllabus, and Employee Master
 import AcademicProgram from "../pages/InstituteAdmin/AcademicPrograms/AcademicProgram";
 import Department from "../pages/InstituteAdmin/Departments/Department";
-import Syllabus from "../pages/InstituteAdmin/Syllabus/Syllabus"; 
-import Employee from "../pages/InstituteAdmin/Employee/Employee"; // 🚀 Added Employee Import
+import { Syllabus } from "../pages/InstituteAdmin/Syllabus/Syllabus"; 
+
+// 🚀 EMPLOYEE MASTER IMPORTS (Must have { } because we used export const)
+import { Employee } from "../pages/InstituteAdmin/Employee/Employee"; 
+import { EmployeeDirectory } from "../pages/InstituteAdmin/Employee/EmployeeDirectory";
+import { EmployeeProfile } from "../pages/InstituteAdmin/Employee/EmployeeProfile";
 
 import { FacultyList } from "../pages/InstituteAdmin/People/FacultyList";
 import FacultyForm from "../pages/InstituteAdmin/People/FacultyForm";
@@ -48,29 +51,29 @@ import InstituteAttendance from "../pages/InstituteAdmin/Attendance/InstituteAtt
 import Certificates from "../pages/InstituteAdmin/Certificates/Certificates";
 
 // Exams
-import  {Examlist }    from "../pages/InstituteAdmin/Exams/Examlist";
-import { ExamForm }    from "../pages/InstituteAdmin/Exams/Examform";
+import { Examlist } from "../pages/InstituteAdmin/Exams/Examlist";
+import { ExamForm } from "../pages/InstituteAdmin/Exams/Examform";
 import { ExamQuestion } from "../pages/InstituteAdmin/Exams/ExamQuestion";
-import {Examresult}  from "../pages/InstituteAdmin/Exams/Examresult";
+import { Examresult } from "../pages/InstituteAdmin/Exams/Examresult";
 
 // Faculty
-import { FacultyDashboard }        from "../pages/Faculty/FacultyDashboard";
-import { FacultyProfile }          from "../pages/Faculty/Profile/FacultyProfile"; 
-import { FacultyClasses }          from "../pages/Faculty/Classes/Facultyclasses";
-import { ClassDetail }             from "../pages/Faculty/Classes/Classdetail";
-import { FacultyCourses }          from "../pages/Faculty/Courses/Facultycourses";
-import { CreateCourse }            from "../pages/Faculty/Courses/Createcourse";
-import { EditCourse }              from "../pages/Faculty/Courses/Editcourse";
-import { CourseModules }           from "../pages/Faculty/Courses/Coursemodule.jsx";
-import { CourseDetail }            from "../pages/Faculty/Courses/Coursedetail.jsx";
-import { StudentAssignment }       from "../pages/Faculty/Assignments/StudentAssignment";
-import { CreateAssignment }        from "../pages/Faculty/Assignments/CreateAssignment";
-import FacultyLeave                from "../pages/Faculty/Leaves/FacultyLeave";
-import { FacultyNotifications }    from "../pages/Faculty/Notifications/Facultynotification";
-import Attendance                  from '../pages/Faculty/Attendance.jsx';
-import { FacultyExams }            from "../pages/Faculty/FacultyExams";
-import { Help }                    from "../pages/Faculty/Help/Help";
-import FacultySalary               from "../pages/Faculty/Salary/Salary";   
+import { FacultyDashboard } from "../pages/Faculty/FacultyDashboard";
+import { FacultyProfile } from "../pages/Faculty/Profile/FacultyProfile"; 
+import { FacultyClasses } from "../pages/Faculty/Classes/Facultyclasses";
+import { ClassDetail } from "../pages/Faculty/Classes/Classdetail";
+import { FacultyCourses } from "../pages/Faculty/Courses/Facultycourses";
+import { CreateCourse } from "../pages/Faculty/Courses/Createcourse";
+import { EditCourse } from "../pages/Faculty/Courses/Editcourse";
+import { CourseModules } from "../pages/Faculty/Courses/Coursemodule.jsx";
+import { CourseDetail } from "../pages/Faculty/Courses/Coursedetail.jsx";
+import { StudentAssignment } from "../pages/Faculty/Assignments/StudentAssignment";
+import { CreateAssignment } from "../pages/Faculty/Assignments/CreateAssignment";
+import FacultyLeave from "../pages/Faculty/Leaves/FacultyLeave";
+import { FacultyNotifications } from "../pages/Faculty/Notifications/Facultynotification";
+import Attendance from '../pages/Faculty/Attendance.jsx';
+import { FacultyExams } from "../pages/Faculty/FacultyExams";
+import { Help as FacultyHelp } from "../pages/Faculty/Help/Help"; // 🚀 Aliased to prevent naming collisions
+import FacultySalary from "../pages/Faculty/Salary/Salary";   
 
 // Student
 import { StudentDashboard } from "../pages/Student/StudentDashboard";
@@ -78,21 +81,20 @@ import { StudentProfile }   from "../pages/Student/Profile/StudentProfile";
 import { MyCourses }        from "../pages/Student/Courses/MyCourses";
 import { CourseDetails }    from "../pages/Student/Courses/CourseDetails";
 import { ModuleContent }    from "../pages/Student/Courses/ModuleContent";
-import {StudentAttendance}    from "../pages/Student/Attendance/StudentAttendance";
-import {Exam}                 from "../pages/Student/Exams/Exam";
-import {Assignments}           from "../pages/Student/Assignments/Assignment";
-import {AssignmentDetails}    from "../pages/Student/Assignments/AssignmentDetails.jsx";
-import {StudentFees}          from "../pages/Student/Fees/StudentFees";
-import {Notification}         from "../pages/Student/Notification/Notifications";
-import {Calendar}             from "../pages/Student/Calendar/Calendar";
-// import {Help}          from "../pages/Student/Help/Help";
+import { StudentAttendance} from "../pages/Student/Attendance/StudentAttendance";
+import { Exam }             from "../pages/Student/Exams/Exam";
+import { Assignments }      from "../pages/Student/Assignments/Assignment";
+import { AssignmentDetails} from "../pages/Student/Assignments/AssignmentDetails.jsx";
+import { StudentFees }      from "../pages/Student/Fees/StudentFees";
+import { Notification }     from "../pages/Student/Notification/Notifications";
+import { Calendar }         from "../pages/Student/Calendar/Calendar";
+import { Help as StudentHelp } from "../pages/Student/Help/Help"; // 🚀 Aliased to prevent naming collisions
 
 // IMPORTS REAL CERTIFICATE PAGE (STUDENT)
-import {StudentCertificates}  from "../pages/Student/Certificates/StudentCertificates";
+import { StudentCertificates } from "../pages/Student/Certificates/StudentCertificates";
 
 
 // TEMPORARY PLACEHOLDER FOR FACULTY CERTIFICATE ROUTES
-// Prevents app crash until you build the actual Certificate pages for them
 const Placeholder = ({ title }) => (
   <div className="flex flex-col items-center justify-center h-full w-full bg-slate-50 text-slate-400 p-12">
     <h2 className="text-3xl font-black mb-2">{title}</h2>
@@ -143,13 +145,17 @@ export const AppRouter = () => (
       <Route path="institute/form"   element={<InstituteForm />} />
       
       <Route path="infrastructure"   element={<InfrastructurePage />} />
-      <Route path="academics"        element={<AcademicSetup />} />
       
       {/* 🚀 Academic Programs, Departments, Syllabus, and Employee Routes */}
       <Route path="programs"         element={<AcademicProgram />} />
       <Route path="departments"      element={<Department />} />
-      <Route path="employees"        element={<Employee />} /> {/* 🚀 Added Here */}
       <Route path="syllabus"         element={<Syllabus />} /> 
+      
+      {/* 🚀 EMPLOYEE MASTER ROUTES */}
+      <Route path="employees/directory"   element={<EmployeeDirectory />} />
+      <Route path="employees/register"    element={<Employee />} />
+      <Route path="employees/edit/:id"    element={<Employee />} />
+      <Route path="employees/profile/:id" element={<EmployeeProfile />} />
 
       <Route path="faculty"          element={<FacultyList />} />
       <Route path="faculty/create"   element={<FacultyForm />} />
@@ -191,9 +197,7 @@ export const AppRouter = () => (
     >
       <Route path="dashboard"            element={<FacultyDashboard />} />
       <Route path="profile"              element={<FacultyProfile />} />
-      
       <Route path="syllabus"             element={<Syllabus />} /> 
-      
       <Route path="classes"              element={<FacultyClasses />} />
       <Route path="classes/detail"       element={<ClassDetail />} />
       <Route path="courses"              element={<FacultyCourses />} />
@@ -207,10 +211,8 @@ export const AppRouter = () => (
       <Route path="notifications"        element={<FacultyNotifications />} />
       <Route path="attendance"           element={<Attendance />} />
       <Route path="exams"                element={<FacultyExams />} />
-      <Route path="help"                 element={<Help />} />
+      <Route path="help"                 element={<FacultyHelp />} />
       <Route path="salary"               element={<FacultySalary />} /> 
-      
-      {/* Certificates Placeholder */}
       <Route path="certificates"         element={<Placeholder title="Faculty Certificates" />} />
     </Route>
 
@@ -235,9 +237,7 @@ export const AppRouter = () => (
       <Route path="fees"                    element={<StudentFees />} />
       <Route path="notification"            element={<Notification />} />
       <Route path="Calendar"                element={<Calendar />} />
-      <Route path="help"                    element={<Help />} />
-
-      {/* REAL CERTIFICATES PAGE (STUDENT) */}
+      <Route path="help"                    element={<StudentHelp />} />
       <Route path="certificates"           element={<StudentCertificates />} />
     </Route>
 
