@@ -5,7 +5,7 @@ import {
   CreditCard, Check, Package, FileText
 } from "lucide-react";
 import {ASSETS_KEY, getRecords, addRecord, deleteRecord, genTxnId} from "./expensestorage";
-import apiBaseUrl from "../../../config/baseurl";
+
 
 const SelectField = ({ label, value, onChange, options, error, required, placeholder }) => (
   <div className="space-y-1.5">

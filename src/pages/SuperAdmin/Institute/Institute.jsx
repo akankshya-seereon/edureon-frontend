@@ -2,7 +2,7 @@ import { Eye, Trash2, Plus, CheckCircle, AlertCircle, Loader2 } from "lucide-rea
 import { useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { adminService } from "../../../services/adminService";
-import apiBaseUrl from "../../../config/baseurl"; 
+ 
 
 const statusStyles = {
   Active: "bg-green-100 text-green-700 border border-green-300",

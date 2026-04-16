@@ -11,7 +11,9 @@ import {
   Clock,
   UserCircle
 } from "lucide-react";
-import apiBaseUrl from "../../../config/baseurl";
+
+import apiBaseUrl from "../../config/baseurl.js";
+
 
 // --- AUTH TOKEN HELPER ---
 const getToken = () => {

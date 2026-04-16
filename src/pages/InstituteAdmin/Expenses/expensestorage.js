@@ -1,7 +1,4 @@
-// ═══════════════════════════════════════════════════════════════════════════════
-// ExpenseStorage.js  —  Central data layer for all Expense modules
-// Used by: Salary.jsx · Maintenance.jsx · Transport.jsx · Assets.jsx
-// ═══════════════════════════════════════════════════════════════════════════════
+
 
 // ─── LocalStorage Keys ────────────────────────────────────────────────────────
 export const SALARY_KEY      = "expense_salary";
