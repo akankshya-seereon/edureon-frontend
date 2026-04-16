@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import axios from 'axios';
 import {
   Trash2, Plus, Briefcase, Loader2, Search,
-  GraduationCap, Building2, ChevronDown, User, CheckCircle, X, Hash
+  GraduationCap, Building2, ChevronDown, User, CheckCircle, X, Edit, Save, XCircle
 } from 'lucide-react';
 import apiBaseUrl from "../../../config/baseurl";
 
@@ -34,100 +34,84 @@ function HodDropdown({ faculty, value, onChange }) {
   }, []);
 
   const filtered = useMemo(() => {
-    const q = search.toLowerCase();
-    // 🚀 FIX: Using firstName/lastName to match your Employee Model
-    return (Array.isArray(faculty) ? faculty : []).filter(f =>
-      `${f.firstName} ${f.lastName}`.toLowerCase().includes(q) ||
-      (f.designation || '').toLowerCase().includes(q)
-    );
+    const q = search.toLowerCase().trim();
+    return (Array.isArray(faculty) ? faculty : []).filter(f => {
+      const fName = (f.firstName || '').toLowerCase();
+      const lName = (f.lastName || '').toLowerCase();
+      const design = (f.designation || '').toLowerCase();
+      const empId = (f.employeeId || '').toLowerCase();
+      return fName.includes(q) || lName.includes(q) || design.includes(q) || empId.includes(q);
+    });
   }, [faculty, search]);
 
-  const selected = faculty.find(f => String(f.id) === String(value));
+  // 🚀 Loose equality check is CRITICAL for database IDs (String vs Number)
+  const selected = (Array.isArray(faculty) ? faculty : []).find(f => f.id == value);
   const label = selected ? `${selected.firstName} ${selected.lastName}` : null;
 
-  const handleSelect = (id) => { onChange(id); setOpen(false); setSearch(''); };
-
   return (
-    <div ref={ref} className="relative w-full">
+    <div ref={ref} className="relative w-full overflow-visible">
       <button
         type="button"
         onClick={() => setOpen(o => !o)}
-        className="form-input flex items-center justify-between gap-2 cursor-pointer hover:border-blue-400 hover:bg-white transition text-left"
+        className="form-input flex items-center justify-between gap-2 cursor-pointer hover:border-blue-400 hover:bg-white transition text-left h-[38px]"
       >
         <div className="flex items-center gap-2 min-w-0 flex-1">
           {label ? (
             <>
               <div className="w-5 h-5 rounded-full bg-blue-100 flex items-center justify-center text-[9px] font-black text-blue-600 flex-shrink-0">
-                {label.split(' ').map(n => n[0]).join('').toUpperCase()}
+                {(selected.firstName?.[0] || '')}{(selected.lastName?.[0] || '')}
               </div>
-              <span className="truncate text-gray-800 font-semibold">{label}</span>
+              <span className="truncate text-gray-800 font-bold text-xs">{label}</span>
             </>
           ) : (
             <>
               <User size={13} className="text-gray-400 flex-shrink-0" />
-              <span className="text-gray-400 font-medium">Assign HOD...</span>
+              <span className="text-gray-400 font-medium text-xs">Assign HOD...</span>
             </>
           )}
         </div>
-        <div className="flex items-center gap-1 flex-shrink-0">
-          {value && (
-            <span
-              role="button"
-              onClick={e => { e.stopPropagation(); handleSelect(''); }}
-              className="p-0.5 rounded hover:bg-red-50 text-gray-300 hover:text-red-400 transition"
-            >
-              <X size={11} />
-            </span>
-          )}
-          <ChevronDown size={13} className={`text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`} />
-        </div>
+        <ChevronDown size={14} className={`text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
 
       {open && (
-        <div className="absolute z-50 mt-1 w-64 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden">
-          <div className="px-3 py-2 border-b border-gray-100">
+        <div className="absolute z-[9999] mt-1 w-64 bg-white border border-gray-200 rounded-xl shadow-2xl overflow-hidden left-0">
+          <div className="p-2 border-b border-gray-100 bg-gray-50">
             <div className="relative">
               <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
               <input
                 autoFocus
                 type="text"
-                placeholder="Search staff…"
+                placeholder="Search staff..."
                 value={search}
                 onChange={e => setSearch(e.target.value)}
-                className="w-full pl-7 pr-3 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-xs font-medium text-gray-700 placeholder-gray-400 outline-none focus:border-blue-400 focus:bg-white transition"
+                className="w-full pl-8 pr-3 py-1.5 bg-white border border-gray-200 rounded-lg text-xs font-medium outline-none focus:border-blue-400 transition"
               />
             </div>
           </div>
-          <div className="overflow-y-auto" style={{ maxHeight: '220px' }}>
-            <button type="button" onClick={() => handleSelect('')}
+          <div className="overflow-y-auto max-h-[220px]">
+            <button type="button" onClick={() => { onChange(''); setOpen(false); }}
               className={`w-full flex items-center gap-2.5 px-3 py-2.5 text-left hover:bg-gray-50 transition text-xs border-b border-gray-50 ${!value ? 'bg-blue-50/50' : ''}`}>
-              <div className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0">
-                <User size={11} className="text-gray-400" />
+              <div className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center">
+                <X size={11} className="text-gray-400" />
               </div>
               <span className="italic text-gray-400 font-medium flex-1">No HOD Assigned</span>
-              {!value && <CheckCircle size={11} className="text-blue-500" />}
             </button>
             {filtered.length === 0 ? (
-              <div className="py-6 text-center text-xs text-gray-400">No staff found</div>
+              <div className="py-8 text-center text-xs text-gray-400 font-bold italic">No faculty found</div>
             ) : (
-              filtered.map(f => {
-                const isSelected = String(f.id) === String(value);
-                // 🚀 FIX: Using firstName/lastName
-                const initials = `${f.firstName?.[0] ?? ''}${f.lastName?.[0] ?? ''}`.toUpperCase();
-                return (
-                  <button key={f.id} type="button" onClick={() => handleSelect(f.id)}
-                    className={`w-full flex items-center gap-2.5 px-3 py-2.5 text-left hover:bg-gray-50 transition border-b border-gray-50 ${isSelected ? 'bg-blue-50/50' : ''}`}>
-                    <div className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0 text-[9px] font-black text-blue-600">
-                      {initials}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-bold text-gray-800 truncate">{f.firstName} {f.lastName}</p>
-                      {f.designation && <p className="text-[10px] text-gray-400 truncate">{f.designation}</p>}
-                    </div>
-                    {isSelected && <CheckCircle size={11} className="text-blue-500 flex-shrink-0" />}
-                  </button>
-                );
-              })
+              filtered.map(f => (
+                <button key={f.id} type="button" onClick={() => { onChange(f.id); setOpen(false); setSearch(''); }}
+                  className={`w-full flex items-center gap-2.5 px-3 py-2.5 text-left hover:bg-blue-50 transition border-b border-gray-50 ${value == f.id ? 'bg-blue-50/50' : ''}`}>
+                  <div className="w-7 h-7 rounded-full bg-blue-100 flex items-center justify-center text-[9px] font-black text-blue-600 flex-shrink-0">
+                    {(f.firstName?.[0] || '')}{(f.lastName?.[0] || '')}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-bold text-gray-900 truncate">{f.firstName} {f.lastName}</p>
+                    <p className="text-[10px] text-gray-400 truncate">{f.designation || 'Academic Staff'}</p>
+                  </div>
+                  {value == f.id && <CheckCircle size={11} className="text-blue-500" />}
+                </button>
+              ))
             )}
           </div>
         </div>
@@ -137,7 +121,7 @@ function HodDropdown({ faculty, value, onChange }) {
 }
 
 // ─── MAIN COMPONENT ───────────────────────────────────────────────────────────
-export default function Department() {
+export const Department = () => {
   const [departments, setDepartments] = useState([]);
   const [faculty, setFaculty] = useState([]);
   const [activeTab, setActiveTab] = useState('Academic');
@@ -145,7 +129,9 @@ export default function Department() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [listSearch, setListSearch] = useState('');
 
-  // 🚀 FIX: Added department_code to state
+  const [editingId, setEditingId] = useState(null);
+  const [editFormData, setEditFormData] = useState({});
+
   const [formData, setFormData] = useState({
     name: '', department_code: '', hodId: '', leadRole: '', category: '',
     type: 'Academic', description: '', roomNumber: '',
@@ -179,7 +165,6 @@ export default function Department() {
       const res = await api.post('/admin/departments', formData);
       if (res.data.success) {
         await fetchInitialData();
-        // Reset form but keep the active tab type
         setFormData({ 
           name: '', department_code: '', hodId: '', leadRole: '', 
           category: '', type: activeTab, description: '', roomNumber: '' 
@@ -187,6 +172,34 @@ export default function Department() {
       }
     } catch (err) {
       alert(err.response?.data?.message || 'Failed to save department.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleEditClick = (dept) => {
+    setEditingId(dept.id);
+    setEditFormData({
+      name: dept.name,
+      department_code: dept.department_code || '',
+      hodId: dept.hodId || '',
+      category: dept.category || '',
+      roomNumber: dept.roomNumber || '',
+      type: dept.type
+    });
+  };
+
+  const handleUpdateDepartment = async (id) => {
+    try {
+      setIsSubmitting(true);
+      const res = await api.put(`/admin/departments/${id}`, editFormData);
+      if (res.data.success) {
+        await fetchInitialData();
+        setEditingId(null);
+        alert("Department updated successfully!");
+      }
+    } catch (err) {
+      alert(err.response?.data?.message || 'Failed to update department.');
     } finally {
       setIsSubmitting(false);
     }
@@ -205,7 +218,7 @@ export default function Department() {
   const filteredDepartments = useMemo(() => {
     return (Array.isArray(departments) ? departments : []).filter(d =>
       d.type === activeTab &&
-      d.name.toLowerCase().includes(listSearch.toLowerCase())
+      (d.name || '').toLowerCase().includes(listSearch.toLowerCase())
     );
   }, [departments, activeTab, listSearch]);
 
@@ -219,23 +232,23 @@ export default function Department() {
   const handleTabChange = (t) => {
     setActiveTab(t);
     setFormData(f => ({ ...f, type: t, hodId: '', category: '', name: '', department_code: '' }));
+    setEditingId(null);
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 p-4 md:p-8 font-sans text-left">
+    <div className="min-h-screen bg-slate-50 p-4 md:p-8 font-sans text-left overflow-visible">
       <style>{`
         .form-input { width: 100%; padding: .575rem .875rem; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: .5rem; font-size: .8125rem; font-weight: 600; color: #1e293b; outline: none; transition: border-color .15s, background .15s; }
         .form-input:focus { border-color: #3b82f6; background: #fff; }
         .form-input::placeholder { color: #94a3b8; font-weight: 500; }
       `}</style>
 
-      <div className="max-w-7xl mx-auto">
-        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+      <div className="max-w-7xl mx-auto overflow-visible">
+        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-visible">
 
-          {/* ── Header ── */}
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center px-6 py-4 border-b border-gray-100 gap-4">
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-lg bg-slate-800 flex items-center justify-center">
+              <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center">
                 <Building2 size={16} className="text-white" />
               </div>
               <div>
@@ -253,7 +266,7 @@ export default function Department() {
             </div>
           </div>
 
-          <div className="p-6">
+          <div className="p-6 overflow-visible">
             <div className="flex items-center justify-between mb-4 gap-3">
               <h3 className="text-sm font-bold text-gray-700 uppercase tracking-tight">{activeTab} List</h3>
               <div className="relative w-56">
@@ -270,50 +283,82 @@ export default function Department() {
               </div>
             ) : (
               <div className="rounded-xl border border-gray-200 overflow-visible bg-white">
-                {/* Table Header */}
                 <div className="grid grid-cols-12 gap-4 px-5 py-3 bg-gray-50 border-b border-gray-200 rounded-t-xl">
                   <div className="col-span-4 text-[10px] font-black text-gray-400 uppercase">Department Name & Code</div>
                   <div className="col-span-3 text-[10px] font-black text-gray-400 uppercase">Head of Department</div>
                   <div className="col-span-2 text-[10px] font-black text-gray-400 uppercase">Category</div>
                   <div className="col-span-2 text-[10px] font-black text-gray-400 uppercase">Room</div>
-                  <div className="col-span-1" />
+                  <div className="col-span-1 text-right text-[10px] font-black text-gray-400 uppercase">Actions</div>
                 </div>
 
-                {/* Table Body */}
-                <div className="divide-y divide-gray-100">
+                <div className="divide-y divide-gray-100 overflow-visible">
                   {filteredDepartments.map(dept => (
-                    <div key={dept.id} className="grid grid-cols-12 gap-4 px-5 py-4 items-center hover:bg-slate-50/50 transition-colors group">
-                      <div className="col-span-4">
-                        <p className="text-sm font-bold text-slate-800">{dept.name}</p>
-                        <p className="text-[10px] font-bold text-blue-500 uppercase">{dept.department_code || 'No Code'}</p>
-                      </div>
-                      <div className="col-span-3">
-                        {dept.hod_name ? (
-                          <div className="flex items-center gap-2">
-                            <div className="w-6 h-6 rounded-full bg-blue-600 flex items-center justify-center text-[9px] font-black text-white">
-                              {dept.hod_name.split(' ').map(n => n[0]).join('')}
-                            </div>
-                            <span className="text-xs text-slate-700 font-bold">{dept.hod_name}</span>
+                    <div key={dept.id} className="overflow-visible">
+                      {editingId === dept.id ? (
+                        <div className="grid grid-cols-1 md:grid-cols-12 gap-3 px-5 py-4 items-center bg-blue-50/30 overflow-visible">
+                          <div className="md:col-span-4 flex gap-2">
+                            <input type="text" value={editFormData.name} onChange={e => setEditFormData({...editFormData, name: e.target.value})} className="form-input" placeholder="Name" />
+                            <input type="text" value={editFormData.department_code} onChange={e => setEditFormData({...editFormData, department_code: e.target.value})} className="form-input w-24" placeholder="Code" />
                           </div>
-                        ) : <span className="text-gray-300 text-xs italic">Unassigned</span>}
-                      </div>
-                      <div className="col-span-2">
-                        <span className="px-2 py-0.5 bg-slate-100 text-slate-600 text-[10px] font-black rounded uppercase tracking-wider">{dept.category}</span>
-                      </div>
-                      <div className="col-span-2 text-xs font-bold text-slate-500">{dept.roomNumber || '—'}</div>
-                      <div className="col-span-1 text-right">
-                        <button onClick={() => handleDelete(dept.id)} className="p-2 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all opacity-0 group-hover:opacity-100">
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
+                          <div className="md:col-span-3 overflow-visible">
+                            <HodDropdown faculty={eligibleFaculty} value={editFormData.hodId} onChange={v => setEditFormData({...editFormData, hodId: v})} />
+                          </div>
+                          <div className="md:col-span-2">
+                            <select value={editFormData.category} onChange={e => setEditFormData({...editFormData, category: e.target.value})} className="form-input">
+                              <option value="">Select...</option>
+                              {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                            </select>
+                          </div>
+                          <div className="md:col-span-2">
+                            <input type="text" value={editFormData.roomNumber} onChange={e => setEditFormData({...editFormData, roomNumber: e.target.value})} className="form-input" placeholder="Room" />
+                          </div>
+                          <div className="md:col-span-1 flex items-center justify-end gap-1">
+                            <button onClick={() => handleUpdateDepartment(dept.id)} className="p-1.5 text-green-600 hover:bg-green-100 rounded transition" title="Save">
+                              {isSubmitting ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                            </button>
+                            <button onClick={() => setEditingId(null)} className="p-1.5 text-gray-400 hover:bg-gray-200 rounded transition" title="Cancel">
+                              <XCircle size={16} />
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-12 gap-4 px-5 py-4 items-center hover:bg-slate-50/50 transition-colors group">
+                          <div className="col-span-4">
+                            <p className="text-sm font-bold text-slate-800">{dept.name}</p>
+                            <p className="text-[10px] font-bold text-blue-500 uppercase">{dept.department_code || 'No Code'}</p>
+                          </div>
+                          <div className="col-span-3">
+                            {dept.hod_name ? (
+                              <div className="flex items-center gap-2">
+                                <div className="w-6 h-6 rounded-full bg-blue-600 flex items-center justify-center text-[9px] font-black text-white">
+                                  {dept.hod_name.charAt(0)}
+                                </div>
+                                <span className="text-xs text-slate-700 font-bold">{dept.hod_name}</span>
+                              </div>
+                            ) : <span className="text-gray-300 text-xs italic font-medium">Unassigned</span>}
+                          </div>
+                          <div className="col-span-2">
+                            <span className="px-2 py-0.5 bg-slate-100 text-slate-600 text-[10px] font-black rounded uppercase tracking-wider">{dept.category}</span>
+                          </div>
+                          <div className="col-span-2 text-xs font-bold text-slate-500">{dept.roomNumber || '—'}</div>
+                          <div className="col-span-1 flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button onClick={() => handleEditClick(dept)} className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all">
+                              <Edit size={14} />
+                            </button>
+                            <button onClick={() => handleDelete(dept.id)} className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all">
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   ))}
                   {filteredDepartments.length === 0 && <div className="p-12 text-center text-gray-400 text-xs font-bold italic">No departments found in this category.</div>}
                 </div>
 
-                {/* ── Inline Add Form ── */}
+                {/* Inline Add Form */}
                 <div className="p-5 bg-slate-50 border-t border-gray-200 rounded-b-xl overflow-visible">
-                  <form onSubmit={handleAddDepartment} className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
+                  <form onSubmit={handleAddDepartment} className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end overflow-visible">
                     <div className="md:col-span-3">
                       <label className="block text-[10px] font-black text-slate-400 mb-1 uppercase">Dept Name</label>
                       <input type="text" placeholder="e.g. Computer Science" value={formData.name}
@@ -326,7 +371,7 @@ export default function Department() {
                         onChange={e => setFormData(f => ({ ...f, department_code: e.target.value }))}
                         className="form-input" />
                     </div>
-                    <div className="md:col-span-2">
+                    <div className="md:col-span-2 overflow-visible">
                       <label className="block text-[10px] font-black text-slate-400 mb-1 uppercase">Assign HOD</label>
                       <HodDropdown faculty={eligibleFaculty} value={formData.hodId}
                         onChange={v => setFormData(f => ({ ...f, hodId: v }))} />
@@ -361,4 +406,4 @@ export default function Department() {
       </div>
     </div>
   );
-}
+};

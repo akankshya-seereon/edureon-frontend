@@ -23,7 +23,7 @@ import InstituteForm from "../pages/InstituteAdmin/Institute/InstituteForm";
 
 // 🚀 Academic Programs, Departments, Syllabus, and Employee Master
 import AcademicProgram from "../pages/InstituteAdmin/AcademicPrograms/AcademicProgram";
-import Department from "../pages/InstituteAdmin/Departments/Department";
+import {Department} from "../pages/InstituteAdmin/Departments/Department";
 import { Syllabus } from "../pages/InstituteAdmin/Syllabus/Syllabus"; 
 
 // 🚀 EMPLOYEE MASTER IMPORTS (Must have { } because we used export const)
