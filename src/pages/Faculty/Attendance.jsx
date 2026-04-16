@@ -6,11 +6,12 @@ import {
   CheckCircle, XCircle, Briefcase, ChevronLeft, ChevronRight,
   Loader2, Users, ShieldCheck, RefreshCw, Unlock
 } from "lucide-react";
+import apiBaseUrl from "../../config/baseurl"; // Base URL for API calls
 
 // --- CONFIGURATION ---
 const SHIFT_START = { h: 9, m: 30 };
 const SHIFT_END   = { h: 18, m: 30 };
-const API_BASE = "http://localhost:5000/api";
+
 
 // --- HELPERS ---
 const toMin = (h, m) => h * 60 + m;
@@ -74,11 +75,11 @@ export default function FacultyAttendance() {
       };
 
       const [profRes, historyRes, todayRes, pendingRes, assignRes] = await Promise.allSettled([
-        axios.get(`${API_BASE}/faculty/profile`, config),
-        axios.get(`${API_BASE}/faculty/attendance/history`, config),
-        axios.get(`${API_BASE}/faculty/attendance/today`, config),
-        axios.get(`${API_BASE}/faculty/attendance/pending`, config),
-        axios.get(`${API_BASE}/faculty/attendance/assignments`, config) 
+        axios.get(`${apiBaseUrl}/faculty/profile`, config),
+        axios.get(`${apiBaseUrl}/faculty/attendance/history`, config),
+        axios.get(`${apiBaseUrl}/faculty/attendance/today`, config),
+        axios.get(`${apiBaseUrl}/faculty/attendance/pending`, config),
+        axios.get(`${apiBaseUrl}/faculty/attendance/assignments`, config) 
       ]);
 
       if (profRes.status === 'fulfilled' && profRes.value.data?.success) setProfile(profRes.value.data.data);
@@ -107,7 +108,7 @@ export default function FacultyAttendance() {
   // ⚡ HANDLERS
   const handlePunch = async (type) => {
     try {
-      const res = await axios.post(`${API_BASE}/faculty/attendance/punch`, { type }, { withCredentials: true });
+      const res = await axios.post(`${apiBaseUrl}/faculty/attendance/punch`, { type }, { withCredentials: true });
       if (res.data.success) fetchData();
     } catch (err) { alert(err.response?.data?.message || "Punch failed"); }
   };
@@ -116,7 +117,7 @@ export default function FacultyAttendance() {
     setVerifyLoading(recordId);
     try {
       const token = localStorage.getItem("token");
-      await axios.post(`${API_BASE}/faculty/attendance/verify`, 
+      await axios.post(`${apiBaseUrl}/faculty/attendance/verify`, 
         { recordId, action }, 
         { withCredentials: true, headers: { Authorization: `Bearer ${token}` } }
       );
@@ -134,7 +135,7 @@ export default function FacultyAttendance() {
     setLoading(true);
     try {
       const token = localStorage.getItem("token");
-      const res = await axios.post(`${API_BASE}/faculty/attendance/session/approve`, 
+      const res = await axios.post(`${apiBaseUrl}/faculty/attendance/session/approve`, 
         sessionForm, 
         { withCredentials: true, headers: { Authorization: `Bearer ${token}` } }
       );

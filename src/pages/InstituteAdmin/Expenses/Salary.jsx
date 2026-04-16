@@ -1,10 +1,9 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { toast } from "react-hot-toast";
-import {
-  CreditCard, CheckCircle, Loader, Plus, Trash2, Eye, X,
-  Banknote, TrendingUp, Users, Hash, Search, RefreshCw, Printer, FileText
+import {CreditCard, CheckCircle, Loader, Plus, Trash2, Eye, X,Banknote, TrendingUp, Users, Hash, Search, RefreshCw, Printer, FileText
 } from "lucide-react";
+import apiBaseUrl from "../../../config/baseurl";
 
 const MONTHS = [
   "January", "February", "March", "April", "May", "June", 
@@ -146,14 +145,14 @@ export const Salary = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      // Fetch Faculty
-      const facRes = await axios.get("http://localhost:5000/api/admin/faculty", config);
+      // Fetch Facultyhttp://localhost:5000/api
+      const facRes = await axios.get(`${apiBaseUrl}/admin/faculty`, config);
       // Filter strictly for 'Active' faculty based on your DB schema
       const activeFac = (facRes.data.faculty || []).filter(f => !f.status || f.status.toLowerCase() === "active");
       setFaculty(activeFac);
 
       // Fetch Salary Records
-      const salRes = await axios.get("http://localhost:5000/api/admin/salary", config);
+      const salRes = await axios.get(`${apiBaseUrl}/admin/salary`, config);
       setRecords(salRes.data.records || []);
     } catch (err) {
       console.error("Fetch error", err);
@@ -194,7 +193,7 @@ export const Salary = () => {
     };
 
     try {
-      await axios.post("http://localhost:5000/api/admin/salary", payload, config);
+      await axios.post(`${apiBaseUrl}/admin/salary`, payload, config);
       toast.success("Salary Disbursed Successfully!");
       setForm({ facultyId: "", month: "", amount: "", method: "Online Payment", onlineProvider: "GPay", txnNumber: "", note: "" });
       fetchData(); // Refresh the table
@@ -208,7 +207,7 @@ export const Salary = () => {
   const handleDelete = async (id) => {
     if (!window.confirm("Are you sure you want to delete this salary record?")) return;
     try {
-      await axios.delete(`http://localhost:5000/api/admin/salary/${id}`, config);
+      await axios.delete(`${apiBaseUrl}/admin/salary/${id}`, config);
       setRecords(records.filter(r => r.id !== id));
       toast.success("Record Deleted");
     } catch (err) {

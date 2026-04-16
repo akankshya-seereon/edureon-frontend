@@ -7,6 +7,8 @@ import {
   Bell, Search, GraduationCap, CalendarDays, MessageSquare,
   UserCheck, Megaphone, Inbox, Trash2, Receipt
 } from "lucide-react";
+import apiBaseUrl from "../../../config/baseurl";
+
 
 // ─── Token Helper ─────────────────────────────────────────────────────────────
 const getToken = () => {
@@ -109,7 +111,7 @@ const FeeStructureForm = ({ onSaved }) => {
 
     try {
       // UPDATED URL: Changed to /fees/create
-      await axios.post("http://localhost:5000/api/admin/fees/create", payload, getAuthHeaders());
+      await axios.post(`${apiBaseUrl}/admin/fees/create`, payload, getAuthHeaders());
       setSaved(true);
       setForm(defaultFS); 
       setErrors({});
@@ -259,8 +261,8 @@ const StudentFeeNotification = ({ structures, onSent }) => {
     try {
       // UPDATED URLs: Changed to /students and /fees/notifications
       const [stRes, notifRes] = await Promise.all([
-        axios.get("http://localhost:5000/api/admin/students", getAuthHeaders()),
-        axios.get("http://localhost:5000/api/admin/fees/notifications", getAuthHeaders()).catch(() => ({ data: { notifications: [] } }))
+        axios.get(`${apiBaseUrl}/admin/students`, getAuthHeaders()),
+        axios.get(`${apiBaseUrl}/admin/fees/notifications`, getAuthHeaders()).catch(() => ({ data: { notifications: [] } }))
       ]);
       
       setStudents(stRes.data.students || []);
@@ -303,7 +305,7 @@ const StudentFeeNotification = ({ structures, onSent }) => {
 
     try {
       // UPDATED URL: Changed to /fees/notify
-      await axios.post("http://localhost:5000/api/admin/fees/notify", payload, getAuthHeaders());
+      await axios.post(`${apiBaseUrl}/admin/fees/notify`, payload, getAuthHeaders());
       setSent(true);
       setSelectedStudents([]); setSelectedFee(""); setMessage(""); setDueDate("");
       onSent?.();
@@ -504,8 +506,8 @@ export const FeeStructure = () => {
   const fetchStructures = async () => {
     try {
       const [fsRes, stRes] = await Promise.all([
-        axios.get("http://localhost:5000/api/admin/fees/all", getAuthHeaders()),
-        axios.get("http://localhost:5000/api/admin/students", getAuthHeaders())
+        axios.get(`${apiBaseUrl}/admin/fees/all`, getAuthHeaders()),
+        axios.get(`${apiBaseUrl}/admin/students`, getAuthHeaders())
       ]);
       setStructures(fsRes.data.structures || []);
       setStudentsCount(stRes.data.students?.length || 0);
@@ -519,7 +521,7 @@ export const FeeStructure = () => {
   const deleteFS = async (id) => {
     if(!window.confirm("Delete this structure?")) return;
     try {
-      await axios.delete(`http://localhost:5000/api/admin/fees/delete/${id}`, getAuthHeaders());
+      await axios.delete(`${apiBaseUrl}/admin/fees/delete/${id}`, getAuthHeaders());
       toast.success("Deleted!");
       fetchStructures();
     } catch(err) { toast.error("Delete failed"); }
@@ -528,7 +530,7 @@ export const FeeStructure = () => {
   const publishFS = async (id) => {
     try {
       // In the new system, update status to Published
-      await axios.put(`http://localhost:5000/api/admin/fees/update/${id}`, { status: "Published" }, getAuthHeaders());
+      await axios.put(`${apiBaseUrl}/admin/fees/update/${id}`, { status: "Published" }, getAuthHeaders());
       toast.success("Published!");
       fetchStructures();
     } catch(err) { toast.error("Publish failed"); }

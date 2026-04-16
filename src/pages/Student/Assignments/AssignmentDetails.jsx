@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { Upload, ArrowLeft, Clock, FileCheck, CheckCircle, CalendarDays, Award } from 'lucide-react';
+import apiBaseUrl from "../../../config/baseurl";
 
 const MOCK_DETAILS = {
   1: {
@@ -41,6 +42,7 @@ const StatusIcon = ({ status, className = "w-4 h-4" }) => {
   if (status === 'evaluated') return <CheckCircle className={className} />;
   return null;
 };
+
 
 export const AssignmentDetails = () => {
   const navigate  = useNavigate();

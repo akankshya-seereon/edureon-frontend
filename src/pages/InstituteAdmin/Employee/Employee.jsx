@@ -4,10 +4,11 @@ import {
   Loader2, Briefcase, GraduationCap, UserPlus, 
   Eye, EyeOff, Upload, FileText, X, CheckCircle, AlertCircle, Image, File
 } from 'lucide-react';
+import apiBaseUrl from "../../../config/baseurl"; // Base URL for API calls
 
 // ─── AXIOS CONFIGURATION ──────────────────────────────────────────────────────
 const api = axios.create({
-  baseURL: 'http://localhost:5000/api',
+  baseURL: apiBaseUrl,
   headers: { 'Content-Type': 'application/json' },
 });
 api.interceptors.request.use((config) => {

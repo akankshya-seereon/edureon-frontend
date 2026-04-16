@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 import { ClipboardList, Calendar, CheckCircle2, Clock, ChevronRight, Loader } from "lucide-react";
+import apiBaseUrl from "../../../config/baseurl";
 
 // 🎯 NEW HELPER: Safely gets the token without sending "undefined" causing 401 errors
 const getAuthConfig = () => {
@@ -29,7 +30,7 @@ export const Assignments = () => {
     const fetchAssignments = async () => {
       try {
         // 🎯 Using the safe auth config here to prevent 401 errors!
-        const res = await axios.get("http://localhost:5000/api/student/assignments/my-assignments", getAuthConfig());
+        const res = await axios.get(`${apiBaseUrl}/student/assignments/my-assignments`, getAuthConfig());
         
         // Checking for either res.data.data or res.data.assignments based on your controller
         if (res.data.success) {

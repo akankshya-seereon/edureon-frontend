@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { AlertCircle, Plus, MessageSquare, Check, Clock, X } from 'lucide-react';
+import apiBaseUrl from "../../../config/baseurl";
 
 export const Help = () => {
   const [activeTab, setActiveTab] = useState('help'); // 'help' or 'myTickets'

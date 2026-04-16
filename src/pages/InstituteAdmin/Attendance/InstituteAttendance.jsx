@@ -7,6 +7,8 @@ import {
   Loader2
 } from "lucide-react";
 
+import apiBaseUrl from "../../../config/baseurl";
+
 // --- CONFIG & UTILS ---
 const SHIFT_START = { h: 9, m: 30 };
 const SHIFT_END   = { h: 18, m: 30 };
@@ -89,12 +91,12 @@ export default function InstituteAttendance() {
         console.log("🟢 Fetching faculty and attendance...");
         
         // 1. Fetch Faculty List
-        const facRes = await axios.get(`http://localhost:5000/api/admin/faculty`, config);
+        const facRes = await axios.get(`${apiBaseUrl}/admin/faculty`, config);
         const currentFaculty = facRes.data.faculty || [];
         setFacultyList(currentFaculty);
 
         // 2. Fetch Attendance Records
-        const attRes = await axios.get(`http://localhost:5000/api/admin/attendance?date=${date}`, config);
+        const attRes = await axios.get(`${apiBaseUrl}/admin/attendance?date=${date}`, config);
 
         if (attRes.data.success) {
           setAdminRecord(attRes.data.adminRecord || initAdminRecord());
@@ -228,7 +230,7 @@ export default function InstituteAttendance() {
       const token = localStorage.getItem("token");
       const config = { headers: { Authorization: `Bearer ${token}` } }; 
       
-      const response = await axios.post('http://localhost:5000/api/admin/attendance', {
+      const response = await axios.post(`${apiBaseUrl}/admin/attendance`, {
         date,
         adminRecord,
         records

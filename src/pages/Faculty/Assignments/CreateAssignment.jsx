@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, Save, Upload, Loader2 } from "lucide-react";
 import axios from "axios";
+import apiBaseUrl from "../../../config/baseurl";
 
 export const CreateAssignment = () => {
   const navigate = useNavigate();
@@ -30,7 +31,7 @@ export const CreateAssignment = () => {
     const fetchCourses = async () => {
       try {
         // 🎯 FIXED: Removed local storage token, added withCredentials
-        const res = await axios.get("http://localhost:5000/api/faculty/courses", {
+        const res = await axios.get(`${apiBaseUrl}/faculty/courses`, {
           withCredentials: true 
         });
         setCourses(res.data.data || []);
@@ -50,7 +51,7 @@ export const CreateAssignment = () => {
     const fetchModules = async () => {
       try {
         // 🎯 FIXED: Removed local storage token, added withCredentials
-        const res = await axios.get(`http://localhost:5000/api/faculty/courses/${form.course}/modules`, {
+        const res = await axios.get(`${apiBaseUrl}/faculty/courses/${form.course}/modules`, {
           withCredentials: true 
         });
         
@@ -131,7 +132,7 @@ export const CreateAssignment = () => {
       }
 
       // 🎯 FIXED: Removed Authorization header, kept multipart/form-data, added withCredentials
-      const response = await axios.post("http://localhost:5000/api/faculty/assignments", formData, {
+      const response = await axios.post(`${apiBaseUrl}/faculty/assignments`, formData, {
         headers: {
           "Content-Type": "multipart/form-data",
         },

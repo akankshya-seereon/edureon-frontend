@@ -7,8 +7,9 @@ import {
   Calendar, Hash, UserCheck, ShieldCheck, X,
   AlertTriangle, TrendingUp, Clock
 } from "lucide-react";
-// 👈 Removed the local storage functions (getBatches, saveBatches)
+
 import { DEPARTMENTS, COLOR_MAP } from "./BatchStorage.jsx";
+import apiBaseUrl from "../../../config/baseurl";
 
 // Theme constants
 const B6 = "#2563eb";
@@ -236,7 +237,7 @@ export const BatchList = () => {
         token = storedUser?.token || storedUser?.data?.token; 
       }
       
-      const response = await axios.get("http://localhost:5000/api/admin/batches", {
+      const response = await axios.get(`${apiBaseUrl}/admin/batches`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       
@@ -263,7 +264,7 @@ export const BatchList = () => {
         token = storedUser?.token || storedUser?.data?.token; 
       }
 
-      await axios.delete(`http://localhost:5000/api/admin/batches/${id}`, {
+      await axios.delete(`${apiBaseUrl}/admin/batches/${id}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
 

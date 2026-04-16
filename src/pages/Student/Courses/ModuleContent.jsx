@@ -7,6 +7,7 @@ import {
   CheckCircle2,
   X
 } from "lucide-react";
+import apiBaseUrl from "../../../config/baseurl";
 
 export const ModuleContent = () => {
   const [contentItems, setContentItems] = useState([]);

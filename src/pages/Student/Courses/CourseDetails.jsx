@@ -9,6 +9,7 @@ import {
   ArrowRight,
   Loader2
 } from "lucide-react";
+import apiBaseUrl from "../../../config/baseurl";
 
 export const CourseDetails = () => {
   const [activeTab, setActiveTab] = useState("overview");
@@ -23,7 +24,7 @@ export const CourseDetails = () => {
         
         if (!storedCourse?.id) return;
 
-        const res = await axios.get(`http://localhost:5000/api/student/courses/${storedCourse.id}/details`, {
+        const res = await axios.get(`${apiBaseUrl}/student/courses/${storedCourse.id}/details`, {
           headers: { Authorization: `Bearer ${token}` }
         });
 

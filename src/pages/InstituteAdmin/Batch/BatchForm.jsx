@@ -8,9 +8,8 @@ import {
   ShieldCheck, UserCheck, AlertCircle, Loader, CheckCircle,
   Layers, Hash, Calendar
 } from "lucide-react";
-import {
-  DEPARTMENTS, COURSES_BY_DEPT, ACADEMIC_YEARS
-} from "./BatchStorage.jsx";
+import {DEPARTMENTS, COURSES_BY_DEPT, ACADEMIC_YEARS} from "./BatchStorage.jsx";
+import apiBaseUrl from "../../../config/baseurl";
 
 // ─── Token Helper (Prevents 403 Errors) ───────────────────────────────────────
 const getToken = () => {
@@ -162,7 +161,7 @@ const StepCourse = ({ form, setForm, errors }) => {
     const fetchCourses = async () => {
       setLoading(true);
       try {
-        const response = await axios.get("http://localhost:5000/api/admin/courses", {
+        const response = await axios.get(`${apiBaseUrl}/admin/courses`, {
           headers: { Authorization: `Bearer ${getToken()}` }
         });
 
@@ -256,7 +255,7 @@ const StepAssignPerson = ({ form, setForm, field, title, subtitle, icon: Icon })
   useEffect(() => {
     const fetchFaculty = async () => {
       try {
-        const response = await axios.get("http://localhost:5000/api/admin/faculty", {
+        const response = await axios.get(`${apiBaseUrl}/admin/faculty`, {
           headers: { Authorization: `Bearer ${getToken()}` }
         });
         if (response.data.success) setFaculty(response.data.faculty || []);
@@ -326,7 +325,7 @@ const StepStudents = ({ form, setForm }) => {
   useEffect(() => {
     const fetchStudents = async () => {
       try {
-        const response = await axios.get("http://localhost:5000/api/admin/students", {
+        const response = await axios.get(`${apiBaseUrl}/admin/students`, {
           headers: { Authorization: `Bearer ${getToken()}` }
         });
         if (response.data.success) setAllStudents(response.data.students || []);
@@ -419,7 +418,7 @@ const BatchForm = () => {
     if (editId) {
       const fetchBatchDetails = async () => {
         try {
-          const res = await axios.get(`http://localhost:5000/api/admin/batches/${editId}`, {
+          const res = await axios.get(`${apiBaseUrl}/admin/batches/${editId}`, {
             headers: { Authorization: `Bearer ${getToken()}` }
           });
           
@@ -484,7 +483,7 @@ const BatchForm = () => {
         studentIds: form.students.map(s => s.id)
       };
 
-      const res = await axios.post("http://localhost:5000/api/admin/batches", payload, {
+      const res = await axios.post(`${apiBaseUrl}/admin/batches`, payload, {
         headers: { Authorization: `Bearer ${getToken()}` }
       });
 

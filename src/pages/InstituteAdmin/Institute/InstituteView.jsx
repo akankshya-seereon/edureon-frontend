@@ -5,6 +5,7 @@ import {
   CreditCard, BookOpen, ScrollText, BadgeCheck, Calendar,
   ChevronRight
 } from "lucide-react";
+import apiBaseUrl from "../../../config/baseurl";
 
 const fmt = (text = "") =>
   text?.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase()) || "";

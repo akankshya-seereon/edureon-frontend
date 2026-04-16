@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Award, Download, Eye, Loader2, FileOutput } from 'lucide-react';
+import apiBaseUrl from "../../../config/baseurl";
 
 export const StudentCertificates = () => {
   const [documents, setDocuments] = useState([]);
@@ -10,7 +11,7 @@ export const StudentCertificates = () => {
     const fetchMyDocuments = async () => {
       try {
         let token = localStorage.getItem('token') || JSON.parse(localStorage.getItem('user') || '{}')?.token;
-        const res = await axios.get('http://localhost:5000/api/student/certificates', {
+        const res = await axios.get(`${apiBaseUrl}/student/certificates`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         

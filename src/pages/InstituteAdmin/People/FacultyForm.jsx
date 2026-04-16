@@ -7,6 +7,7 @@ import {
   Landmark, Briefcase, ChevronRight, ChevronLeft, Check,
   Trash2, File, ImageIcon, Shield, ArrowLeft
 } from "lucide-react";
+import apiBaseUrl from "../../../config/baseurl";
 
 // Safe File check — handles bundler/SSR contexts where File may not be the real constructor
 const isFile = (val) => {

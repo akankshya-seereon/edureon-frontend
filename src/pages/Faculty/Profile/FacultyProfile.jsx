@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { User, Mail, Phone, GraduationCap, BookOpen, Award, Loader2, Landmark } from "lucide-react";
 import axios from "axios";
+import apiBaseUrl from "../../../config/baseurl"; // Base URL for API calls
 
 export const FacultyProfile = () => {
   const [faculty, setFaculty] = useState(null);
@@ -31,8 +32,8 @@ export const FacultyProfile = () => {
     const fetchProfileData = async () => {
       try {
         setLoading(true);
-        // 1. Fetch Profile Info
-        const profileResponse = await axios.get("http://localhost:5000/api/faculty/profile/me", {
+        // 1. Fetch Profile Infohttp://localhost:5000/api
+        const profileResponse = await axios.get(`${apiBaseUrl}/faculty/profile/me`, {
           withCredentials: true 
         });
 
@@ -56,7 +57,7 @@ export const FacultyProfile = () => {
 
         // 2. Fetch Classes count
         try {
-          const classesResponse = await axios.get("http://localhost:5000/api/faculty/classes/my-classes", {
+          const classesResponse = await axios.get(`${apiBaseUrl}/faculty/classes/my-classes`, {
             withCredentials: true 
           });
           if (classesResponse.data.success) {
@@ -98,7 +99,7 @@ export const FacultyProfile = () => {
       };
 
       const response = await axios.put(
-        "http://localhost:5000/api/faculty/profile/update",
+        `${apiBaseUrl}/faculty/profile/update`,
         updatePayload,
         { withCredentials: true }
       );
@@ -121,7 +122,7 @@ export const FacultyProfile = () => {
     }
     try {
       const response = await axios.put(
-        "http://localhost:5000/api/faculty/profile/change-password",
+        `${apiBaseUrl}/faculty/profile/change-password`,
         { current: passwordForm.current, newPass: passwordForm.newPass },
         { withCredentials: true }
       );

@@ -6,6 +6,7 @@ import {
   XCircle, Clock, GraduationCap, ClipboardList, BarChart2,
   FileText, AlertCircle, Eye, Loader2
 } from "lucide-react";
+import apiBaseUrl from "../../../config/baseurl";
 
 const STATUS = { PRESENT: "present", ABSENT: "absent", LATE: "late" };
 
@@ -175,8 +176,8 @@ export const ClassDetail = () => {
       try {
         const headers = { Authorization: `Bearer ${token}` };
         const [stuRes, assignRes] = await Promise.all([
-          axios.get(`http://localhost:5000/api/faculty/classes/${cls.id}/students`, { headers }),
-          axios.get(`http://localhost:5000/api/faculty/classes/${cls.id}/assignments`, { headers })
+          axios.get(`${apiBaseUrl}/faculty/classes/${cls.id}/students`, { headers }),
+          axios.get(`${apiBaseUrl}/faculty/classes/${cls.id}/assignments`, { headers })
         ]);
         if (stuRes.data.success) {
           setStudents(stuRes.data.data);
@@ -194,7 +195,7 @@ export const ClassDetail = () => {
 
   const handleSaveAttendance = async () => {
     try {
-      const res = await axios.post(`http://localhost:5000/api/faculty/classes/${cls.id}/attendance`, 
+      const res = await axios.post(`${apiBaseUrl}/faculty/classes/${cls.id}/attendance`, 
         { date, attendanceData: attendance }, { headers: { Authorization: `Bearer ${token}` } }
       );
       if (res.data.success) { setSaved(true); setTimeout(() => setSaved(false), 3000); }
@@ -203,7 +204,7 @@ export const ClassDetail = () => {
 
   const handleAddAssignment = async (newAssign) => {
     try {
-        const res = await axios.post(`http://localhost:5000/api/faculty/classes/${cls.id}/assignments`, 
+        const res = await axios.post(`${apiBaseUrl}/faculty/classes/${cls.id}/assignments`, 
             newAssign, { headers: { Authorization: `Bearer ${token}` } }
         );
         if(res.data.success) {

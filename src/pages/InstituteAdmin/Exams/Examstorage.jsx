@@ -7,7 +7,7 @@ export const EXAM_QUESTION_KEY = "exam_questions";
 // window.storage is only available inside Claude artifact sandbox.
 // Falls back to localStorage when running in a normal browser (e.g. Vite dev).
 const storage = (typeof window !== "undefined" && window.storage)
-  ? window.storage
+  ? window.Storage
   : {
       get: async (key) => {
         const value = localStorage.getItem(key);

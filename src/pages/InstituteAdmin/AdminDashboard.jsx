@@ -10,6 +10,8 @@ import {
 } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
+import apiBaseUrl from '../../config/baseurl.js';
+
 // --- Auth Helper ---
 const getAuthHeaders = () => {
   let token = localStorage.getItem('token');
@@ -74,7 +76,7 @@ const AdminDashboard = () => {
   useEffect(() => {
     const loadDashboardData = async () => {
       try {
-        const res = await axios.get("http://localhost:5000/api/admin/dashboard/summary", getAuthHeaders());
+        const res = await axios.get(`${apiBaseUrl}/admin/dashboard/summary`, getAuthHeaders());
         if (res.data.success) {
           setStats(res.data.stats);
           setChartData(res.data.chartData);

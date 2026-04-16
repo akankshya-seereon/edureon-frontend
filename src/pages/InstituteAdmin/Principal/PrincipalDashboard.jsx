@@ -1,6 +1,7 @@
 import React from 'react';
 import { BarChart, Bar, XAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { Check, X, Plus } from 'lucide-react';
+import apiBaseUrl from "../../../config/baseurl";
 
 // --- MOCK DATA ---
 const attendanceData = [

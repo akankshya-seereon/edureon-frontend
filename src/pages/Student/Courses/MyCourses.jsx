@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import axios from "axios";
 import { BookOpen, ChevronRight, Loader2 } from "lucide-react";
+import apiBaseUrl from "../../../config/baseurl";
 
 export const MyCourses = () => {
   const [courses, setCourses] = useState([]);
@@ -11,7 +12,7 @@ export const MyCourses = () => {
     const fetchCourses = async () => {
       try {
         const token = localStorage.getItem('token');
-        const res = await axios.get("http://localhost:5000/api/student/courses/enrolled", {
+        const res = await axios.get(`${apiBaseUrl}/student/courses/enrolled`, {
           headers: { Authorization: `Bearer ${token}` }
         });
 

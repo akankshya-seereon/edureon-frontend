@@ -9,6 +9,7 @@ import {
   Clock, RotateCcw, ArrowLeft, AlertCircle, Lock,
   FileText, ImageIcon, ChevronDown, ChevronUp, Award
 } from "lucide-react";
+import apiBaseUrl from "../../../config/baseurl";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const STATUS = {
@@ -272,7 +273,7 @@ const EditModal = ({ faculty, onClose, onSave }) => {
           token = storedUser?.token || storedUser?.data?.token; 
         }
         
-        await axios.put(`http://localhost:5000/api/admin/faculty/${faculty.id}`, updatedData, {
+        await axios.put(`${apiBaseUrl}/admin/faculty/${faculty.id}`, updatedData, {
             headers: { Authorization: `Bearer ${token}` }
         });
 
@@ -442,7 +443,7 @@ const DeleteModal = ({ faculty: f, onClose, onConfirm }) => {
           token = storedUser?.token || storedUser?.data?.token; 
         }
         
-        await axios.delete(`http://localhost:5000/api/admin/faculty/${f.id}`, {
+        await axios.delete(`${apiBaseUrl}/admin/faculty/${f.id}`, {
             headers: { Authorization: `Bearer ${token}` }
         });
         
@@ -542,7 +543,7 @@ export const FacultyList = () => {
           return;
         }
 
-        const response = await axios.get("http://localhost:5000/api/admin/faculty", {
+        const response = await axios.get(`${apiBaseUrl}/admin/faculty`, {
             headers: { Authorization: `Bearer ${token}` }
         });
 

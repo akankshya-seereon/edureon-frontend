@@ -10,6 +10,7 @@ import {
   MessageSquareX,
   User
 } from "lucide-react";
+import apiBaseUrl from "../../../config/baseurl";
 
 // --- AUTH TOKEN HELPER ---
 const getToken = () => {
@@ -46,7 +47,7 @@ export const Notifications = () => {
       const token = getToken();
       if (!token) return;
 
-      const response = await axios.get("http://localhost:5000/api/admin/notifications", {
+      const response = await axios.get(`${apiBaseUrl}/admin/notifications`, {
         headers: { Authorization: `Bearer ${token}` }
       });
 
@@ -116,7 +117,7 @@ export const Notifications = () => {
         status: scheduleDate || scheduleTime ? "pending" : "delivered",
       };
 
-      await axios.post("http://localhost:5000/api/admin/notifications", payload, {
+      await axios.post(`${apiBaseUrl}/admin/notifications`, payload, {
         headers: { Authorization: `Bearer ${token}` }
       });
 

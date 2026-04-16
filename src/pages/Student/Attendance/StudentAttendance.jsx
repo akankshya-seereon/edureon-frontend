@@ -7,6 +7,7 @@ import {
   CheckCircle, XCircle, ShieldCheck, BookOpen,
   Lock, Unlock, ClipboardList, ChevronDown, Loader2
 } from 'lucide-react';
+import apiBaseUrl from "../../../config/baseurl";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const SHIFT_START = { h: 9, m: 30 };
@@ -37,7 +38,7 @@ const formatDate = (d) => {
 
 const getTodayDate = () => new Date().toISOString().split('T')[0];
 
-const API_BASE = "http://localhost:5000/api/attendance";
+const API_BASE = `${apiBaseUrl}/attendance`;
 const getHeaders = () => ({ headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
 
 // ─── Shared Punch Card ──────────────────────────────────────────────
@@ -50,7 +51,7 @@ function PunchCard() {
   useEffect(() => {
     const fetchStatus = async () => {
       try {
-        const res = await axios.get(`${API_BASE}/punch-status`, getHeaders());
+        const res = await axios.get(`${apiBaseUrl}/punch-status`, getHeaders());
         if (res.data.punchIn) setPunchIn(res.data.punchIn);
         if (res.data.punchOut) setPunchOut(res.data.punchOut);
       } catch (err) { console.error("Punch status fetch failed"); }
@@ -142,7 +143,7 @@ export function FacultyAttendance({ user, onSwitch }) {
     if (activeTab === 'history') {
       const fetchHistory = async () => {
         try {
-          const res = await axios.get(`${API_BASE}/sessions/history`, getHeaders());
+          const res = await axios.get(`${apiBaseUrl}/sessions/history`, getHeaders());
           if (res.data.data) setApprovedSessions(res.data.data);
         } catch (err) { console.error(err); }
       };
@@ -155,7 +156,7 @@ export function FacultyAttendance({ user, onSwitch }) {
     if (activeTab === 'verify') {
       const fetchPending = async () => {
         try {
-          const res = await axios.get(`${API_BASE}/pending`, getHeaders());
+          const res = await axios.get(`${apiBaseUrl}/pending`, getHeaders());
           if (res.data.data) setPendingStudents(res.data.data);
         } catch (err) { console.error(err); }
       };
@@ -167,7 +168,7 @@ export function FacultyAttendance({ user, onSwitch }) {
   const handleApprove = async () => {
     setLoading(true);
     try {
-      const res = await axios.post(`${API_BASE}/session/approve`, {
+      const res = await axios.post(`${apiBaseUrl}/session/approve`, {
         subjectId: form.department,
         classId: form.classAssigned,
         periodId: form.period,
@@ -186,7 +187,7 @@ export function FacultyAttendance({ user, onSwitch }) {
   const handleVerify = async (recordId, action) => {
     setVerifyLoading(recordId);
     try {
-      await axios.post(`${API_BASE}/verify`, { recordId, action }, getHeaders());
+      await axios.post(`${apiBaseUrl}/verify`, { recordId, action }, getHeaders());
       // Remove the student from the waiting list instantly
       setPendingStudents(prev => prev.filter(p => p.record_id !== recordId));
     } catch (err) {

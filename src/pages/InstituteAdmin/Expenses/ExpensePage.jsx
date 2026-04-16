@@ -4,6 +4,7 @@ import { Salary }      from "./Salary";
 import { Maintenance } from "./Maintainance";
 import { Transport }   from "./Transport";
 import { Assets }      from "./Assets";
+import apiBaseUrl from "../../../config/baseurl";
 
 const TABS = [
   { key: "salary",      label: "Salary",      icon: Banknote },

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ChevronLeft, Plus, Trash2, Upload } from "lucide-react";
 import { adminService } from "../../../services/adminService"; // Assuming you need this from the previous fix
+import apiBaseUrl from "../../../config/baseurl";
 
 const STEPS = [
   { id: 0, title: "Organisation", subtitle: "Basic Details" },

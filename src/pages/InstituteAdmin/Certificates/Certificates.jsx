@@ -4,6 +4,7 @@ import {
   FileText, CheckCircle, Download, Trash2, Search, 
   Loader2, FileOutput, Users, Send
 } from 'lucide-react';
+import apiBaseUrl from "../../../config/baseurl"; // Base URL for API calls
 
 export default function Certificates() {
   const [activeTab, setActiveTab] = useState('generate'); // 'generate' or 'publish'
@@ -38,8 +39,8 @@ export default function Certificates() {
         const headers = getHeaders();
         // Fetch Courses & Batches simultaneously
         const [courseRes, batchRes] = await Promise.all([
-          axios.get('http://localhost:5000/api/admin/courses', { headers }).catch(() => ({ data: { courses: [] } })),
-          axios.get('http://localhost:5000/api/admin/batches', { headers }).catch(() => ({ data: { batches: [] } }))
+          axios.get(`${apiBaseUrl}/admin/courses`, { headers }).catch(() => ({ data: { courses: [] } })),
+          axios.get(`${apiBaseUrl}/admin/batches`, { headers }).catch(() => ({ data: { batches: [] } }))
         ]);
 
         setCourses(courseRes.data.courses || courseRes.data.data || []);
@@ -65,7 +66,7 @@ export default function Certificates() {
     try {
       // 🚀 FETCH REAL STUDENTS matching the selected filters
       // Added year to the query parameters
-      let queryUrl = `http://localhost:5000/api/admin/students?courseId=${filters.courseId}`;
+      let queryUrl = `${apiBaseUrl}/admin/students?courseId=${filters.courseId}`;
       if (filters.batch) queryUrl += `&batch=${filters.batch}`;
       if (filters.year) queryUrl += `&year=${filters.year}`;
 
@@ -107,7 +108,7 @@ export default function Certificates() {
         ]
       };
 
-      await axios.post('http://localhost:5000/api/admin/certificates/generate', payload, { headers: getHeaders() });
+      await axios.post(`${apiBaseUrl}/admin/certificates/generate`, payload, { headers: getHeaders() });
       alert(`✅ Draft Marksheet generated for ${student.name}`);
       
       // Remove from 'needs generation' list
@@ -125,7 +126,7 @@ export default function Certificates() {
   const fetchDraftDocuments = async () => {
     setLoading(true);
     try {
-      const res = await axios.get('http://localhost:5000/api/admin/certificates?status=Draft', { headers: getHeaders() });
+      const res = await axios.get(`${apiBaseUrl}/admin/certificates?status=Draft`, { headers: getHeaders() });
       setDocuments(res.data.data || []);
     } catch (err) {
       console.error(err);
@@ -149,7 +150,7 @@ export default function Certificates() {
     if (selectedDocs.length === 0) return;
     setProcessing(true);
     try {
-      await axios.put('http://localhost:5000/api/admin/certificates/publish', { documentIds: selectedDocs }, { headers: getHeaders() });
+      await axios.put(`${apiBaseUrl}/admin/certificates/publish`, { documentIds: selectedDocs }, { headers: getHeaders() });
       alert(`✅ Successfully published ${selectedDocs.length} documents!`);
       fetchDraftDocuments();
       setSelectedDocs([]);
@@ -163,7 +164,7 @@ export default function Certificates() {
   const handleDeleteDraft = async (id) => {
     if (!window.confirm("Are you sure you want to delete this draft?")) return;
     try {
-      await axios.delete(`http://localhost:5000/api/admin/certificates/${id}`, { headers: getHeaders() });
+      await axios.delete(`${apiBaseUrl}/admin/certificates/${id}`, { headers: getHeaders() });
       setDocuments(prev => prev.filter(d => d.id !== id));
     } catch (err) {
       alert("Failed to delete draft.");

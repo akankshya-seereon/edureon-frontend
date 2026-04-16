@@ -1,5 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { Home, ArrowLeft } from "lucide-react";
+import apiBaseUrl from "../../../config/baseurl";
 
 export const NotFoundPage = () => {
   const navigate = useNavigate();

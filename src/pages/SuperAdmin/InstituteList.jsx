@@ -8,6 +8,7 @@ import {
   Download,
   MoreVertical 
 } from "lucide-react";
+import apiBaseUrl from "../../../config/baseurl";
 
 export const InstituteList = () => {
   const navigate = useNavigate();

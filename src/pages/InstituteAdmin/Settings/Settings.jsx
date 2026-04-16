@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { User, Lock, Building, Save, Loader2, CheckCircle2, AlertCircle } from "lucide-react";
 import axios from "axios";
+import apiBaseUrl from "../../../config/baseurl";
 
 export const Settings = () => {
   const [activeTab, setActiveTab] = useState("profile");
@@ -21,7 +22,7 @@ export const Settings = () => {
   useEffect(() => {
     const fetchProfile = async () => {
       try {
-        const response = await axios.get("http://localhost:5000/api/admin/settings/profile", {
+        const response = await axios.get(`${apiBaseUrl}/admin/settings/profile`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         if (response.data.success) {
@@ -52,7 +53,7 @@ export const Settings = () => {
   const handleSaveProfile = async () => {
     setSaving(true);
     try {
-      const response = await axios.put("http://localhost:5000/api/admin/settings/profile", profile, {
+      const response = await axios.put(`${apiBaseUrl}/admin/settings/profile`, profile, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (response.data.success) {
@@ -76,7 +77,7 @@ export const Settings = () => {
 
     setSaving(true);
     try {
-      const response = await axios.put("http://localhost:5000/api/admin/settings/password", {
+      const response = await axios.put(`${apiBaseUrl}/admin/settings/password`, {
         currentPassword: passwords.currentPassword,
         newPassword: passwords.newPassword
       }, {

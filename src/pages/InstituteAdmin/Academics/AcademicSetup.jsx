@@ -8,6 +8,8 @@ import {
   Download, UploadCloud, FileOutput
 } from "lucide-react";
 
+import apiBaseUrl from "../../../config/baseurl";
+
 export default function AcademicSetup() {
   const [currentStep, setCurrentStep] = useState(1);
   const [loading, setLoading] = useState(true);
@@ -36,9 +38,9 @@ export default function AcademicSetup() {
       const headers = { Authorization: `Bearer ${token}` };
 
       const [deptRes, courseRes, sylRes] = await Promise.all([
-        axios.get("http://localhost:5000/api/admin/departments", { headers }).catch(() => ({ data: { departments: [] } })),
-        axios.get("http://localhost:5000/api/admin/courses", { headers }).catch(() => ({ data: { courses: [] } })),
-        axios.get("http://localhost:5000/api/admin/syllabi", { headers }).catch(() => ({ data: { syllabi: [] } }))
+        axios.get(`${apiBaseUrl}/admin/departments`, { headers }).catch(() => ({ data: { departments: [] } })),
+        axios.get(`${apiBaseUrl}/admin/courses`, { headers }).catch(() => ({ data: { courses: [] } })),
+        axios.get(`${apiBaseUrl}/admin/syllabi`, { headers }).catch(() => ({ data: { syllabi: [] } }))
       ]);
 
       setDepartments(deptRes.data.departments || []);
@@ -75,13 +77,13 @@ export default function AcademicSetup() {
 
       // 1. Save Course (Step 1)
       if (setupData.course && setupData.course.name) {
-        const res = await axios.post("http://localhost:5000/api/admin/courses", setupData.course, { headers });
+        const res = await axios.post(`${apiBaseUrl}/admin/courses`, setupData.course, { headers });
         finalCourseId = res.data.courseId || res.data.id;
       }
 
       // 2. Save Department (Step 2)
       if (setupData.department && setupData.department.name) {
-        await axios.post("http://localhost:5000/api/admin/departments", setupData.department, { headers });
+        await axios.post(`${apiBaseUrl}/admin/departments`, setupData.department, { headers });
       }
 
       // 3. Save Syllabus (Step 3)
@@ -91,7 +93,7 @@ export default function AcademicSetup() {
           courseId: setupData.syllabus.courseId === "pending-new" ? finalCourseId : setupData.syllabus.courseId,
           attachedFile: setupData.syllabus.attachedFileName || null
         };
-        await axios.post("http://localhost:5000/api/admin/syllabi", syllabusPayload, { headers });
+        await axios.post(`${apiBaseUrl}/admin/syllabi`, syllabusPayload, { headers });
       }
 
       alert("✅ Academic Structure Added Successfully!");
@@ -119,7 +121,7 @@ export default function AcademicSetup() {
         if (type === 'dept') endpoint = `/departments/${id}`;
         if (type === 'syllabus') endpoint = `/syllabi/${id}`;
 
-        await axios.delete(`http://localhost:5000/api/admin${endpoint}`, { headers });
+        await axios.delete(`${apiBaseUrl}/admin${endpoint}`, { headers });
         fetchData(); 
       } catch (err) {
         console.error("Delete Error:", err);

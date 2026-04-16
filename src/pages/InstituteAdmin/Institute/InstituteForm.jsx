@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ChevronLeft, Plus, Trash2, Upload } from "lucide-react";
-
+import apiBaseUrl from "../../../config/baseurl";
 const STEPS = [
   { id: 0, title: "Organisation", subtitle: "Basic Details" },
   { id: 1, title: "Partners/Directors", subtitle: "Director Details" },

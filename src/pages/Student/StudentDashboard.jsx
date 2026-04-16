@@ -11,6 +11,7 @@ import {
   Clock,
   UserCircle
 } from "lucide-react";
+import apiBaseUrl from "../../../config/baseurl";
 
 // --- AUTH TOKEN HELPER ---
 const getToken = () => {
@@ -49,7 +50,7 @@ export const StudentDashboard = () => {
         if (!token) return;
 
         // Fetch data from your real backend API
-        const response = await axios.get("http://localhost:5000/api/student/dashboard", {
+        const response = await axios.get(`${apiBaseUrl}/student/dashboard`, {
           headers: { Authorization: `Bearer ${token}` }
         });
 

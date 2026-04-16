@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Plus, Loader2, AlertCircle } from "lucide-react";
 import axios from "axios";
-
+import apiBaseUrl from "../../../config/baseurl";// Base URL for API calls
 export const StudentAssignment = () => {
   const navigate = useNavigate();
   const [assignments, setAssignments] = useState([]);
@@ -13,7 +13,7 @@ export const StudentAssignment = () => {
     const fetchAssignments = async () => {
       try {
         // 🎯 FIXED: Removed local storage token, added withCredentials: true
-        const res = await axios.get("http://localhost:5000/api/faculty/assignments", {
+        const res = await axios.get(`${apiBaseUrl}/faculty/assignments`, {
           withCredentials: true 
         });
         

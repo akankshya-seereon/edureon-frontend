@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Bell, CheckCircle, X, Mail } from 'lucide-react';
+import apiBaseUrl from "../../../config/baseurl";
 
 export const Notification = () => {
   const [notifications, setNotifications] = useState([]);

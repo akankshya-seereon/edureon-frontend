@@ -8,6 +8,7 @@ import {
 
 // 🌟 IMPORT API TO CONNECT TO BACKEND
 import api from "../../../services/api"; 
+import apiBaseUrl from "../../../config/baseurl";
 
 export const StudentList = () => {
   const [activeTab, setActiveTab] = useState("all");

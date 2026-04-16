@@ -1,5 +1,5 @@
 import { Bell, Mail, AlertCircle, BookOpen } from 'lucide-react';
-
+import apiBaseUrl from "../../../config/baseurl";
 export function NotificationTabsDefault({ activeFilter, onFilterChange }) {
   const filters = [
     { id: 'all', label: 'All', icon: Bell, color: 'blue' },

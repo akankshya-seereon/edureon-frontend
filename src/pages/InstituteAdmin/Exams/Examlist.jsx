@@ -7,6 +7,7 @@ import {
   BATCH_OPTIONS,
   YEAR_OPTIONS,
 } from "./Examstorage.jsx"; // Note: We removed getExamStatus from here
+import apiBaseUrl from "../../../config/baseurl";
 
 // ─── 🚀 NEW: Bulletproof Date Logic ───────────────────────────────────────────
 const calculateStatus = (dateStr, timeStr, durationMinutes) => {
@@ -88,7 +89,7 @@ export const Examlist = () => {
       }
       if (!token || token === "undefined") return;
 
-      const response = await axios.get("http://localhost:5000/api/admin/exams", {
+      const response = await axios.get(`${apiBaseUrl}/admin/exams`, {
         headers: { Authorization: `Bearer ${token}` }
       });
 
@@ -120,7 +121,7 @@ export const Examlist = () => {
         token = storedUser?.token || storedUser?.data?.token; 
       }
 
-      await axios.delete(`http://localhost:5000/api/admin/exams/${deleteId}`, {
+      await axios.delete(`${apiBaseUrl}/admin/exams/${deleteId}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
 

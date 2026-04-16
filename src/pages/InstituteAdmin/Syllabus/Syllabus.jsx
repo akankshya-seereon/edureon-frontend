@@ -3,6 +3,7 @@ import {
   ChevronDown, Plus, Minus, Copy, BookOpen, 
   Settings, X, FileText, User, Link as LinkIcon, CheckCircle
 } from 'lucide-react';
+import apiBaseUrl from "../../../config/baseurl";
 
 // --- MOCK DATA ---
 const MOCK_FACULTY = ['Dr. Anjali Sharma', 'Prof. Rajesh Kumar', 'Dr. Priya Singh', 'Prof. Sunil Varma'];

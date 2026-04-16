@@ -9,6 +9,7 @@ import {
   UserPlus, Book, Clock, MapPin, ChevronDown
 } from "lucide-react";
 import { DEPARTMENTS } from "./BatchStorage.jsx";
+import apiBaseUrl from "../../../config/baseurl";
 
 // ─── Theme ────────────────────────────────────────────────────────────────────
 const B6    = "#2563eb";
@@ -64,8 +65,8 @@ const AssignFacultyModal = ({ batch, onClose, showToast }) => {
       try {
         const token = localStorage.getItem('token') || JSON.parse(localStorage.getItem('user') || '{}')?.token;
         const [subRes, facRes] = await Promise.all([
-          axios.get("http://localhost:5000/api/admin/subjects", { headers: { Authorization: `Bearer ${token}` } }),
-          axios.get("http://localhost:5000/api/admin/faculty", { headers: { Authorization: `Bearer ${token}` } })
+          axios.get(`${apiBaseUrl}/admin/subjects`, { headers: { Authorization: `Bearer ${token}` } }),
+          axios.get(`${apiBaseUrl}/admin/faculty`, { headers: { Authorization: `Bearer ${token}` } })
         ]);
         setSubjects(subRes.data.subjects || []);
         setFaculties(facRes.data.faculty || facRes.data.data || []);
@@ -83,7 +84,7 @@ const AssignFacultyModal = ({ batch, onClose, showToast }) => {
     setSubmitting(true);
     try {
       const token = localStorage.getItem('token') || JSON.parse(localStorage.getItem('user') || '{}')?.token;
-      const res = await axios.post("http://localhost:5000/api/admin/batches/assign-faculty", {
+      const res = await axios.post(`${apiBaseUrl}/admin/batches/assign-faculty`, {
         batchId: batch.id,
         ...formData
       }, { headers: { Authorization: `Bearer ${token}` } });
@@ -455,7 +456,7 @@ const BatchBrowser = () => {
     try {
       const token = localStorage.getItem('token') || JSON.parse(localStorage.getItem('user') || '{}')?.token;
       
-      const response = await axios.get("http://localhost:5000/api/admin/batches", {
+      const response = await axios.get(`${apiBaseUrl}/admin/batches`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       
@@ -526,7 +527,7 @@ const BatchBrowser = () => {
     try {
       const token = localStorage.getItem('token') || JSON.parse(localStorage.getItem('user') || '{}')?.token;
       
-      await axios.delete(`http://localhost:5000/api/admin/batches/${id}`, {
+      await axios.delete(`${apiBaseUrl}/admin/batches/${id}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
 

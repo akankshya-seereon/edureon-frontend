@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import axios from "axios";
-
+import apiBaseUrl from "../../../config/baseurl";
 // ─── Grade Calculator ─────────────────────────────────────────────────────────
 const getGrade = (marks, total) => {
   const pct = (marks / total) * 100;
@@ -37,7 +37,7 @@ export const Examresult = () => {
           const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
           token = storedUser?.token || storedUser?.data?.token; 
         }
-        const response = await axios.get("http://localhost:5000/api/admin/exams", {
+        const response = await axios.get(`${apiBaseUrl}/admin/exams`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         if (response.data.success) {
@@ -66,7 +66,7 @@ export const Examresult = () => {
           token = storedUser?.token || storedUser?.data?.token; 
         }
         
-        const response = await axios.get(`http://localhost:5000/api/admin/exams/${selectedExam}/students`, {
+        const response = await axios.get(`${apiBaseUrl}/admin/exams/${selectedExam}/students`, {
           headers: { Authorization: `Bearer ${token}` }
         });
 
@@ -168,7 +168,7 @@ export const Examresult = () => {
           token = storedUser?.token || storedUser?.data?.token; 
         }
 
-        await axios.post(`http://localhost:5000/api/admin/exams/results`, {
+        await axios.post(`${apiBaseUrl}/admin/exams/results`, {
             examId: selectedExam,
             results: resultsPayload
         }, { 

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Calendar, Award, BookOpen, TrendingUp, CheckCircle, Loader } from 'lucide-react';
+import apiBaseUrl from "../../../config/baseurl";
 
 // 🎯 NEW HELPER: Safely gets the token without sending "undefined"
 const getAuthConfig = () => {
@@ -49,8 +50,8 @@ export const Exam = () => {
         // 🚀 High-speed parallel fetching!
         // We use .catch on individual requests so if one fails, it doesn't break the whole page
         const [upcomingRes, resultsRes] = await Promise.all([
-          axios.get("http://localhost:5000/api/student/exams/upcoming", config).catch(() => ({ data: { exams: [] } })),
-          axios.get("http://localhost:5000/api/student/exams/results", config).catch(() => ({ data: { results: [] } }))
+          axios.get(`${apiBaseUrl}/student/exams/upcoming`, config).catch(() => ({ data: { exams: [] } })),
+          axios.get(`${apiBaseUrl}/student/exams/results`, config).catch(() => ({ data: { results: [] } }))
         ]);
 
         const upcoming = upcomingRes.data.exams || upcomingRes.data.data || [];

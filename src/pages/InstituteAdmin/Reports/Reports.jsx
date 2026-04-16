@@ -7,6 +7,7 @@ import {
 import jsPDF from "jspdf";
 import 'jspdf-autotable';
 import * as XLSX from "xlsx";
+import apiBaseUrl from "../../../config/baseurl";
 
 const STORAGE_KEY = "reportsFilters";
 
@@ -107,7 +108,7 @@ export const Reports = () => {
         department: filters.selectedReport === 1 ? filters.attDept : filters.feesDept
       });
 
-      const response = await axios.get(`http://localhost:5000/api/admin/reports/generate?${params.toString()}`, {
+      const response = await axios.get(`${apiBaseUrl}/admin/reports/generate?${params.toString()}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
 

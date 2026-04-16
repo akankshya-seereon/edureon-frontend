@@ -4,10 +4,11 @@ import {
   Trash2, Plus, Briefcase, Loader2, Search,
   GraduationCap, Building2, ChevronDown, User, CheckCircle, X, Hash
 } from 'lucide-react';
+import apiBaseUrl from "../../../config/baseurl";
 
 // ─── AXIOS CONFIG ─────────────────────────────────────────────────────────────
 const api = axios.create({
-  baseURL: 'http://localhost:5000/api',
+  baseURL: apiBaseUrl,
   headers: { 'Content-Type': 'application/json' },
 });
 

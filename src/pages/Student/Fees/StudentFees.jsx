@@ -6,6 +6,7 @@ import {
   TrendingUp, Receipt, Banknote, Search, SlidersHorizontal, Loader
 } from 'lucide-react';
 import { toast } from 'react-hot-toast'; // Assuming you are using hot-toast like in the exams component
+import apiBaseUrl from "../../../config/baseurl";
 
 // 🎯 HELPER: Secure Auth Config
 const getAuthConfig = () => {
@@ -167,7 +168,7 @@ export const StudentFees = () => {
   // 1. Fetch Fees dynamically from MySQL
   const loadFees = async () => {
     try {
-      const res = await axios.get("http://localhost:5000/api/student/fees", getAuthConfig());
+      const res = await axios.get(`${apiBaseUrl}/student/fees`, getAuthConfig());
       if (res.data.success) {
         const mappedFees = res.data.fees.map(f => ({
           id: f.id,
@@ -214,7 +215,7 @@ export const StudentFees = () => {
   const handleConfirmPayment = async (mode, amountToPay) => {
     setProcessing(true);
     try {
-      const res = await axios.post("http://localhost:5000/api/student/fees/pay", {
+      const res = await axios.post(`${apiBaseUrl}/student/fees/pay`, {
         feeId: payingFee.id,
         amountToPay: amountToPay,
         paymentMode: mode

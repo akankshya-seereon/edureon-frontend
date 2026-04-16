@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { Eye, FileText, BookOpen, Plus, Loader2 } from "lucide-react";
+import apiBaseUrl from "../../../config/baseurl"; // Base URL for API calls
 
 export const FacultyCourses = () => {
   const [courses, setCourses] = useState([]);
@@ -13,7 +14,7 @@ export const FacultyCourses = () => {
     const fetchCourses = async () => {
       try {
         // 🎯 FIXED: Removed local storage token and added withCredentials: true
-        const response = await axios.get("http://localhost:5000/api/faculty/courses", {
+        const response = await axios.get(`${apiBaseUrl}/faculty/courses`, {
           withCredentials: true 
         });
         

@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
 import { FileText, CalendarDays, UserCheck, Bell, CheckCircle2, Loader } from "lucide-react";
-
+import apiBaseUrl from "../../../config/baseurl"; // Base URL for API calls
+ 
 // Helper to determine the icon based on the notification title or type
 const getTypeIcon = (title = "") => {
   const t = title.toLowerCase();
@@ -48,7 +49,7 @@ export const FacultyNotifications = () => {
     const fetchNotifications = async () => {
       try {
         // 🎯 Using the safe auth config here!
-        const res = await axios.get("http://localhost:5000/api/faculty/notifications", getAuthConfig());
+        const res = await axios.get(`${apiBaseUrl}/faculty/notifications`, getAuthConfig());
 
         if (res.data.success) {
           // Normalize the data (mapping DB columns to standard UI props)
@@ -77,7 +78,7 @@ export const FacultyNotifications = () => {
 
     try {
       // 🎯 Using the safe auth config here!
-      await axios.put(`http://localhost:5000/api/faculty/notifications/${id}/read`, {}, getAuthConfig());
+      await axios.put(`${apiBaseUrl}/faculty/notifications/${id}/read`, {}, getAuthConfig());
     } catch (error) {
       console.error("Failed to mark as read in DB", error);
     }
@@ -87,7 +88,7 @@ export const FacultyNotifications = () => {
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
     try {
       // 🎯 Using the safe auth config here!
-      await axios.put(`http://localhost:5000/api/faculty/notifications/read-all`, {}, getAuthConfig());
+      await axios.put(`${apiBaseUrl}/faculty/notifications/read-all`, {}, getAuthConfig());
     } catch (error) {
       console.error("Failed to mark all as read", error);
     }

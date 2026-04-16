@@ -2,6 +2,7 @@ import axios from "axios";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, Plus, Trash2 } from "lucide-react";
+import apiBaseUrl from "../../../config/baseurl";
 
 const initialModule = () => ({ title: "", description: "" });
 
@@ -58,7 +59,7 @@ export const CreateCourse = () => {
     try {
       // 🎯 FIXED: Removed localStorage token check and replaced headers with withCredentials: true
       const response = await axios.post(
-        "http://localhost:5000/api/faculty/courses", 
+        `${apiBaseUrl}/faculty/courses`, 
         {
           courseTitle: form.courseTitle,
           className: form.class,        // Mapping 'class' to 'className' for backend

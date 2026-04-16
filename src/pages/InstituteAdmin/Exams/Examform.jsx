@@ -11,6 +11,7 @@ import {
   EXAM_TYPE_OPTIONS,
   DURATION_OPTIONS,
 } from "./Examstorage.jsx";
+import apiBaseUrl from "../../../config/baseurl";
 
 // 🎯 HELPER: Safely grabs the token from local storage and formats the headers
 const getAuthConfig = () => {
@@ -283,9 +284,9 @@ export const ExamForm = () => {
         const config = getAuthConfig(); 
 
         const [facRes, courseRes, batchRes] = await Promise.all([
-          axios.get("http://localhost:5000/api/admin/faculty", config).catch(() => ({ data: { success: false } })),
-          axios.get("http://localhost:5000/api/admin/courses", config).catch(() => ({ data: { success: false } })),
-          axios.get("http://localhost:5000/api/admin/batches", config).catch(() => ({ data: { success: false } }))
+          axios.get(`${apiBaseUrl}/admin/faculty`, config).catch(() => ({ data: { success: false } })),
+          axios.get(`${apiBaseUrl}/admin/courses`, config).catch(() => ({ data: { success: false } })),
+          axios.get(`${apiBaseUrl}/admin/batches`, config).catch(() => ({ data: { success: false } }))
         ]);
 
         if (facRes.data?.success || facRes.data?.data) {
@@ -474,8 +475,8 @@ export const ExamForm = () => {
       config.headers["Content-Type"] = "multipart/form-data";
 
       const res = isEdit 
-        ? await axios.put(`http://localhost:5000/api/admin/exams/${editExam.id}`, formData, config)
-        : await axios.post("http://localhost:5000/api/admin/exams", formData, config);
+        ? await axios.put(`${apiBaseUrl}/admin/exams/${editExam.id}`, formData, config)
+        : await axios.post(`${apiBaseUrl}/admin/exams`, formData, config);
 
       if (res.data.success) {
         toast.success(isEdit ? "Exam Updated Successfully!" : "Exam Scheduled Successfully!");
@@ -694,4 +695,4 @@ export const ExamForm = () => {
   );
 };
 
-// export default ExamForm;
+// export default ExamForm; 

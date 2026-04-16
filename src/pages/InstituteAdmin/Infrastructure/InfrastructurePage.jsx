@@ -4,6 +4,7 @@ import {
   LayoutDashboard, GraduationCap, Users, Palette, Edit2, Loader2, Package, X
 } from 'lucide-react';
 import { infrastructureService } from '../../../services/infrastructureService';
+import apiBaseUrl from "../../../config/baseurl";
 
 const InfrastructurePage = () => {
   // --- DATA STATES ---

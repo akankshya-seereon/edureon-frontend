@@ -5,6 +5,7 @@ import {
   ClipboardList, UserPlus, Trash2, CalendarPlus, ArrowLeft,
   Plus, Grip, ChevronDown, Users, User, Loader2
 } from "lucide-react";
+import apiBaseUrl from "../../config/baseurl"; // Base URL for API calls
 
 // ── Shared Helpers ────────────────────────────────────────────────────────────
 const getGrade = (total) => {
@@ -110,9 +111,9 @@ export const ScheduleExam = ({ onBack }) => {
         const headers = { Authorization: `Bearer ${token}` };
 
         const [cRes, bRes, fRes] = await Promise.all([
-          axios.get("http://localhost:5000/api/faculty/courses", { headers }).catch(() => ({ data: { data: [] } })),
-          axios.get("http://localhost:5000/api/admin/batches", { headers }).catch(() => ({ data: { data: [] } })),
-          axios.get("http://localhost:5000/api/admin/faculty", { headers }).catch(() => ({ data: { faculty: [] } }))
+          axios.get(`${apiBaseUrl}/faculty/courses`, { headers }).catch(() => ({ data: { data: [] } })),
+          axios.get(`${apiBaseUrl}/admin/batches`, { headers }).catch(() => ({ data: { data: [] } })),
+          axios.get(`${apiBaseUrl}/admin/faculty`, { headers }).catch(() => ({ data: { faculty: [] } }))
         ]);
         
         setCourses(cRes.data?.data || []);
@@ -174,7 +175,7 @@ export const ScheduleExam = ({ onBack }) => {
         return;
       }
 
-      await axios.post("http://localhost:5000/api/faculty/exams", {
+      await axios.post(`${apiBaseUrl}/faculty/exams`, {
         examDetails: form,
         questions: questions
       }, { 
@@ -628,7 +629,7 @@ const MarksEntry = () => {
            return; 
         }
 
-        const res = await axios.get("http://localhost:5000/api/faculty/exams", {
+        const res = await axios.get(`${apiBaseUrl}/faculty/exams`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         
@@ -651,7 +652,7 @@ const MarksEntry = () => {
         const token = getToken();
         if (!token) return;
 
-        const res = await axios.get(`http://localhost:5000/api/faculty/exams/${selectedExamId}/students`, {
+        const res = await axios.get(`${apiBaseUrl}/faculty/exams/${selectedExamId}/students`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         
@@ -678,7 +679,7 @@ const MarksEntry = () => {
       const token = getToken();
       if (!token) return;
 
-      await axios.post(`http://localhost:5000/api/faculty/exams/${selectedExamId}/marks`, { students }, {
+      await axios.post(`${apiBaseUrl}/faculty/exams/${selectedExamId}/marks`, { students }, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setShowConfirm(false);
