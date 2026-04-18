@@ -46,7 +46,7 @@ function HodDropdown({ faculty, value, onChange }) {
 
   // 🚀 Loose equality check is CRITICAL for database IDs (String vs Number)
   const selected = (Array.isArray(faculty) ? faculty : []).find(f => f.id == value);
-  const label = selected ? `${selected.firstName} ${selected.lastName}` : null;
+  const label = selected ? `${selected.firstName} ${selected.lastName || ''}`.trim() : null;
 
   return (
     <div ref={ref} className="relative w-full overflow-visible">
@@ -58,7 +58,7 @@ function HodDropdown({ faculty, value, onChange }) {
         <div className="flex items-center gap-2 min-w-0 flex-1">
           {label ? (
             <>
-              <div className="w-5 h-5 rounded-full bg-blue-100 flex items-center justify-center text-[9px] font-black text-blue-600 flex-shrink-0">
+              <div className="w-5 h-5 rounded-full bg-blue-100 flex items-center justify-center text-[9px] font-black text-blue-600 flex-shrink-0 uppercase">
                 {(selected.firstName?.[0] || '')}{(selected.lastName?.[0] || '')}
               </div>
               <span className="truncate text-gray-800 font-bold text-xs">{label}</span>
@@ -102,7 +102,7 @@ function HodDropdown({ faculty, value, onChange }) {
               filtered.map(f => (
                 <button key={f.id} type="button" onClick={() => { onChange(f.id); setOpen(false); setSearch(''); }}
                   className={`w-full flex items-center gap-2.5 px-3 py-2.5 text-left hover:bg-blue-50 transition border-b border-gray-50 ${value == f.id ? 'bg-blue-50/50' : ''}`}>
-                  <div className="w-7 h-7 rounded-full bg-blue-100 flex items-center justify-center text-[9px] font-black text-blue-600 flex-shrink-0">
+                  <div className="w-7 h-7 rounded-full bg-blue-100 flex items-center justify-center text-[9px] font-black text-blue-600 flex-shrink-0 uppercase">
                     {(f.firstName?.[0] || '')}{(f.lastName?.[0] || '')}
                   </div>
                   <div className="flex-1 min-w-0">
@@ -196,7 +196,6 @@ export const Department = () => {
       if (res.data.success) {
         await fetchInitialData();
         setEditingId(null);
-        alert("Department updated successfully!");
       }
     } catch (err) {
       alert(err.response?.data?.message || 'Failed to update department.');
@@ -206,12 +205,12 @@ export const Department = () => {
   };
 
   const handleDelete = async (id) => {
-    if (!window.confirm('Confirm deletion?')) return;
+    if (!window.confirm('Are you sure you want to delete this department?')) return;
     try {
       const res = await api.delete(`/admin/departments/${id}`);
       if (res.data.success) setDepartments(prev => prev.filter(d => d.id !== id));
     } catch { 
-      alert('Delete failed.'); 
+      alert('Delete failed. Department may be in use.'); 
     }
   };
 
@@ -293,7 +292,7 @@ export const Department = () => {
 
                 <div className="divide-y divide-gray-100 overflow-visible">
                   {filteredDepartments.map(dept => (
-                    <div key={dept.id} className="overflow-visible">
+                    <div key={dept.id} className="overflow-visible relative">
                       {editingId === dept.id ? (
                         <div className="grid grid-cols-1 md:grid-cols-12 gap-3 px-5 py-4 items-center bg-blue-50/30 overflow-visible">
                           <div className="md:col-span-4 flex gap-2">
@@ -330,12 +329,13 @@ export const Department = () => {
                           <div className="col-span-3">
                             {dept.hod_name ? (
                               <div className="flex items-center gap-2">
-                                <div className="w-6 h-6 rounded-full bg-blue-600 flex items-center justify-center text-[9px] font-black text-white">
-                                  {dept.hod_name.charAt(0)}
+                                <div className="w-6 h-6 rounded-full bg-blue-600 flex items-center justify-center text-[9px] font-black text-white uppercase">
+                                  {/* Safely splits name to get up to 2 initials (e.g. JS) */}
+                                  {dept.hod_name.split(' ').slice(0, 2).map(n => n[0]).join('')}
                                 </div>
                                 <span className="text-xs text-slate-700 font-bold">{dept.hod_name}</span>
                               </div>
-                            ) : <span className="text-gray-300 text-xs italic font-medium">Unassigned</span>}
+                            ) : <span className="text-gray-400 text-xs italic font-medium">Unassigned</span>}
                           </div>
                           <div className="col-span-2">
                             <span className="px-2 py-0.5 bg-slate-100 text-slate-600 text-[10px] font-black rounded uppercase tracking-wider">{dept.category}</span>

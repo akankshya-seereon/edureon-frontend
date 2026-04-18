@@ -1,50 +1,78 @@
 import api from './api';
 
 export const authService = {
-  login: async (credentials) => {
+  // ─── LOGIN ───
+  // Note: Supporting both object and separate arguments just in case useAuth passes them differently
+  login: async (emailOrCreds, passwordParam, instituteCodeParam, roleTypeParam) => {
     try {
-      const { email, password, instituteCode, roleType } = credentials;
+      // Safely extract credentials whether passed as an object or as individual arguments
+      let email, password, instituteCode, roleType;
+      if (typeof emailOrCreds === 'object') {
+        ({ email, password, instituteCode, roleType } = emailOrCreds);
+      } else {
+        email = emailOrCreds;
+        password = passwordParam;
+        instituteCode = instituteCodeParam;
+        roleType = roleTypeParam;
+      }
       
       let endpoint = ''; 
-      const normalizedRole = roleType?.toLowerCase();
+      const normalizedRole = roleType?.toLowerCase() || '';
 
-      if (normalizedRole === 'super_admin' || normalizedRole === 'super') {
-        endpoint = '/superadmin/auth/login';
-      } 
-      else if (normalizedRole === 'institute_admin' || normalizedRole === 'admin') {
-        endpoint = '/admin/auth/login'; 
-      }
-      else if (normalizedRole === 'faculty') {
-        endpoint = '/faculty/auth/login';
-      }
-      else if (normalizedRole === 'student') {
-        endpoint = '/student/auth/login';
+      // 🚀 CRITICAL FIX: Map ALL sub-roles to their correct API endpoints
+      switch (normalizedRole) {
+        case 'super_admin':
+        case 'super':
+          endpoint = '/superadmin/auth/login';
+          break;
+        case 'institute_admin':
+        case 'admin':
+        case 'principal':
+        case 'accountant':
+          // All institutional management roles route through the admin auth
+          endpoint = '/admin/auth/login'; 
+          break;
+        case 'faculty':
+        case 'hod':
+          // HODs are faculty members with elevated dashboard privileges
+          endpoint = '/faculty/auth/login';
+          break;
+        case 'student':
+          endpoint = '/student/auth/login';
+          break;
+        default:
+          throw new Error(`Unrecognized login role: ${normalizedRole}`);
       }
 
       console.log(`🚀 [${normalizedRole.toUpperCase()}] Login Request to:`, endpoint);
 
-      // 🎯 CRITICAL: withCredentials ensures the browser accepts the HTTP-Only cookie
-      const response = await api.post(endpoint, { 
-        email, 
-        password, 
-        instituteCode, 
-        roleType 
-      }, { withCredentials: true });
+      // 🎯 FAIL-SAFE PAYLOAD: We send both camelCase and snake_case for the institute code.
+      // This guarantees the backend will find it regardless of how the variables are named in Node.js.
+      const payload = {
+        email: email, 
+        password: password, 
+        instituteCode: instituteCode,       // camelCase
+        institute_code: instituteCode,      // snake_case
+        roleType: normalizedRole
+      };
+
+      // Send the request with credentials (for HTTP-Only cookies)
+      const response = await api.post(endpoint, payload, { withCredentials: true });
 
       const responseData = response.data;
       
       console.log("📦 Backend Response Received:", responseData.success ? "SUCCESS" : "FAILED");
 
       if (responseData.success) {
-        // 1. Handle User Data (Faculty returns 'user', others might return 'admin' or 'data')
-        const userData = responseData.user || responseData.data || responseData.admin;
+        // 1. Handle User Data safely
+        const userData = responseData.user || responseData.data || responseData.admin || {};
         
-        // 2. Handle Token (Faculty uses Cookies, so token will be undefined here)
+        // 2. Handle Token (Some roles use Cookies, others might return a token string)
         const token = responseData.token || responseData.accessToken;
 
         // 3. Update LocalStorage for UI purposes
         if (token) {
-          localStorage.setItem('token', token); // For non-cookie roles
+          localStorage.setItem('token', token);
         }
         
         localStorage.setItem('user', JSON.stringify(userData));
@@ -57,25 +85,35 @@ export const authService = {
       return responseData;
 
     } catch (error) {
-      const message = error.response?.data?.message || "Server connection failed";
+      const message = error.response?.data?.message || error.message || "Server connection failed";
       console.error("❌ AuthService Login Error:", message);
       throw error; 
     }
   },
 
+  // ─── LOGOUT ───
   logout: async () => {
     try {
       const role = localStorage.getItem('role');
+      const normalizedRole = role?.toLowerCase() || '';
       
-      // 🎯 IMPORTANT: Call the backend logout to clear the HTTP-Only cookie
-      if (role === 'faculty') {
+      // 🎯 IMPORTANT: Call the correct backend logout to clear HTTP-Only cookies
+      if (['faculty', 'hod'].includes(normalizedRole)) {
         await api.post('/faculty/auth/logout', {}, { withCredentials: true });
-      } else if (role === 'super_admin') {
-        await api.post('/superadmin/auth/logout');
+      } 
+      else if (['institute_admin', 'principal', 'accountant', 'admin'].includes(normalizedRole)) {
+        await api.post('/admin/auth/logout', {}, { withCredentials: true });
+      }
+      else if (['super_admin', 'super'].includes(normalizedRole)) {
+        await api.post('/superadmin/auth/logout', {}, { withCredentials: true });
+      }
+      else if (normalizedRole === 'student') {
+        await api.post('/student/auth/logout', {}, { withCredentials: true });
       }
     } catch (err) {
       console.error("Logout API call failed, clearing local storage anyway.", err);
     } finally {
+      // Always wipe local data even if the API call fails
       localStorage.removeItem('token');
       localStorage.removeItem('user');
       localStorage.removeItem('role');
@@ -84,6 +122,7 @@ export const authService = {
     }
   },
 
+  // ─── UTILS ───
   getCurrentUser: () => {
     const user = localStorage.getItem('user');
     return user ? JSON.parse(user) : null;

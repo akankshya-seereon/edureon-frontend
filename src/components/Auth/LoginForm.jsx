@@ -353,9 +353,9 @@ export const Login = () => {
     if (error) setError("");
   };
 
-  // Permissions map for all admin sub-roles
+  // Base Permissions map for all admin sub-roles
   const subRolePermissions = {
-    institute_admin: {},
+    institute_admin: { canManageAll: true },
     principal: {
       canApproveLeave: true,
       canManageAnnouncements: true,
@@ -411,13 +411,17 @@ export const Login = () => {
         }
 
         const userData = response.user || response.data || response.admin || {};
-        const permissions = subRolePermissions[effectiveRole] || {};
+        
+        // 🚀 MERGE LOGIC: Combine hardcoded sub-role permissions with any dynamic Institute/Module permissions from the backend
+        const localPermissions = subRolePermissions[effectiveRole] || {};
+        const backendPermissions = response.permissions || userData.permissions || {};
+        const finalPermissions = { ...localPermissions, ...backendPermissions };
 
         localStorage.setItem("user", JSON.stringify({
           ...userData,
           role: effectiveRole,
           instituteCode: formData.instituteCode,
-          ...(Object.keys(permissions).length > 0 && { permissions }),
+          ...(Object.keys(finalPermissions).length > 0 && { permissions: finalPermissions }),
         }));
 
         localStorage.setItem("role", effectiveRole);
@@ -425,12 +429,13 @@ export const Login = () => {
 
       setIsSuccess(true);
 
+      // 🚀 ALIGNED WITH APPROUTER: Redirects mapped precisely to your AppRouter.jsx paths
       const roleRoutes = {
         super_admin:     "/super-admin/dashboard",
         institute_admin: "/admin/dashboard",
-        principal:       "/principal/dashboard",
-        hod:             "/hod/dashboard",
-        accountant:      "/accountant/dashboard",
+        principal:       "/admin/principal",
+        accountant:      "/admin/dashboard", 
+        hod:             "/faculty/dashboard",
         faculty:         "/faculty/dashboard",
         student:         "/student/dashboard",
       };
@@ -565,12 +570,12 @@ export const Login = () => {
                 </button>
               </div>
               
-              {/* Added Forgot Password Link */}
-          <div className="flex justify-end pt-1 w-full">
-  <a href="#" className="text-sm font-bold text-blue-600 hover:text-blue-700 transition-colors outline-none">
-    Forgot password?
-  </a>
-</div>
+              {/* Forgot Password Link */}
+              <div className="flex justify-end pt-1 w-full">
+                <a href="#" className="text-sm font-bold text-blue-600 hover:text-blue-700 transition-colors outline-none">
+                  Forgot password?
+                </a>
+              </div>
             </div>
 
             {/* Submit */}

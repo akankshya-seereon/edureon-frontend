@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import {
   Loader2, Briefcase, GraduationCap, UserPlus, 
-  Eye, EyeOff, Upload, FileText, X, CheckCircle, AlertCircle, Image, File, Save
+  Eye, EyeOff, Upload, FileText, X, CheckCircle, AlertCircle, Image, File, Save, Building2, Landmark, ArrowLeft
 } from 'lucide-react';
 import apiBaseUrl from "../../../config/baseurl";
 
@@ -19,20 +19,24 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// ─── CONSTANTS ────────────────────────────────────────────────────────────────
+// ─── CONSTANTS & HELPERS ──────────────────────────────────────────────────────
 const ACADEMIC_DESIGNATIONS = ['Professor', 'Associate Professor', 'Assistant Professor', 'HOD', 'Dean', 'Principal', 'Lecturer', 'Lab Instructor'];
 const NON_ACADEMIC_DESIGNATIONS = ['Administrative Officer', 'Accountant', 'Clerk', 'Lab Technician', 'Librarian', 'Security Guard', 'IT Support', 'Peon'];
 const QUALIFICATIONS = ['PhD', 'M.Tech', 'M.Sc', 'MBA', 'B.Tech', 'B.Sc', 'B.Com', 'Diploma', 'Other'];
 const GENDERS = ['Male', 'Female', 'Other'];
 const BLOOD_GROUPS = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
 
-const REQUIRED_PROFESSIONAL = ['employeeId', 'designation'];
+const REQUIRED_PROFESSIONAL = ['employeeId', 'designation', 'instituteCode'];
+
+// 🚀 Auto-generate Employee ID function
+const generateEmpId = () => `EMP-${Math.floor(100000 + Math.random() * 900000)}`;
 
 const DEFAULT_STAFF_FORM = {
   staffType: 'Academic', firstName: '', lastName: '', email: '', phone: '',
   gender: '', dob: '', bloodGroup: '', qualification: '', designation: '',
   employeeId: '', joiningDate: '', departmentId: '', address: '', password: '',
-  panNumber: '', aadhaarNumber: '',
+  panNumber: '', aadhaarNumber: '', instituteCode: '',
+  bankName: '', accountName: '', accountNumber: '', ifscCode: '', branchName: ''
 };
 
 const DEFAULT_DOCS = {
@@ -132,7 +136,6 @@ function PersonalInfoSection({ formData, setField, showPassword, onTogglePasswor
       <FormField label="Phone" required><input type="tel" placeholder="10-digit mobile" value={formData.phone} onChange={e => setField('phone', e.target.value)} className="form-input text-left" /></FormField>
       <FormField label="Email Address" required><input type="email" placeholder="staff@college.edu" value={formData.email} onChange={e => setField('email', e.target.value)} className="form-input text-left" /></FormField>
       
-      {/* Password is required for New, optional for Edit */}
       <FormField label={isEditing ? "Update Password" : "Login Password"} required={!isEditing} hint={isEditing ? "(Leave blank to keep current)" : ""}>
         <div className="relative">
           <input type={showPassword ? 'text' : 'password'} placeholder={isEditing ? "Enter new password..." : "Set login password"} value={formData.password} onChange={e => setField('password', e.target.value)} className="form-input pr-10 text-left" />
@@ -152,7 +155,16 @@ function ProfessionalInfoSection({ formData, setField, staffTab, departments }) 
   
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 text-left">
-      <FormField label="Employee ID" required><input type="text" placeholder="e.g. EMP-001" value={formData.employeeId} onChange={e => setField('employeeId', e.target.value)} className="form-input text-left" /></FormField>
+      {/* 🚀 Locked & Auto-Generated Employee ID */}
+      <FormField label="Employee ID" required hint="Auto-Generated">
+        <input 
+          type="text" 
+          value={formData.employeeId} 
+          readOnly 
+          className="form-input text-left bg-gray-100 text-gray-500 cursor-not-allowed font-mono tracking-widest" 
+        />
+      </FormField>
+      
       <FormField label="Designation" required><select value={formData.designation} onChange={e => setField('designation', e.target.value)} className="form-input cursor-pointer text-left"><option value="">Select</option>{designations.map(d => <option key={d}>{d}</option>)}</select></FormField>
       <FormField label="Highest Qualification"><select value={formData.qualification} onChange={e => setField('qualification', e.target.value)} className="form-input cursor-pointer text-left"><option value="">Select</option>{QUALIFICATIONS.map(q => <option key={q}>{q}</option>)}</select></FormField>
       <FormField label="Joining Date"><input type="date" value={formData.joiningDate} onChange={e => setField('joiningDate', e.target.value)} className="form-input cursor-pointer text-left" /></FormField>
@@ -166,6 +178,30 @@ function ProfessionalInfoSection({ formData, setField, staffTab, departments }) 
           {staffTab === 'Academic' ? <GraduationCap size={15} /> : <Briefcase size={15} />} {staffTab} Staff
         </div>
       </FormField>
+
+      <FormField label="Institute Code" required hint="Auto-Assigned">
+        <div className="relative">
+          <Building2 size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+          <input 
+            type="text" 
+            value={formData.instituteCode} 
+            readOnly 
+            className="form-input pl-9 text-left bg-gray-100 text-gray-500 cursor-not-allowed border-gray-200 font-mono tracking-widest" 
+          />
+        </div>
+      </FormField>
+    </div>
+  );
+}
+
+function BankDetailsSection({ formData, setField }) {
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 text-left">
+      <FormField label="Bank Name"><input type="text" placeholder="e.g. State Bank of India" value={formData.bankName} onChange={e => setField('bankName', e.target.value)} className="form-input text-left" /></FormField>
+      <FormField label="Account Holder Name" hint="As per bank records"><input type="text" placeholder="e.g. Rajesh Kumar" value={formData.accountName} onChange={e => setField('accountName', e.target.value)} className="form-input text-left" /></FormField>
+      <FormField label="Account Number"><input type="text" placeholder="Enter Account Number" value={formData.accountNumber} onChange={e => setField('accountNumber', e.target.value.replace(/\D/g, ''))} className="form-input text-left font-mono" /></FormField>
+      <FormField label="IFSC Code"><input type="text" placeholder="e.g. SBIN0001234" value={formData.ifscCode} onChange={e => setField('ifscCode', e.target.value.toUpperCase().replace(/\s/g, ''))} maxLength={11} className="form-input text-left uppercase font-mono tracking-wider" /></FormField>
+      <FormField label="Branch Name"><input type="text" placeholder="e.g. Main Branch" value={formData.branchName} onChange={e => setField('branchName', e.target.value)} className="form-input text-left" /></FormField>
     </div>
   );
 }
@@ -231,21 +267,30 @@ function DocumentsSection({ formData, setField, docs, setDocField, setDocs }) {
 // ─── MAIN COMPONENT ──────────────────────────────────────────────
 
 export const Employee = () => {
-  const { id } = useParams(); // 🚀 NEW: Grab ID from URL to detect Edit Mode
+  const { id } = useParams();
   const navigate = useNavigate();
   const isEditing = Boolean(id);
 
-  const [formData, setFormData] = useState({ ...DEFAULT_STAFF_FORM });
+  const userStr = localStorage.getItem('user');
+  const userObj = userStr ? JSON.parse(userStr) : null;
+  const currentInstituteCode = localStorage.getItem('instituteCode') || userObj?.code || userObj?.instituteCode || '';
+
+  // 🚀 Initialize form with generated Employee ID (only if not editing)
+  const [formData, setFormData] = useState({ 
+    ...DEFAULT_STAFF_FORM, 
+    instituteCode: currentInstituteCode,
+    employeeId: isEditing ? '' : generateEmpId()
+  });
+  
   const [docs, setDocs] = useState({ ...DEFAULT_DOCS, otherDocs: [] });
   const [staffTab, setStaffTab] = useState('Academic');
   
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isLoadingData, setIsLoadingData] = useState(isEditing); // Loading state for Edit Mode
+  const [isLoadingData, setIsLoadingData] = useState(isEditing);
   
   const [departments, setDepartments] = useState([]);
   
-  // Fetch Departments
   useEffect(() => {
     api.get('/admin/departments')
        .then(res => { 
@@ -254,7 +299,6 @@ export const Employee = () => {
        .catch(err => console.error("Failed to load departments", err));
   }, []);
 
-  // 🚀 NEW: Fetch Employee Data if in Edit Mode
   useEffect(() => {
     if (isEditing) {
       api.get(`/admin/employees/${id}`)
@@ -262,7 +306,6 @@ export const Employee = () => {
           if (res.data?.success) {
             const emp = res.data.data;
             
-            // Format dates correctly for <input type="date">
             const formattedDob = emp.dob ? emp.dob.split('T')[0] : '';
             const formattedJoining = emp.joiningDate ? emp.joiningDate.split('T')[0] : '';
 
@@ -271,7 +314,13 @@ export const Employee = () => {
               ...emp,
               dob: formattedDob,
               joiningDate: formattedJoining,
-              password: '' // Keep password blank so it doesn't get accidentally overwritten
+              password: '', 
+              instituteCode: emp.instituteCode || emp.institute_code || currentInstituteCode,
+              bankName: emp.bankName || '',
+              accountName: emp.accountName || '',
+              accountNumber: emp.accountNumber || '',
+              ifscCode: emp.ifscCode || '',
+              branchName: emp.branchName || ''
             });
             
             setStaffTab(emp.staffType || 'Academic');
@@ -284,28 +333,34 @@ export const Employee = () => {
         })
         .finally(() => setIsLoadingData(false));
     }
-  }, [id, isEditing, navigate]);
+  }, [id, isEditing, navigate, currentInstituteCode]);
 
   const setField    = useCallback((k, v) => setFormData(p => ({ ...p, [k]: v })), []);
   const setDocField = useCallback((k, v) => setDocs(p => ({ ...p, [k]: v })), []);
 
-  const resetForm = useCallback((tab) => {
-    setFormData({ ...DEFAULT_STAFF_FORM, staffType: tab });
-    setDocs({ ...DEFAULT_DOCS, otherDocs: [] });
-    setShowPassword(false);
-  }, []);
-
+  // 🚀 FIXED: Tab Change Logic
   const handleTabChange = (tab) => { 
-    if (isEditing) return; // Prevent changing staff type while editing
+    if (isEditing) {
+      alert("You cannot change the Staff Category of an existing employee. To change their core role, please register a new profile.");
+      return;
+    }
+    if (staffTab === tab) return;
+
     setStaffTab(tab); 
-    resetForm(tab); 
+    
+    // Smoothly clear ONLY the fields that depend on the tab, keeping Personal/Bank info intact!
+    setFormData(prev => ({
+      ...prev,
+      staffType: tab,
+      designation: '',
+      departmentId: ''
+    }));
   };
 
   const validate = () => {
-    // Password is only required when NOT editing
     const personalReq = isEditing 
-      ? ['firstName', 'lastName', 'email', 'phone'] 
-      : ['firstName', 'lastName', 'email', 'phone', 'password'];
+      ? ['firstName', 'lastName', 'email', 'phone', 'instituteCode'] 
+      : ['firstName', 'lastName', 'email', 'phone', 'password', 'instituteCode'];
       
     const allReq = [...personalReq, ...REQUIRED_PROFESSIONAL];
     const missing = allReq.filter(k => !formData[k] || !String(formData[k]).trim());
@@ -329,16 +384,24 @@ export const Employee = () => {
       });
       docs.otherDocs.forEach(f => payload.append('otherDocs', f));
       
-      // 🚀 ROUTING MAGIC: POST for new, PUT for updates
       if (isEditing) {
-        // Ensure you have a PUT route setup in your employeeRoutes.js!
         await api.put(`/admin/employees/${id}`, payload, { headers: { 'Content-Type': 'multipart/form-data' } });
         alert('Employee updated successfully!');
-        navigate(-1); // Go back to profile or directory
+        navigate(-1);
       } else {
         await api.post('/admin/employees/register', payload, { headers: { 'Content-Type': 'multipart/form-data' } });
         alert('Employee registered successfully!');
-        resetForm(staffTab);
+        
+        // Reset everything cleanly for the next registration
+        setFormData({ 
+          ...DEFAULT_STAFF_FORM, 
+          staffType: staffTab, 
+          instituteCode: currentInstituteCode,
+          employeeId: generateEmpId()
+        });
+        setDocs({ ...DEFAULT_DOCS, otherDocs: [] });
+        setShowPassword(false);
+        
         window.scrollTo(0,0);
       }
     } catch (err) {
@@ -372,11 +435,10 @@ export const Employee = () => {
                {isEditing ? 'Update the details for this existing staff member.' : 'Register a new academic or non-academic staff member into the system.'}
              </p>
            </div>
-           {isEditing && (
-             <button onClick={() => navigate(-1)} className="px-4 py-2 text-sm font-bold text-gray-500 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
-               Cancel Edit
-             </button>
-           )}
+           
+           <button onClick={() => navigate(-1)} className="flex items-center gap-2 px-4 py-2.5 text-sm font-bold text-gray-600 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 hover:text-blue-600 hover:border-blue-200 transition-all shadow-sm">
+             <ArrowLeft size={16} /> Back
+           </button>
         </div>
 
         <div className="bg-white rounded-[2rem] border border-gray-200 shadow-sm overflow-hidden mb-12 text-left">
@@ -390,7 +452,9 @@ export const Employee = () => {
                 {isEditing ? `Updating: ${formData.firstName} ${formData.lastName}` : 'Registration Form'}
               </h2>
             </div>
-            <div className={`flex gap-2 bg-gray-100 p-1.5 rounded-xl ${isEditing ? 'opacity-70 pointer-events-none' : ''}`}>
+            
+            {/* 🚀 FIXED: Removed pointer-events-none so the click alert actually works! */}
+            <div className={`flex gap-2 bg-gray-100 p-1.5 rounded-xl ${isEditing ? 'opacity-70' : ''}`}>
               {['Academic', 'Non-Academic'].map(tab => (
                 <button key={tab} type="button" onClick={() => handleTabChange(tab)}
                   className={`px-5 py-2 rounded-lg text-xs font-black transition-all ${
@@ -433,9 +497,21 @@ export const Employee = () => {
               <div className="text-left">
                 <div className="flex items-center gap-3 mb-6">
                   <div className="flex items-center justify-center w-6 h-6 rounded-full bg-blue-100 text-blue-600 text-xs font-black">3</div>
-                  <h3 className="text-lg font-black text-gray-800 tracking-tight">Documents & ID</h3>
+                  <h3 className="text-lg font-black text-gray-800 tracking-tight">Documents & IDs</h3>
                 </div>
                 <DocumentsSection formData={formData} setField={setField} docs={docs} setDocField={setDocField} setDocs={setDocs} />
+              </div>
+
+              <hr className="border-gray-100" />
+
+              {/* SECTION 4 */}
+              <div className="text-left">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="flex items-center justify-center w-6 h-6 rounded-full bg-blue-100 text-blue-600 text-xs font-black">4</div>
+                  <Landmark size={20} className="text-gray-800" />
+                  <h3 className="text-lg font-black text-gray-800 tracking-tight">Bank Details</h3>
+                </div>
+                <BankDetailsSection formData={formData} setField={setField} />
               </div>
 
             </div>
@@ -445,11 +521,17 @@ export const Employee = () => {
               <p className="text-xs text-gray-400 font-medium">
                 * Required fields are marked with a red asterisk.
               </p>
-              <button type="submit" disabled={isSubmitting}
-                className="w-full sm:w-auto px-10 py-3.5 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 text-white text-sm font-black rounded-xl flex items-center justify-center gap-2 transition shadow-xl shadow-blue-200">
-                {isSubmitting ? <Loader2 size={18} className="animate-spin" /> : (isEditing ? <Save size={18} /> : <UserPlus size={18} />)}
-                {isEditing ? 'Update Employee' : 'Register Employee'}
-              </button>
+              
+              <div className="flex items-center gap-3 w-full sm:w-auto">
+                <button type="button" onClick={() => navigate(-1)} className="px-6 py-3.5 text-sm font-bold text-gray-500 hover:text-gray-900 bg-transparent hover:bg-gray-200 rounded-xl transition-colors">
+                  Cancel
+                </button>
+                <button type="submit" disabled={isSubmitting}
+                  className="w-full sm:w-auto px-10 py-3.5 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 text-white text-sm font-black rounded-xl flex items-center justify-center gap-2 transition shadow-xl shadow-blue-200">
+                  {isSubmitting ? <Loader2 size={18} className="animate-spin" /> : (isEditing ? <Save size={18} /> : <UserPlus size={18} />)}
+                  {isEditing ? 'Update Employee' : 'Register Employee'}
+                </button>
+              </div>
             </div>
           </form>
         </div>
