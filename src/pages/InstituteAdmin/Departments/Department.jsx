@@ -303,7 +303,7 @@ export const Department = () => {
                             <HodDropdown faculty={eligibleFaculty} value={editFormData.hodId} onChange={v => setEditFormData({...editFormData, hodId: v})} />
                           </div>
                           <div className="md:col-span-2">
-                            <select value={editFormData.category} onChange={e => setEditFormData({...editFormData, category: e.target.value})} className="form-input">
+                            <select value={editFormData.category} onChange={e => setEditFormData({...editFormData, category: e.target.value})} className="form-input h-[38px]">
                               <option value="">Select...</option>
                               {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
                             </select>
@@ -330,7 +330,6 @@ export const Department = () => {
                             {dept.hod_name ? (
                               <div className="flex items-center gap-2">
                                 <div className="w-6 h-6 rounded-full bg-blue-600 flex items-center justify-center text-[9px] font-black text-white uppercase">
-                                  {/* Safely splits name to get up to 2 initials (e.g. JS) */}
                                   {dept.hod_name.split(' ').slice(0, 2).map(n => n[0]).join('')}
                                 </div>
                                 <span className="text-xs text-slate-700 font-bold">{dept.hod_name}</span>
@@ -371,7 +370,7 @@ export const Department = () => {
                         onChange={e => setFormData(f => ({ ...f, department_code: e.target.value }))}
                         className="form-input" />
                     </div>
-                    <div className="md:col-span-2 overflow-visible">
+                    <div className="md:col-span-3 overflow-visible">
                       <label className="block text-[10px] font-black text-slate-400 mb-1 uppercase">Assign HOD</label>
                       <HodDropdown faculty={eligibleFaculty} value={formData.hodId}
                         onChange={v => setFormData(f => ({ ...f, hodId: v }))} />
@@ -379,21 +378,21 @@ export const Department = () => {
                     <div className="md:col-span-2">
                       <label className="block text-[10px] font-black text-slate-400 mb-1 uppercase">Category</label>
                       <select value={formData.category} onChange={e => setFormData(f => ({ ...f, category: e.target.value }))}
-                        className="form-input" required>
+                        className="form-input h-[38px]" required>
                         <option value="">Select...</option>
                         {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
                       </select>
                     </div>
-                    <div className="md:col-span-1.5 flex-1">
+                    <div className="md:col-span-1">
                       <label className="block text-[10px] font-black text-slate-400 mb-1 uppercase">Room</label>
                       <input type="text" placeholder="302" value={formData.roomNumber}
                         onChange={e => setFormData(f => ({ ...f, roomNumber: e.target.value }))}
                         className="form-input" />
                     </div>
-                    <div className="md:col-span-1.5 flex justify-end">
+                    <div className="md:col-span-1 h-[38px]">
                       <button type="submit" disabled={isSubmitting}
-                        className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 text-white text-xs font-black rounded-lg transition-all shadow-md shadow-blue-100">
-                        {isSubmitting ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
+                        className="w-full h-full flex items-center justify-center gap-1.5 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 text-white text-[11px] font-black rounded-lg transition-all shadow-md shadow-blue-100">
+                        {isSubmitting ? <Loader2 size={13} className="animate-spin" /> : <Plus size={13} />}
                         ADD
                       </button>
                     </div>
