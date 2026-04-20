@@ -193,7 +193,7 @@ export default function InstituteForm() {
   return (
     <div className="w-full min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
       <div className="w-full px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
-        <div className="mx-auto w-full max-w-10xl">
+        <div className="mx-auto w-full max-w-8xl">
           {/* Header */}
           <div className="mb-8">
             <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-blue-600 mb-2">Add Organisation</h1>

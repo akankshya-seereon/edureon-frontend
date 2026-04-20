@@ -10,7 +10,7 @@ export const Login = () => {
   const { login } = useAuth();
   const navigate = useNavigate();
 
-  // The 4 main types of login
+  // Primary login categories (matches the IDs in the roles array at bottom)
   const [roleType, setRoleType] = useState("institute_admin");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -39,83 +39,99 @@ export const Login = () => {
         throw new Error("Institute Code is required.");
       }
 
-      // Send the request to your authService
+      // 1. Trigger the Auth Service
       const response = await login(
         formData.email,
         formData.password,
         formData.instituteCode,
-        roleType // 'super_admin', 'institute_admin', 'employee', or 'student'
+        roleType 
       );
 
-      if (response) {
-        if (response.token || response.accessToken) {
-          localStorage.setItem("token", response.token || response.accessToken);
-        }
+      if (response && response.success) {
+        // 2. Save the Token immediately
+        const token = response.token || response.accessToken;
+        if (token) localStorage.setItem("token", token);
 
-        const userData = response.user || response.data || response.admin || {};
+        const userData = response.user || response.data || {};
         
-        // 🚀 THE MAGIC: We use the TRUE role assigned by the backend
-        // We force it to lowercase to ensure it matches our routing dictionary perfectly
-        const actualRole = String(userData.role || roleType).toLowerCase().trim(); 
-        const backendPermissions = response.permissions || userData.permissions || {};
+        // 🚀 CRITICAL: Normalize the Role
+        // We look at 'role' then 'designation', lowercase it, and trim it.
+        // This turns "FACULTY" or "Faculty" into "faculty".
+        const rawRole = userData.role || userData.designation || roleType;
+        const actualRole = String(rawRole).toLowerCase().trim(); 
 
+        console.log("🔍 LOGIN DEBUG:");
+        console.log("- Raw Backend Data:", userData);
+        console.log("- Determined Role String:", actualRole);
+
+        // 3. Sync state with LocalStorage
         localStorage.setItem("user", JSON.stringify({
           ...userData,
-          role: actualRole, // Store their true role!
+          role: actualRole, 
           instituteCode: formData.instituteCode,
-          ...(Object.keys(backendPermissions).length > 0 && { permissions: backendPermissions }),
         }));
-
         localStorage.setItem("role", actualRole);
-
+        
         setIsSuccess(true);
 
-        // 🚀 DYNAMIC ROUTING: Exhaustive dictionary to ensure nobody gets stuck
+        // 4. DYNAMIC ROUTING DICTIONARY
         const roleRoutes = {
           super_admin:     "/super-admin/dashboard",
           institute_admin: "/admin/dashboard",
           
-          // --- Non-Academic / Admin Roles ---
-          principal:       "/admin/principal",
-          dean:            "/staff/dashboard",
-          accountant:      "/staff/dashboard", 
-          staff:           "/staff/dashboard",
-          clerk:           "/staff/dashboard",
-          librarian:       "/staff/dashboard",
-          
-          // --- Academic / Faculty Roles ---
+          // --- Faculty/Academic Dashboards ---
           faculty:         "/faculty/dashboard",
           hod:             "/faculty/dashboard",
           professor:       "/faculty/dashboard",
           lecturer:        "/faculty/dashboard",
           "lab instructor": "/faculty/dashboard",
           
+          // --- Non-Academic/Staff Dashboards ---
+          principal:       "/admin/principal",
+          accountant:      "/staff/dashboard", 
+          staff:           "/staff/dashboard",
+          dean:            "/staff/dashboard",
+          
+          // --- Fallbacks ---
+          employee:        "/faculty/dashboard",
           student:         "/student/dashboard",
         };
 
-        // Fallback to "/" if the role isn't in the dictionary
-        setTimeout(() => navigate(roleRoutes[actualRole] || "/"), 800);
+        const targetPath = roleRoutes[actualRole];
+
+        if (targetPath) {
+          console.log("🎯 SUCCESS: Redirecting to:", targetPath);
+          // Small timeout ensures LocalStorage is fully written before redirect
+          setTimeout(() => navigate(targetPath), 500);
+        } else {
+          console.warn("⚠️ ROLE MISMATCH: Role not found in dictionary:", actualRole);
+          // Safety Fallback for Academic Staff
+          if (actualRole.includes("faculty") || actualRole.includes("prof")) {
+             navigate("/faculty/dashboard");
+          } else {
+             setError("Login successful, but no dashboard assigned to this role.");
+          }
+        }
       }
 
     } catch (err) {
+      console.error("❌ Login Submission Error:", err);
       setError(err.response?.data?.message || err.message || "Invalid credentials. Please try again.");
     } finally {
       setLoading(false);
     }
   };
 
-  // 🚀 The New Simplified Tabs
   const roles = [
     { id: "super_admin",     label: "Super"   },
     { id: "institute_admin", label: "Admin"   },
-    { id: "employee",        label: "Employee"}, // Encompasses ALL staff & faculty
+    { id: "employee",        label: "Employee"}, 
     { id: "student",         label: "Student" },
   ];
 
   return (
     <div className="min-h-screen w-full flex bg-white font-sans overflow-hidden text-left">
-
-      {/* LEFT SIDE */}
+      {/* LEFT SIDE - BRANDING */}
       <div className="hidden lg:flex w-[50%] relative bg-slate-900 text-left">
         <img
           src="https://images.unsplash.com/photo-1562774053-701939374585?q=80&w=2586&auto=format&fit=crop"
@@ -141,11 +157,10 @@ export const Login = () => {
         </div>
       </div>
 
-      {/* RIGHT SIDE */}
+      {/* RIGHT SIDE - LOGIN FORM */}
       <div className="w-full lg:w-[50%] flex flex-col justify-center px-8 sm:px-12 xl:px-20 bg-white text-left">
         <div className="w-full max-w-sm mx-auto space-y-8 text-left">
-
-          {/* Mobile logo */}
+          
           <div className="lg:hidden flex items-center gap-2 text-left">
             <div className="w-8 h-8 bg-blue-600 rounded-md flex items-center justify-center">
               <GraduationCap size={18} className="text-white" />
@@ -159,49 +174,48 @@ export const Login = () => {
           </div>
 
           {error && (
-            <div className="p-3 rounded-lg bg-red-50 border border-red-100 text-red-600 text-sm font-medium text-left">
+            <div className="p-3 rounded-lg bg-red-50 border border-red-100 text-red-600 text-sm font-medium text-left animate-shake">
               {error}
             </div>
           )}
 
           <form onSubmit={handleSubmit} className="space-y-5 text-left">
-
-            {/* Email */}
+            {/* Email Input */}
             <div className="space-y-1 text-left">
-              <label className="text-sm font-bold text-slate-700 uppercase tracking-widest text-left block">Email Address</label>
-              <div className="relative group text-left">
+              <label className="text-sm font-bold text-slate-700 uppercase tracking-widest block">Email Address</label>
+              <div className="relative group">
                 <Mail size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-600 transition-colors" />
                 <input
                   type="email" name="email" value={formData.email} onChange={handleChange}
-                  className="w-full pl-10 pr-4 py-3 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-900 placeholder:text-slate-400 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600 transition-all text-left"
+                  className="w-full pl-10 pr-4 py-3 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-900 placeholder:text-slate-400 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600 transition-all"
                   placeholder="name@institute.com" required
                 />
               </div>
             </div>
 
-            {/* Institute Code */}
+            {/* Institute Code Input (Hidden for Super Admin) */}
             {roleType !== "super_admin" && (
               <div className="space-y-1 text-left">
-                <label className="text-sm font-bold text-slate-700 uppercase tracking-widest text-left block">Institute Code</label>
-                <div className="relative group text-left">
+                <label className="text-sm font-bold text-slate-700 uppercase tracking-widest block">Institute Code</label>
+                <div className="relative group">
                   <Building2 size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-600 transition-colors" />
                   <input
                     type="text" name="instituteCode" value={formData.instituteCode} onChange={handleChange}
-                    className="w-full pl-10 pr-4 py-3 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-900 placeholder:text-slate-400 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600 transition-all text-left"
-                    placeholder="e.g. KII751030" required
+                    className="w-full pl-10 pr-4 py-3 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-900 placeholder:text-slate-400 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600 transition-all"
+                    placeholder="e.g. SAM751030" required
                   />
                 </div>
               </div>
             )}
 
-            {/* Password */}
+            {/* Password Input */}
             <div className="space-y-1 text-left">
-              <label className="text-sm font-bold text-slate-700 uppercase tracking-widest text-left block">Password</label>
-              <div className="relative group text-left">
+              <label className="text-sm font-bold text-slate-700 uppercase tracking-widest block">Password</label>
+              <div className="relative group">
                 <Lock size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-600 transition-colors" />
                 <input
                   type={showPassword ? "text" : "password"} name="password" value={formData.password} onChange={handleChange}
-                  className="w-full pl-10 pr-10 py-3 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-900 placeholder:text-slate-400 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600 transition-all text-left"
+                  className="w-full pl-10 pr-10 py-3 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-900 placeholder:text-slate-400 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600 transition-all"
                   placeholder="••••••••" required
                 />
                 <button type="button" onClick={() => setShowPassword(!showPassword)}
@@ -209,16 +223,14 @@ export const Login = () => {
                   {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
               </div>
-              
-              {/* Forgot Password Link */}
               <div className="flex justify-end pt-1 w-full">
-                <a href="#" className="text-sm font-bold text-blue-600 hover:text-blue-700 transition-colors outline-none">
+                <button type="button" className="text-sm font-bold text-blue-600 hover:text-blue-700 transition-colors bg-transparent border-none p-0 cursor-pointer">
                   Forgot password?
-                </a>
+                </button>
               </div>
             </div>
 
-            {/* Submit */}
+            {/* Submit Button */}
             <button type="submit" disabled={loading || isSuccess}
               className={`w-full py-3.5 rounded-xl font-bold text-sm tracking-widest uppercase shadow-lg transition-all active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-70 outline-none
                 ${isSuccess ? 'bg-emerald-500 text-white shadow-emerald-500/20' : 'bg-blue-600 hover:bg-blue-700 text-white shadow-blue-600/30'}`}>
@@ -228,19 +240,18 @@ export const Login = () => {
             </button>
           </form>
 
-          {/* ── ROLE SELECTOR ── */}
+          {/* Access Level Selector */}
           <div className="space-y-3 pt-2 text-left">
-            <div className="relative text-left">
-              <div className="absolute inset-0 flex items-center text-left">
-                <div className="w-full border-t border-slate-100 text-left" />
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-slate-100" />
               </div>
-              <div className="relative flex justify-center text-[13px] uppercase tracking-[0.2em] font-black text-slate-400 text-left">
-                <span className="bg-white px-2 text-left">Select Access Level</span>
+              <div className="relative flex justify-center text-[13px] uppercase tracking-[0.2em] font-black text-slate-400">
+                <span className="bg-white px-2">Select Access Level</span>
               </div>
             </div>
 
-            {/* Top-level role tabs */}
-            <div className="p-1 bg-slate-50 border border-slate-100 rounded-xl grid grid-cols-4 gap-1 text-left">
+            <div className="p-1 bg-slate-50 border border-slate-100 rounded-xl grid grid-cols-4 gap-1">
               {roles.map(({ id, label }) => (
                 <button
                   key={id}
@@ -255,16 +266,12 @@ export const Login = () => {
                 </button>
               ))}
             </div>
-
           </div>
-
         </div>
       </div>
     </div>
   );
 };
-
-
 
 
 

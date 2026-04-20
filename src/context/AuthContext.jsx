@@ -14,11 +14,16 @@ export const AuthProvider = ({ children }) => {
     } catch { return null; }
   });
 
+  // Load user on startup
   useEffect(() => {
     const storedUser = localStorage.getItem('user');
     if (storedUser) {
-      try { setUser(JSON.parse(storedUser)); }
-      catch (e) { localStorage.removeItem('user'); }
+      try {
+        const parsedUser = JSON.parse(storedUser);
+        setUser(parsedUser);
+      } catch (e) {
+        localStorage.removeItem('user');
+      }
     }
     setLoading(false);
   }, []);
@@ -26,11 +31,26 @@ export const AuthProvider = ({ children }) => {
   const login = async (email, password, instituteCode, roleType) => {
     try {
       const response = await authService.login({ email, password, instituteCode, roleType });
-      const loggedInUser = response.data || response.admin || response.user || {};
-      const normalizedUser = { ...loggedInUser, role: loggedInUser.role || roleType };
+      
+      // 🚀 FIXED: Handle nested data correctly based on your authService
+      const userData = response.user || response.data || response.admin || {};
+      
+      // 🚀 CRITICAL: Force the role to lowercase here so the whole app is in sync
+      const normalizedRole = String(userData.role || userData.designation || roleType).toLowerCase().trim();
+
+      const normalizedUser = { 
+        ...userData, 
+        role: normalizedRole 
+      };
+
+      // Update State & Storage
       localStorage.setItem('user', JSON.stringify(normalizedUser));
+      localStorage.setItem('role', normalizedRole);
       setUser(normalizedUser);
-      return normalizedUser;
+
+      // 🚀 FIXED: Return the FULL response so LoginForm can see response.success
+      return response; 
+      
     } catch (error) {
       const message = error.response?.data?.message || error.message || 'Login failed.';
       throw new Error(message);
@@ -38,21 +58,24 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = async () => {
-    try { await authService.logout(); } catch (err) { console.error(err); }
-    finally {
+    try {
+      await authService.logout();
+    } catch (err) {
+      console.error("Logout error:", err);
+    } finally {
       localStorage.removeItem('user');
+      localStorage.removeItem('role');
+      localStorage.removeItem('token');
       localStorage.removeItem('impersonated_institute');
       localStorage.removeItem('managed_institute_id');
       localStorage.removeItem('managed_institute_name');
       setUser(null);
       setImpersonatedInstitute(null);
+      window.location.href = '/login';
     }
   };
 
   const startImpersonation = (institute, navigate) => {
-    localStorage.removeItem('impersonated_institute');
-    localStorage.removeItem('managed_institute_id');
-    localStorage.removeItem('managed_institute_name');
     const payload = {
       id: institute.id,
       name: institute.name || institute.organisation?.name || 'Unknown Institute',
