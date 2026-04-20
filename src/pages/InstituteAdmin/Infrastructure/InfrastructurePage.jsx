@@ -15,6 +15,8 @@ const InfrastructurePage = () => {
   // --- UI TOGGLE STATES ---
   const [showCampusForm, setShowCampusForm] = useState(false);
   const [showRoomForm, setShowRoomForm] = useState(false);
+  const [isBulkMode, setIsBulkMode] = useState(false); // 🚀 NEW: Bulk Toggle State
+  const [savingBulk, setSavingBulk] = useState(false);
 
   // --- EDITING STATES ---
   const [editingCampusId, setEditingCampusId] = useState(null);
@@ -25,7 +27,12 @@ const InfrastructurePage = () => {
   // --- FORM STATES ---
   const [newCampus, setNewCampus] = useState({ name: '', address: '', property: 'Owned' });
   const [buildingInputs, setBuildingInputs] = useState({}); 
-  const [newRoom, setNewRoom] = useState({ roomNo: '', type: 'Classroom', capacity: '', floor: '', block: '', building_id: '' });
+  
+  // 🚀 FIXED: Added prefix, startNumber, and count for Bulk creation
+  const [newRoom, setNewRoom] = useState({ 
+    roomNo: '', prefix: '', startNumber: '', count: '', 
+    type: '', capacity: '', floor: '', block: '', building_id: '' 
+  });
   const [equipmentList, setEquipmentList] = useState([]);
 
   // --- DATA FETCHING ---
@@ -62,27 +69,76 @@ const InfrastructurePage = () => {
     } catch (error) { console.error("Error saving campus", error); }
   };
 
+  // 🚀 FIXED: Upgraded Save function to handle Bulk loops safely
   const handleSaveRoom = async () => {
-    if (!newRoom.roomNo || !newRoom.building_id) return alert("Room Number and Building are required");
-    try {
-      const payload = {
-        ...newRoom,
-        capacity: Number(newRoom.capacity) || 0,
-        equipment: equipmentList.filter(eq => eq.name) 
-      };
-
-      if (editingRoomId) {
-        await infrastructureService.updateRoom(editingRoomId, payload);
-      } else {
-        await infrastructureService.createRoom(payload);
+    if (isBulkMode) {
+      if (!newRoom.startNumber || !newRoom.count || !newRoom.building_id) {
+        return alert("Starting Number, Number of Rooms, and Building are required for Bulk Add.");
       }
-      
-      setShowRoomForm(false);
-      setEditingRoomId(null);
-      setNewRoom({ roomNo: '', type: 'Classroom', capacity: '', floor: '', block: '', building_id: '' });
-      setEquipmentList([]);
-      loadData();
-    } catch (error) { console.error("Error saving room", error); }
+      setSavingBulk(true);
+      try {
+        const count = Number(newRoom.count);
+        const startStr = String(newRoom.startNumber);
+        const padLength = startStr.length; // Intelligent Zero-Padding (e.g. '01' retains padding)
+        const startNum = Number(startStr);
+        const prefix = newRoom.prefix || '';
+
+        const promises = [];
+        
+        // Generate payloads for all rooms and send them concurrently
+        for(let i = 0; i < count; i++) {
+          const currentNum = startNum + i;
+          const paddedNum = String(currentNum).padStart(padLength, '0');
+          const generatedRoomNo = `${prefix}${paddedNum}`;
+
+          const payload = {
+            roomNo: generatedRoomNo,
+            type: newRoom.type,
+            capacity: Number(newRoom.capacity) || 0,
+            floor: newRoom.floor,
+            block: newRoom.block,
+            building_id: newRoom.building_id,
+            equipment: equipmentList.filter(eq => eq.name)
+          };
+          promises.push(infrastructureService.createRoom(payload));
+        }
+
+        await Promise.all(promises);
+        
+        setShowRoomForm(false);
+        setIsBulkMode(false);
+        setNewRoom({ roomNo: '', prefix: '', startNumber: '', count: '', type: '', capacity: '', floor: '', block: '', building_id: '' });
+        setEquipmentList([]);
+        loadData();
+      } catch (err) {
+        console.error("Error bulk saving rooms", err);
+        alert("Failed to create some or all rooms. Please check your backend constraints.");
+      } finally {
+        setSavingBulk(false);
+      }
+    } else {
+      // Standard Single Room Logic
+      if (!newRoom.roomNo || !newRoom.building_id) return alert("Room Number and Building are required");
+      try {
+        const payload = {
+          ...newRoom,
+          capacity: Number(newRoom.capacity) || 0,
+          equipment: equipmentList.filter(eq => eq.name) 
+        };
+
+        if (editingRoomId) {
+          await infrastructureService.updateRoom(editingRoomId, payload);
+        } else {
+          await infrastructureService.createRoom(payload);
+        }
+        
+        setShowRoomForm(false);
+        setEditingRoomId(null);
+        setNewRoom({ roomNo: '', prefix: '', startNumber: '', count: '', type: '', capacity: '', floor: '', block: '', building_id: '' });
+        setEquipmentList([]);
+        loadData();
+      } catch (error) { console.error("Error saving room", error); }
+    }
   };
 
   const handleCreateBuilding = async (campusId) => {
@@ -171,8 +227,8 @@ const InfrastructurePage = () => {
 
   const handleEditRoom = (room) => {
     setEditingRoomId(room.id);
+    setIsBulkMode(false); // Force single mode when editing
     
-    // Find the building ID based on the building name returned from the DB
     let b_id = '';
     campuses.forEach(c => {
       const found = c.buildings.find(bld => bld.name === room.building);
@@ -180,7 +236,7 @@ const InfrastructurePage = () => {
     });
 
     setNewRoom({ 
-      roomNo: room.roomNo, 
+      roomNo: room.roomNo, prefix: '', startNumber: '', count: '',
       type: room.type, 
       capacity: room.cap || '', 
       floor: room.floor || '', 
@@ -211,7 +267,8 @@ const InfrastructurePage = () => {
   const cancelRoomForm = () => {
     setShowRoomForm(false);
     setEditingRoomId(null);
-    setNewRoom({ roomNo: '', type: 'Classroom', capacity: '', floor: '', block: '', building_id: '' });
+    setIsBulkMode(false);
+    setNewRoom({ roomNo: '', prefix: '', startNumber: '', count: '', type: '', capacity: '', floor: '', block: '', building_id: '' });
     setEquipmentList([]);
   };
 
@@ -361,84 +418,135 @@ const InfrastructurePage = () => {
         <section className="bg-white rounded-xl border border-slate-200 shadow-sm mb-8 text-left">
           <div className="p-5 flex justify-between items-center border-b border-slate-100 text-left">
             <h3 className="font-semibold text-slate-800 text-lg">Rooms ({rooms.length})</h3>
-            <button onClick={() => { cancelRoomForm(); setShowRoomForm(true); }} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-1 transition outline-none">
-              <Plus size={16}/> Add Room
-            </button>
+            <div className="flex gap-2 text-right">
+              <button onClick={() => { cancelRoomForm(); setIsBulkMode(true); setShowRoomForm(true); }} className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-1 transition outline-none shadow-sm shadow-emerald-200">
+                <Warehouse size={16}/> Bulk Add
+              </button>
+              <button onClick={() => { cancelRoomForm(); setIsBulkMode(false); setShowRoomForm(true); }} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-1 transition outline-none shadow-sm shadow-blue-200">
+                <Plus size={16}/> Add Single
+              </button>
+            </div>
           </div>
 
           <div className="p-5 text-left">
             {/* ADD/EDIT ROOM FORM */}
             {showRoomForm && (
-              <div className="bg-blue-50/40 border border-blue-100 rounded-xl p-6 mb-6 text-left">
-                <h4 className="text-sm font-bold text-blue-700 mb-4 text-left">
-                  {editingRoomId ? 'Edit Room' : 'New Room'}
-                </h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5 text-left">
-                  <InputField label="Room Number" value={newRoom.roomNo} onChange={(e) => setNewRoom({...newRoom, roomNo: e.target.value})} required />
-                  <SelectField label="Type" options={['Classroom', 'Lab', 'Office', 'Library', 'Hostel']} value={newRoom.type} onChange={(e) => setNewRoom({...newRoom, type: e.target.value})} />
-                  <InputField label="Capacity" type="number" value={newRoom.capacity} onChange={(e) => setNewRoom({...newRoom, capacity: e.target.value})} />
+              <div className="bg-blue-50/40 border border-blue-100 rounded-xl p-6 mb-6 text-left relative transition-all">
+                
+                <div className="flex justify-between items-center mb-5 border-b border-blue-100/50 pb-4">
+                  <h4 className="text-sm font-bold text-blue-800 flex items-center gap-2">
+                    {editingRoomId ? <Edit2 size={18}/> : isBulkMode ? <Warehouse size={18}/> : <Plus size={18}/>}
+                    {editingRoomId ? 'Edit Room Details' : isBulkMode ? 'Bulk Create Rooms' : 'Add Single Room'}
+                  </h4>
                   
-                  <div className="grid grid-cols-2 gap-4">
-                    <InputField label="Floor" value={newRoom.floor} onChange={(e) => setNewRoom({...newRoom, floor: e.target.value})} />
-                    <InputField label="Block" value={newRoom.block} onChange={(e) => setNewRoom({...newRoom, block: e.target.value})} />
-                  </div>
+                  {!editingRoomId && (
+                    <div className="flex bg-blue-100/50 p-1 rounded-lg">
+                      <button onClick={() => setIsBulkMode(false)} type="button" className={`px-4 py-1.5 text-[11px] uppercase tracking-wider font-bold rounded-md transition-all outline-none ${!isBulkMode ? 'bg-white text-blue-700 shadow-sm' : 'text-blue-500 hover:text-blue-700'}`}>Single</button>
+                      <button onClick={() => setIsBulkMode(true)} type="button" className={`px-4 py-1.5 text-[11px] uppercase tracking-wider font-bold rounded-md transition-all outline-none ${isBulkMode ? 'bg-white text-emerald-600 shadow-sm' : 'text-blue-500 hover:text-emerald-600'}`}>Bulk</button>
+                    </div>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-12 gap-5 mb-5 text-left">
+                  {isBulkMode ? (
+                    <>
+                      <div className="md:col-span-3">
+                        <InputField label="Prefix (Optional)" placeholder="e.g. Block A-" value={newRoom.prefix} onChange={(e) => setNewRoom({...newRoom, prefix: e.target.value})} />
+                      </div>
+                      <div className="md:col-span-3">
+                        <InputField label="Start Number" placeholder="e.g. 101 or 01" value={newRoom.startNumber} onChange={(e) => setNewRoom({...newRoom, startNumber: e.target.value})} required />
+                      </div>
+                      <div className="md:col-span-3">
+                        <InputField label="Total Rooms" type="number" placeholder="e.g. 32" value={newRoom.count} onChange={(e) => setNewRoom({...newRoom, count: e.target.value})} required />
+                      </div>
+                      <div className="md:col-span-3">
+                        <InputField label="Type" placeholder="e.g. Classroom" value={newRoom.type} onChange={(e) => setNewRoom({...newRoom, type: e.target.value})} />
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="md:col-span-6">
+                        <InputField label="Room Number" value={newRoom.roomNo} onChange={(e) => setNewRoom({...newRoom, roomNo: e.target.value})} required />
+                      </div>
+                      <div className="md:col-span-6">
+                        <InputField label="Type" placeholder="e.g. Classroom, Lab..." value={newRoom.type} onChange={(e) => setNewRoom({...newRoom, type: e.target.value})} />
+                      </div>
+                    </>
+                  )}
                 </div>
                 
-                <div className="mb-5 w-full md:w-1/2 pr-2.5 text-left">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-5 text-left">
+                  <InputField label="Capacity" type="number" placeholder="e.g. 60" value={newRoom.capacity} onChange={(e) => setNewRoom({...newRoom, capacity: e.target.value})} />
+                  <InputField label="Floor" placeholder="e.g. Ground, 1st..." value={newRoom.floor} onChange={(e) => setNewRoom({...newRoom, floor: e.target.value})} />
+                  <InputField label="Block" placeholder="e.g. Main" value={newRoom.block} onChange={(e) => setNewRoom({...newRoom, block: e.target.value})} />
+                </div>
+                
+                <div className="mb-5 w-full text-left">
                   <label className="text-xs font-bold text-slate-600 text-left block">Building <span className="text-red-500">*</span></label>
                   <select 
-                    className="w-full mt-1.5 px-3 py-2.5 rounded-lg border border-slate-200 outline-none bg-white text-sm text-left"
+                    className="w-full mt-1.5 px-3 py-2.5 rounded-lg border border-slate-200 outline-none bg-white text-sm text-left focus:border-blue-400 focus:ring-1 focus:ring-blue-400 transition-all shadow-sm"
                     value={newRoom.building_id} onChange={(e) => setNewRoom({...newRoom, building_id: e.target.value})}
                   >
-                    <option value="">Select...</option>
-                    {campuses.flatMap(c => c.buildings).map(b => (
-                      <option key={b.id} value={b.id}>{b.name}</option>
+                    <option value="">Select a specific building...</option>
+                    {campuses.map(c => (
+                      <optgroup key={c.id} label={`Campus: ${c.name}`}>
+                        {c.buildings.map(b => (
+                          <option key={b.id} value={b.id}>{b.name}</option>
+                        ))}
+                      </optgroup>
                     ))}
                   </select>
                 </div>
 
-                <div className="border border-slate-200 bg-white rounded-lg p-4 mb-5 shadow-sm text-left">
-                  <p className="text-xs font-bold text-slate-600 mb-2 text-left">Equipment ({equipmentList.length})</p>
+                <div className="border border-slate-200 bg-white rounded-lg p-5 mb-5 shadow-sm text-left">
+                  <p className="text-xs font-bold text-slate-600 mb-3 text-left">Default Equipment ({equipmentList.length}) {isBulkMode && <span className="text-emerald-500 ml-2 italic font-medium">— Will be duplicated across all {newRoom.count || '0'} rooms</span>}</p>
                   {equipmentList.map((eq, idx) => (
-                    <div key={idx} className="flex gap-2 items-center mb-2 text-left">
-                      <input type="text" placeholder="Name" value={eq.name} onChange={(e) => updateEquipmentRow(idx, 'name', e.target.value)} className="flex-1 px-3 py-2 border border-slate-200 rounded-md text-sm outline-none focus:border-blue-400 text-left" />
-                      <input type="number" value={eq.quantity} onChange={(e) => updateEquipmentRow(idx, 'quantity', e.target.value)} className="w-20 px-3 py-2 border border-slate-200 rounded-md text-sm text-center outline-none focus:border-blue-400" />
-                      <input type="text" placeholder="Asset ID" value={eq.asset_id} onChange={(e) => updateEquipmentRow(idx, 'asset_id', e.target.value)} className="w-32 px-3 py-2 border border-slate-200 rounded-md text-sm outline-none focus:border-blue-400 text-left" />
-                      <button onClick={() => setEquipmentList(equipmentList.filter((_, i) => i !== idx))} className="text-red-400 hover:text-red-600 p-2 outline-none"><Trash2 size={16}/></button>
+                    <div key={idx} className="flex gap-3 items-center mb-3 text-left">
+                      <input type="text" placeholder="Equipment Name (e.g. Projector)" value={eq.name} onChange={(e) => updateEquipmentRow(idx, 'name', e.target.value)} className="flex-1 px-3 py-2.5 border border-slate-200 rounded-lg text-sm outline-none focus:border-blue-400 text-left shadow-sm" />
+                      <input type="number" placeholder="Qty" value={eq.quantity} onChange={(e) => updateEquipmentRow(idx, 'quantity', e.target.value)} className="w-24 px-3 py-2.5 border border-slate-200 rounded-lg text-sm text-center outline-none focus:border-blue-400 shadow-sm" />
+                      <input type="text" placeholder="Asset ID (Optional)" value={eq.asset_id} onChange={(e) => updateEquipmentRow(idx, 'asset_id', e.target.value)} className="w-40 px-3 py-2.5 border border-slate-200 rounded-lg text-sm outline-none focus:border-blue-400 text-left shadow-sm" />
+                      <button onClick={() => setEquipmentList(equipmentList.filter((_, i) => i !== idx))} className="text-red-400 hover:text-red-600 p-2 outline-none hover:bg-red-50 rounded-lg transition-colors"><Trash2 size={18}/></button>
                     </div>
                   ))}
-                  <button onClick={addEquipmentRow} className="bg-blue-600 text-white px-3 py-1.5 rounded-md font-bold hover:bg-blue-700 flex items-center justify-center text-sm outline-none">
-                    + Add Item
+                  <button onClick={addEquipmentRow} className="bg-slate-100 text-slate-600 border border-slate-200 px-4 py-2 rounded-lg font-bold hover:bg-slate-200 flex items-center justify-center text-xs outline-none transition-colors mt-1">
+                    + Add Equipment Item
                   </button>
                 </div>
 
-                <div className="flex justify-end gap-3 text-right">
-                  <button onClick={cancelRoomForm} className="px-5 py-2 rounded-lg text-slate-600 font-semibold text-sm bg-white border border-slate-200 hover:bg-slate-50 outline-none">Cancel</button>
-                  <button onClick={handleSaveRoom} className="px-5 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm flex items-center gap-2 outline-none">
-                    <CheckCircle2 size={16}/> {editingRoomId ? 'Update Room' : 'Save Room'}
+                <div className="flex justify-end gap-3 text-right pt-2 border-t border-blue-100/50">
+                  <button onClick={cancelRoomForm} className="px-5 py-2.5 rounded-lg text-slate-600 font-bold text-sm bg-white border border-slate-200 hover:bg-slate-50 outline-none transition-colors">Cancel</button>
+                  <button onClick={handleSaveRoom} disabled={savingBulk} className={`px-6 py-2.5 rounded-lg text-white font-bold text-sm flex items-center gap-2 outline-none transition-all disabled:opacity-70 shadow-md ${isBulkMode ? 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-200' : 'bg-blue-600 hover:bg-blue-700 shadow-blue-200'}`}>
+                    {savingBulk ? <Loader2 size={18} className="animate-spin" /> : <CheckCircle2 size={18}/>} 
+                    {editingRoomId ? 'Update Room' : isBulkMode ? `Create ${newRoom.count || '0'} Rooms` : 'Save Room'}
                   </button>
                 </div>
               </div>
             )}
 
             {/* ROOM LIST */}
-            <div className="border border-slate-100 bg-slate-50 rounded-xl text-left">
-              {rooms.length === 0 && !showRoomForm && <p className="p-5 text-sm text-slate-500 text-center">No rooms added yet.</p>}
+            <div className="border border-slate-100 bg-slate-50 rounded-xl text-left p-1">
+              {rooms.length === 0 && !showRoomForm && <p className="p-8 text-sm text-slate-500 font-bold text-center">No rooms added yet. Click "Add Room" or "Bulk Add" to get started.</p>}
               
               {rooms.map(r => (
-                <div key={r.id} className="flex items-center justify-between p-4 bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow transition-all group mb-1 text-left">
+                <div key={r.id} className="flex items-center justify-between p-4 bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow transition-all group mb-2 text-left">
                   <div className="flex items-center gap-4 text-left">
                     <ToggleSwitch active={r.active} onToggle={() => handleToggleStatus('rooms', r.id, r.active)} />
-                    <span className="font-bold text-slate-800 text-[15px] w-16">{r.roomNo}</span>
-                    <span className="px-2.5 py-1 rounded bg-blue-100 text-blue-600 text-[11px] font-bold">{r.type}</span>
-                    <span className="text-sm text-slate-500 font-medium ml-2">
-                      Capacity: {r.cap} • Floor: {r.floor} {r.block ? `• Block: ${r.block}` : ''} <span className="text-slate-400 ml-1">{r.building}</span>
+                    <span className="font-black text-slate-800 text-[15px] w-16">{r.roomNo}</span>
+                    <span className="px-3 py-1 rounded-md bg-blue-50 border border-blue-100 text-blue-700 text-[11px] font-black uppercase tracking-wider">{r.type || 'Standard'}</span>
+                    <span className="text-sm text-slate-500 font-bold ml-2 flex items-center gap-2">
+                      <Users size={14} className="text-slate-400"/> {r.cap || 0} 
+                      <span className="text-slate-300">|</span> 
+                      Floor: {r.floor || '-'} {r.block ? `(${r.block})` : ''} 
+                      <span className="text-slate-300">|</span> 
+                      <Building2 size={14} className="text-slate-400"/> <span className="text-slate-700">{r.building}</span>
                     </span>
                   </div>
                   <div className="flex items-center gap-4 text-right">
-                    <span className="text-sm text-amber-500 font-semibold">{r.eq || 0} Equipment</span>
-                    <button onClick={() => handleEditRoom(r)} className="text-blue-500 hover:text-blue-700 outline-none"><Edit2 size={16}/></button>
-                    <button onClick={() => handleDeleteRoom(r.id)} className="text-red-400 hover:text-red-600 outline-none"><Trash2 size={16}/></button>
+                    <span className="text-xs px-2 py-1 bg-amber-50 text-amber-700 border border-amber-100 rounded font-bold flex items-center gap-1.5">
+                      <Package size={12}/> {r.eq || 0}
+                    </span>
+                    <button onClick={() => handleEditRoom(r)} className="text-slate-400 hover:text-blue-600 outline-none p-1.5 hover:bg-blue-50 rounded-lg transition-colors"><Edit2 size={16}/></button>
+                    <button onClick={() => handleDeleteRoom(r.id)} className="text-slate-400 hover:text-red-600 outline-none p-1.5 hover:bg-red-50 rounded-lg transition-colors"><Trash2 size={16}/></button>
                     <button className="text-slate-400 group-hover:text-slate-600 outline-none"><ChevronRight size={18}/></button>
                   </div>
                 </div>
@@ -455,22 +563,22 @@ const InfrastructurePage = () => {
 // --- SUB-COMPONENTS ---
 
 const ToggleSwitch = ({ active, onToggle }) => (
-  <div onClick={onToggle} className={`w-10 h-[22px] rounded-full flex items-center px-0.5 cursor-pointer transition-colors outline-none ${active ? 'bg-emerald-500' : 'bg-slate-300'}`}>
-    <div className={`w-[18px] h-[18px] bg-white rounded-full shadow-sm transform transition-transform ${active ? 'translate-x-[18px]' : 'translate-x-0'}`}></div>
+  <div onClick={onToggle} className={`w-10 h-[22px] rounded-full flex items-center px-0.5 cursor-pointer transition-colors outline-none shadow-inner ${active ? 'bg-emerald-500' : 'bg-slate-300'}`}>
+    <div className={`w-[18px] h-[18px] bg-white rounded-full shadow-sm transform transition-transform duration-200 ${active ? 'translate-x-[18px]' : 'translate-x-0'}`}></div>
   </div>
 );
 
 const InputField = ({ label, placeholder, required, type="text", value, onChange }) => (
   <div className="flex flex-col gap-1.5 w-full text-left">
-    <label className="text-xs font-bold text-slate-600 text-left">{label}{required && <span className="text-red-500">*</span>}</label>
-    <input type={type} placeholder={placeholder} value={value} onChange={onChange} className="px-3 py-2.5 rounded-lg border border-slate-200 outline-none focus:border-blue-400 bg-white text-sm text-left" />
+    <label className="text-xs font-bold text-slate-600 text-left">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
+    <input type={type} placeholder={placeholder} value={value} onChange={onChange} className="px-3 py-2.5 rounded-lg border border-slate-200 outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400 bg-white text-sm text-left transition-all shadow-sm" />
   </div>
 );
 
 const SelectField = ({ label, options, required, value, onChange }) => (
   <div className="flex flex-col gap-1.5 w-full text-left">
-    <label className="text-xs font-bold text-slate-600 text-left">{label}{required && <span className="text-red-500">*</span>}</label>
-    <select value={value} onChange={onChange} className="px-3 py-2.5 rounded-lg border border-slate-200 outline-none bg-white text-sm text-left">
+    <label className="text-xs font-bold text-slate-600 text-left">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
+    <select value={value} onChange={onChange} className="px-3 py-2.5 rounded-lg border border-slate-200 outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400 bg-white text-sm text-left transition-all shadow-sm">
       {options.map(o => <option key={o} value={o}>{o}</option>)}
     </select>
   </div>

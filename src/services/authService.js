@@ -19,7 +19,7 @@ export const authService = {
       let endpoint = ''; 
       const normalizedRole = roleType?.toLowerCase() || '';
 
-      // 🚀 CRITICAL FIX: Map ALL sub-roles to their correct API endpoints
+      // 🚀 CRITICAL FIX: Map ALL roles to their correct API endpoints
       switch (normalizedRole) {
         case 'super_admin':
         case 'super':
@@ -27,14 +27,17 @@ export const authService = {
           break;
         case 'institute_admin':
         case 'admin':
-        case 'principal':
-        case 'accountant':
-          // All institutional management roles route through the admin auth
+          // This is strictly for the top-level Institute Admin/Owner
           endpoint = '/admin/auth/login'; 
           break;
+        case 'employee':
         case 'faculty':
         case 'hod':
-          // HODs are faculty members with elevated dashboard privileges
+        case 'principal':
+        case 'accountant':
+        case 'staff':
+          // 🚀 UNIFIED EMPLOYEE LOGIN: All academic and non-academic staff go through here!
+          // The backend will check their designation and return their TRUE role.
           endpoint = '/faculty/auth/login';
           break;
         case 'student':
@@ -47,7 +50,6 @@ export const authService = {
       console.log(`🚀 [${normalizedRole.toUpperCase()}] Login Request to:`, endpoint);
 
       // 🎯 FAIL-SAFE PAYLOAD: We send both camelCase and snake_case for the institute code.
-      // This guarantees the backend will find it regardless of how the variables are named in Node.js.
       const payload = {
         email: email, 
         password: password, 
@@ -58,7 +60,6 @@ export const authService = {
 
       // Send the request with credentials (for HTTP-Only cookies)
       const response = await api.post(endpoint, payload, { withCredentials: true });
-
       const responseData = response.data;
       
       console.log("📦 Backend Response Received:", responseData.success ? "SUCCESS" : "FAILED");
@@ -70,16 +71,19 @@ export const authService = {
         // 2. Handle Token (Some roles use Cookies, others might return a token string)
         const token = responseData.token || responseData.accessToken;
 
-        // 3. Update LocalStorage for UI purposes
+        // 🚀 3. THE MAGIC: Extract the TRUE role assigned by the backend database
+        const actualRole = userData.role || normalizedRole;
+
+        // 4. Update LocalStorage for UI purposes
         if (token) {
           localStorage.setItem('token', token);
         }
         
         localStorage.setItem('user', JSON.stringify(userData));
-        localStorage.setItem('role', normalizedRole); 
+        localStorage.setItem('role', actualRole); // Save the true role (e.g., 'principal') instead of just 'employee'
         if (instituteCode) localStorage.setItem('instituteCode', instituteCode);
 
-        console.log("✅ Login flow completed. Redirecting...");
+        console.log(`✅ Login flow completed. User verified as: [${actualRole.toUpperCase()}]`);
       }
       
       return responseData;
@@ -98,10 +102,11 @@ export const authService = {
       const normalizedRole = role?.toLowerCase() || '';
       
       // 🎯 IMPORTANT: Call the correct backend logout to clear HTTP-Only cookies
-      if (['faculty', 'hod'].includes(normalizedRole)) {
+      if (['employee', 'faculty', 'hod', 'principal', 'accountant', 'staff'].includes(normalizedRole)) {
+        // All staff log out through the unified route
         await api.post('/faculty/auth/logout', {}, { withCredentials: true });
       } 
-      else if (['institute_admin', 'principal', 'accountant', 'admin'].includes(normalizedRole)) {
+      else if (['institute_admin', 'admin'].includes(normalizedRole)) {
         await api.post('/admin/auth/logout', {}, { withCredentials: true });
       }
       else if (['super_admin', 'super'].includes(normalizedRole)) {

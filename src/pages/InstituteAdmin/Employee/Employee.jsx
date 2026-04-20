@@ -20,7 +20,7 @@ api.interceptors.request.use((config) => {
 });
 
 // ─── CONSTANTS & HELPERS ──────────────────────────────────────────────────────
-const ACADEMIC_DESIGNATIONS = ['Professor', 'Associate Professor', 'Assistant Professor', 'HOD', 'Dean', 'Principal', 'Lecturer', 'Lab Instructor'];
+const ACADEMIC_DESIGNATIONS = ['Faculty', 'HOD', 'Professor', 'Lecturer', 'Dean', 'Principal', 'Lab Instructor'];
 const NON_ACADEMIC_DESIGNATIONS = ['Administrative Officer', 'Accountant', 'Clerk', 'Lab Technician', 'Librarian', 'Security Guard', 'IT Support', 'Peon'];
 const QUALIFICATIONS = ['PhD', 'M.Tech', 'M.Sc', 'MBA', 'B.Tech', 'B.Sc', 'B.Com', 'Diploma', 'Other'];
 const GENDERS = ['Male', 'Female', 'Other'];

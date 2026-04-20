@@ -26,7 +26,7 @@ import AcademicProgram from "../pages/InstituteAdmin/AcademicPrograms/AcademicPr
 import {Department} from "../pages/InstituteAdmin/Departments/Department";
 import { Syllabus } from "../pages/InstituteAdmin/Syllabus/Syllabus"; 
 
-// 🚀 EMPLOYEE MASTER IMPORTS (Must have { } because we used export const)
+// 🚀 EMPLOYEE MASTER IMPORTS
 import { Employee } from "../pages/InstituteAdmin/Employee/Employee"; 
 import { EmployeeDirectory } from "../pages/InstituteAdmin/Employee/EmployeeDirectory";
 import { EmployeeProfile } from "../pages/InstituteAdmin/Employee/EmployeeProfile";
@@ -72,7 +72,7 @@ import FacultyLeave from "../pages/Faculty/Leaves/FacultyLeave";
 import { FacultyNotifications } from "../pages/Faculty/Notifications/Facultynotification";
 import Attendance from '../pages/Faculty/Attendance.jsx';
 import { FacultyExams } from "../pages/Faculty/FacultyExams";
-import { Help as FacultyHelp } from "../pages/Faculty/Help/Help"; // 🚀 Aliased to prevent naming collisions
+import { Help as FacultyHelp } from "../pages/Faculty/Help/Help"; 
 import FacultySalary from "../pages/Faculty/Salary/Salary";   
 
 // Student
@@ -88,7 +88,7 @@ import { AssignmentDetails} from "../pages/Student/Assignments/AssignmentDetails
 import { StudentFees }      from "../pages/Student/Fees/StudentFees";
 import { Notification }     from "../pages/Student/Notification/Notifications";
 import { Calendar }         from "../pages/Student/Calendar/Calendar";
-import { Help as StudentHelp } from "../pages/Student/Help/Help"; // 🚀 Aliased to prevent naming collisions
+import { Help as StudentHelp } from "../pages/Student/Help/Help"; 
 
 // IMPORTS REAL CERTIFICATE PAGE (STUDENT)
 import { StudentCertificates } from "../pages/Student/Certificates/StudentCertificates";
@@ -186,11 +186,12 @@ export const AppRouter = () => (
       <Route path="exams/results"    element={<Examresult />} />
     </Route>
 
-    {/* ── FACULTY + HOD ─────────────────────────────────────────────────────── */}
+    {/* ── FACULTY + HOD + PROFESSORS ──────────────────────────────────────── */}
     <Route
       path="/faculty"
       element={
-        <ProtectedRoute allowedRoles={["faculty", "hod"]}>
+        // 🚀 FIXED: Added all valid academic designations to the allowed list
+        <ProtectedRoute allowedRoles={["faculty", "hod", "professor", "lecturer", "lab instructor"]}>
           <DashboardLayout />
         </ProtectedRoute>
       }

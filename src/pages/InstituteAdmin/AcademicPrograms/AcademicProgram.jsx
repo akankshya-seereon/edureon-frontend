@@ -4,7 +4,7 @@ import {
   Plus, Edit2, Trash2, ChevronDown, ChevronRight, 
   Copy, X, Check, Calendar
 } from 'lucide-react';
-import apiBaseUrl from "../../../config/baseurl";// Base URL for API calls
+import apiBaseUrl from "../../../config/baseurl";
 
 // ─── 🚀 AXIOS CONFIGURATION ──────────────────────────────────────────────
 const api = axios.create({
@@ -58,6 +58,7 @@ const INITIAL_COURSES = [
     ]
   }
 ];
+
 export default function AcademicProgram() { 
   
   const [courses, setCourses] = useState([]);
@@ -194,51 +195,64 @@ export default function AcademicProgram() {
 
         {/* COURSE CARDS LIST */}
         <div className="space-y-4">
-          {courses.map(course => (
-            <div key={course.id} className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-              
-              {/* CARD HEADER */}
-              <div className="p-5 flex items-start justify-between bg-white hover:bg-gray-50 cursor-pointer transition" onClick={() => toggleExpand(course.id)}>
-                <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-1">
-                    <h2 className="text-lg font-bold text-gray-900">{course.name}</h2>
-                    <span className="px-2 py-0.5 bg-gray-100 text-gray-700 text-xs font-black rounded uppercase tracking-wider">{course.code}</span>
-                    <span className="text-sm font-semibold text-blue-600">{course.currentIntake}/{course.totalIntake}</span>
-                  </div>
-                  <p className="text-xs text-gray-500 font-medium">
-                    {course.duration} · {course.building} · {course.evaluation} · {course.specializations?.length || 0} specs · {course.batches?.length || 0} batches
-                  </p>
-                  <div className="w-32 h-1.5 bg-gray-200 rounded-full mt-2 overflow-hidden">
-                    <div className="h-full bg-blue-500 rounded-full" style={{ width: course.totalIntake > 0 ? `${(course.currentIntake / course.totalIntake) * 100}%` : '0%' }}></div>
-                  </div>
-                </div>
-                <div className="flex items-center gap-4 text-gray-400">
-                  <button onClick={(e) => { e.stopPropagation(); handleOpenCourseForm(course); }} className="hover:text-blue-600"><Edit2 size={16} /></button>
-                  <button onClick={(e) => { e.stopPropagation(); handleDeleteCourse(course.id); }} className="hover:text-red-500"><Trash2 size={16} /></button>
-                  {expandedCourseId === course.id ? <ChevronDown size={20} /> : <ChevronRight size={20} />}
-                </div>
-              </div>
+          {courses.map(course => {
+            // 🚀 DYNAMIC INTAKE CALCULATION
+            // Checks if specializations exist, then sums them up. Otherwise falls back to default.
+            const hasSpecs = course.specializations && course.specializations.length > 0;
+            const dynamicTotal = hasSpecs 
+              ? course.specializations.reduce((sum, spec) => sum + (Number(spec.total) || 0), 0) 
+              : (course.totalIntake || 0);
+            const dynamicIntake = hasSpecs 
+              ? course.specializations.reduce((sum, spec) => sum + (Number(spec.intake) || 0), 0) 
+              : (course.currentIntake || 0);
 
-              {/* EXPANDED CONTENT */}
-              {expandedCourseId === course.id && (
-                <div className="border-t border-gray-100 bg-white">
-                  <SpecializationsSection course={course} fetchPrograms={fetchPrograms} api={api} />
-                  <div className="h-px bg-gray-100 w-full" />
-                  {/*
-                    🔑 KEY FIX: Pass course.specializations explicitly as courseSpecializations.
-                    Because fetchPrograms() re-renders the whole tree, this prop is always
-                    fresh after any add/edit of a specialization.
-                  */}
-                  <BatchesSection 
-                    course={course} 
-                    fetchPrograms={fetchPrograms} 
-                    api={api}
-                    courseSpecializations={course.specializations || []}
-                  />
+            const progressPercent = dynamicTotal > 0 ? `${(dynamicIntake / dynamicTotal) * 100}%` : '0%';
+
+            return (
+              <div key={course.id} className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                
+                {/* CARD HEADER */}
+                <div className="p-5 flex items-start justify-between bg-white hover:bg-gray-50 cursor-pointer transition" onClick={() => toggleExpand(course.id)}>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-3 mb-1">
+                      <h2 className="text-lg font-bold text-gray-900">{course.name}</h2>
+                      <span className="px-2 py-0.5 bg-gray-100 text-gray-700 text-xs font-black rounded uppercase tracking-wider">{course.code}</span>
+                      
+                      {/* 🚀 DYNAMIC VALUES RENDERED HERE */}
+                      <span className="text-sm font-semibold text-blue-600">{dynamicIntake}/{dynamicTotal}</span>
+                    </div>
+                    <p className="text-xs text-gray-500 font-medium">
+                      {course.duration} · {course.building} · {course.evaluation} · {course.specializations?.length || 0} specs · {course.batches?.length || 0} batches
+                    </p>
+                    
+                    {/* 🚀 DYNAMIC PROGRESS BAR */}
+                    <div className="w-32 h-1.5 bg-gray-200 rounded-full mt-2 overflow-hidden">
+                      <div className="h-full bg-blue-500 rounded-full" style={{ width: progressPercent }}></div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-4 text-gray-400">
+                    <button onClick={(e) => { e.stopPropagation(); handleOpenCourseForm(course); }} className="hover:text-blue-600"><Edit2 size={16} /></button>
+                    <button onClick={(e) => { e.stopPropagation(); handleDeleteCourse(course.id); }} className="hover:text-red-500"><Trash2 size={16} /></button>
+                    {expandedCourseId === course.id ? <ChevronDown size={20} /> : <ChevronRight size={20} />}
+                  </div>
                 </div>
-              )}
-            </div>
-          ))}
+
+                {/* EXPANDED CONTENT */}
+                {expandedCourseId === course.id && (
+                  <div className="border-t border-gray-100 bg-white">
+                    <SpecializationsSection course={course} fetchPrograms={fetchPrograms} api={api} />
+                    <div className="h-px bg-gray-100 w-full" />
+                    <BatchesSection 
+                      course={course} 
+                      fetchPrograms={fetchPrograms} 
+                      api={api}
+                      courseSpecializations={course.specializations || []}
+                    />
+                  </div>
+                )}
+              </div>
+            );
+          })}
           {courses.length === 0 && !showCourseForm && (
             <div className="text-center py-10 bg-white rounded-xl border border-dashed border-gray-300 text-gray-400 font-bold">
               No academic programs found. Click "Add Course" to begin.
@@ -299,59 +313,75 @@ const SpecializationsSection = ({ course, fetchPrograms, api }) => {
     <div className="p-6">
       <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-4">Specializations</h3>
       
-      <div className="grid grid-cols-12 gap-4 pb-2 border-b border-gray-200 text-xs font-bold text-gray-500 uppercase">
-        <div className="col-span-4">Name</div>
-        <div className="col-span-2">Code</div>
-        <div className="col-span-2 text-center">Total</div>
-        <div className="col-span-2 text-center">Intake</div>
-        <div className="col-span-2 text-right">Active</div>
-      </div>
+      <div className="w-full">
+        {/* 🚀 PERFECTLY ALIGNED TABLE HEADERS */}
+        <div className="hidden md:grid grid-cols-12 gap-4 pb-3 border-b border-gray-200 text-[11px] font-black text-gray-500 uppercase tracking-wider items-center">
+          <div className="col-span-4 text-left">Name</div>
+          <div className="col-span-2 text-center">Code</div>
+          <div className="col-span-2 text-center">Total</div>
+          <div className="col-span-2 text-center">Intake</div>
+          <div className="col-span-2 text-right">Actions</div>
+        </div>
 
-      <div className="space-y-3 py-3">
-        {course.specializations?.map(spec => (
-          <div key={spec.id} className="grid grid-cols-12 gap-4 items-center text-sm font-semibold text-gray-800">
-            <div className="col-span-4">{spec.name}</div>
-            <div className="col-span-2 text-gray-500 font-bold">{spec.code || '—'}</div>
-            <div className="col-span-2 text-center">{spec.total}</div>
-            <div className="col-span-2 text-center text-blue-600">{spec.intake}</div>
-            <div className="col-span-2 flex justify-end items-center gap-3">
-              <div onClick={() => handleToggleSpecActive(spec)} className={`w-9 h-5 rounded-full flex items-center px-0.5 cursor-pointer ${spec.active ? 'bg-green-500' : 'bg-gray-300'}`}>
-                <div className={`w-4 h-4 bg-white rounded-full shadow-sm transform transition-transform ${spec.active ? 'translate-x-4' : 'translate-x-0'}`}></div>
+        {/* 🚀 PERFECTLY ALIGNED TABLE BODY */}
+        <div className="space-y-0">
+          {course.specializations?.map(spec => (
+            <div key={spec.id} className="grid grid-cols-1 md:grid-cols-12 gap-4 py-3 items-center text-sm font-semibold text-gray-800 border-b border-gray-50">
+              <div className="md:col-span-4 text-left truncate pr-2">{spec.name}</div>
+              <div className="md:col-span-2 text-center text-gray-600 font-bold">{spec.code || '—'}</div>
+              <div className="md:col-span-2 text-center">{spec.total}</div>
+              <div className="md:col-span-2 text-center text-blue-600">{spec.intake}</div>
+              <div className="md:col-span-2 flex justify-end items-center gap-5">
+                <div onClick={() => handleToggleSpecActive(spec)} className={`w-9 h-5 rounded-full flex items-center px-0.5 cursor-pointer ${spec.active ? 'bg-green-500' : 'bg-gray-300'}`}>
+                  <div className={`w-4 h-4 bg-white rounded-full shadow-sm transform transition-transform ${spec.active ? 'translate-x-4' : 'translate-x-0'}`}></div>
+                </div>
+                <button onClick={() => handleEditSpec(spec)} className="text-gray-400 hover:text-blue-600 transition-colors"><Edit2 size={16}/></button>
+                <button onClick={() => handleDeleteSpec(spec.id)} className="text-gray-400 hover:text-red-600 transition-colors"><Trash2 size={16}/></button>
               </div>
-              <button onClick={() => handleEditSpec(spec)} className="text-blue-400 hover:text-blue-600"><Edit2 size={15}/></button>
-              <button onClick={() => handleDeleteSpec(spec.id)} className="text-red-400 hover:text-red-600"><Trash2 size={15}/></button>
             </div>
-          </div>
-        ))}
-        {(!course.specializations || course.specializations.length === 0) && (
-          <p className="text-sm text-gray-400 text-center py-2">No specializations added.</p>
-        )}
-      </div>
+          ))}
+          {(!course.specializations || course.specializations.length === 0) && (
+            <p className="text-sm text-gray-400 text-center py-4 border-b border-gray-50">No specializations added.</p>
+          )}
+        </div>
 
-      <div className="flex items-center gap-3 mt-4">
-        <input 
-          type="text" placeholder="Specialization Name" 
-          value={newSpec.name} 
-          onChange={e => {
-            const newName = e.target.value;
-            setNewSpec({ ...newSpec, name: newName, code: generateCode(newName) });
-          }} 
-          className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:border-blue-400" 
-        />
-        <input 
-          type="text" placeholder="Auto Code" value={newSpec.code} disabled 
-          className="w-24 px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none bg-gray-100 text-gray-500 cursor-not-allowed" 
-        />
-        <input type="number" placeholder="Tot" value={newSpec.total} onChange={e => setNewSpec({...newSpec, total: e.target.value})} className="w-20 px-3 py-2 border border-gray-200 rounded-lg text-sm text-center outline-none focus:border-blue-400" />
-        <input type="number" placeholder="Int" value={newSpec.intake} onChange={e => setNewSpec({...newSpec, intake: e.target.value})} className="w-20 px-3 py-2 border border-gray-200 rounded-lg text-sm text-center outline-none focus:border-blue-400" />
-        <button onClick={handleSaveSpec} className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-semibold flex items-center justify-center gap-1 hover:bg-blue-700 min-w-[80px]">
-          {editingSpecId ? <Check size={16} /> : <Plus size={16} />} {editingSpecId ? 'Save' : 'Add'}
-        </button>
-        {editingSpecId && (
-          <button onClick={() => { setEditingSpecId(null); setNewSpec({ name: '', code: '', total: '', intake: '' }); }} className="bg-gray-100 text-gray-600 px-3 py-2 rounded-lg hover:bg-gray-200">
-            <X size={16} />
-          </button>
-        )}
+        {/* 🚀 PERFECTLY ALIGNED INPUT ROW */}
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-4 pt-4 items-center">
+          <div className="md:col-span-4">
+            <input 
+              type="text" placeholder="New Specialization Name" 
+              value={newSpec.name} 
+              onChange={e => {
+                const newName = e.target.value;
+                setNewSpec({ ...newSpec, name: newName, code: generateCode(newName) });
+              }} 
+              className="h-10 w-full px-3 border border-gray-200 rounded-lg text-sm font-semibold text-left outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 bg-white transition-all" 
+            />
+          </div>
+          <div className="md:col-span-2">
+            <input 
+              type="text" placeholder="Auto Code" value={newSpec.code} disabled 
+              className="h-10 w-full px-3 border border-gray-200 rounded-lg text-sm font-semibold text-center outline-none bg-gray-50 text-gray-500 cursor-not-allowed" 
+            />
+          </div>
+          <div className="md:col-span-2">
+            <input type="number" placeholder="Total" value={newSpec.total} onChange={e => setNewSpec({...newSpec, total: e.target.value})} className="h-10 w-full px-3 border border-gray-200 rounded-lg text-sm font-semibold text-center outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 bg-white transition-all" />
+          </div>
+          <div className="md:col-span-2">
+            <input type="number" placeholder="Intake" value={newSpec.intake} onChange={e => setNewSpec({...newSpec, intake: e.target.value})} className="h-10 w-full px-3 border border-gray-200 rounded-lg text-sm font-semibold text-center outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 bg-white transition-all" />
+          </div>
+          <div className="md:col-span-2 flex justify-end gap-2 h-10">
+            {editingSpecId && (
+              <button onClick={() => { setEditingSpecId(null); setNewSpec({ name: '', code: '', total: '', intake: '' }); }} className="h-10 w-10 flex items-center justify-center bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors" title="Cancel Edit">
+                <X size={18} />
+              </button>
+            )}
+            <button onClick={handleSaveSpec} className="h-10 w-full bg-blue-600 text-white rounded-lg text-sm font-bold flex items-center justify-center gap-1.5 hover:bg-blue-700 transition-all shadow-sm">
+              {editingSpecId ? <Check size={16} /> : <Plus size={16} />} {editingSpecId ? 'Save' : 'Add'}
+            </button>
+          </div>
+        </div>
+
       </div>
     </div>
   );
@@ -368,8 +398,6 @@ const BatchesSection = ({ course, fetchPrograms, api, courseSpecializations }) =
   const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   const YEARS = [2024, 2025, 2026, 2027, 2028, 2029, 2030, 2031, 2032];
 
-  // 🔑 CORE FIX: Use the explicitly passed prop, fallback to course.specializations.
-  // This is the single source of truth for the batch form's dropdown list.
   const availableSpecs = (courseSpecializations && courseSpecializations.length > 0)
     ? courseSpecializations
     : (course.specializations || []);
@@ -449,13 +477,18 @@ const BatchesSection = ({ course, fetchPrograms, api, courseSpecializations }) =
 
   return (
     <div className="p-6 bg-gray-50/30">
-      <div className="flex justify-between items-center mb-6">
-        <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest">Batches</h3>
-        {editingBatchId !== 'NEW' && (
-          <button onClick={handleAddNewBatch} className="bg-blue-600 text-white px-4 py-1.5 rounded-lg text-sm font-semibold flex items-center gap-1 hover:bg-blue-700 shadow-sm">
-            <Plus size={16} /> Add Batch
-          </button>
-        )}
+      {/* 🚀 SHARED GRID LAYOUT FOR BUTTON ALIGNMENT */}
+      <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center mb-6">
+        <div className="md:col-span-10">
+          <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest">Batches</h3>
+        </div>
+        <div className="md:col-span-2 flex justify-end">
+          {editingBatchId !== 'NEW' && (
+            <button onClick={handleAddNewBatch} className="h-10 w-full bg-blue-600 text-white rounded-lg text-sm font-bold flex items-center justify-center gap-1.5 hover:bg-blue-700 shadow-sm transition-all">
+              <Plus size={16} /> Add Batch
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="space-y-4">
@@ -626,17 +659,14 @@ const BatchEditForm = ({ data, setData, onSave, onCancel, newSectionText, setNew
 
           {/* Dropdown logic with 3 clear states */}
           {courseSpecs.length === 0 ? (
-            // State 1: No specializations exist on this course at all
             <div className="text-xs text-amber-600 font-semibold bg-amber-50 p-2.5 rounded border border-amber-200 text-center">
               ⚠️ No specializations found. Add specializations to this course first.
             </div>
           ) : unselectedSpecs.length === 0 ? (
-            // State 2: All specializations already selected
             <div className="text-xs text-green-700 font-semibold bg-green-50 p-2.5 rounded border border-green-200 text-center">
               ✅ All specializations have been added to this batch.
             </div>
           ) : (
-            // State 3: Some remain to be added — show dropdown
             <div className="flex gap-2">
               <select 
                 value={specToAdd} 
@@ -706,13 +736,6 @@ const SelectField = ({ label, options, value, onChange }) => (
     </select>
   </div>
 );
-
-
-
-
-
-
-
 
 
 
