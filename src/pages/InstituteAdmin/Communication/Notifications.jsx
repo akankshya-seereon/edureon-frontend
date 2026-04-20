@@ -161,10 +161,10 @@ export const Notifications = () => {
     <div className="w-full max-w-7xl mx-auto pb-12">
       {/* Title */}
       <div className="mb-10 mt-2">
-        <h1 className="text-4xl font-black text-[#1e293b] tracking-tight">
+        <h1 className="text-4xl font-black text-[#1e293b] tracking-tight text-left">
           Notifications
         </h1>
-        <p className="text-slate-400 font-medium mt-2">
+        <p className="text-slate-400 font-medium mt-2 text-left">
           Send notifications to students, faculty, and staff
         </p>
       </div>

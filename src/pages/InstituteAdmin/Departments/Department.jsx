@@ -353,7 +353,7 @@ export const Department = () => {
                       )}
                     </div>
                   ))}
-                  {filteredDepartments.length === 0 && <div className="p-12 text-center text-gray-400 text-xs font-bold italic">No departments found in this category.</div>}
+                  {filteredDepartments.length === 0 && <div className="p-12 text-center text-gray-400 text-xs font-bold italic text-left">No departments found in this category.</div>}
                 </div>
 
                 {/* Inline Add Form */}

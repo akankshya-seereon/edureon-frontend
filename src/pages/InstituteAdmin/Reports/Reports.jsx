@@ -232,8 +232,8 @@ export const Reports = () => {
     <div className="w-full max-w-8xl mx-auto pb-12">
 
       <div className="mb-8 mt-2">
-        <h1 className="text-4xl font-black text-slate-800 mb-2">Reports</h1>
-        <p className="text-slate-400 text-sm">Generate and export reports for students, faculty, and staff</p>
+        <h1 className="text-4xl font-black text-slate-800 mb-2 text-left">Reports</h1>
+        <p className="text-slate-400 text-sm text-left">Generate and export reports for students, faculty, and staff</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
