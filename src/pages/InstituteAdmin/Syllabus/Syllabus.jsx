@@ -274,7 +274,7 @@ export const Syllabus = () => {
                         <button 
                           type="button"
                           onClick={handleAddSubjectRow}
-                          className="px-5 py-2.5 bg-blue-50 text-blue-600 hover:bg-blue-100 font-bold text-sm rounded-lg transition-colors inline-flex items-center gap-2"
+                          className="px-5 py-2.5 bg-blue-50 text-blue-600 hover:bg-blue-100 font-bold text-sm rounded-lg transition-colors inline-flex items-center gap-2 text-left"
                         >
                           <Plus size={16} strokeWidth={3} /> Add First Subject
                         </button>

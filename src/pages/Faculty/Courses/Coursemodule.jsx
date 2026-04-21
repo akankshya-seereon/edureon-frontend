@@ -1,5 +1,5 @@
 import axios from "axios";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
   ArrowLeft,
@@ -17,7 +17,8 @@ import {
   Check,
   X,
 } from "lucide-react";
-import { VideoUploadModal } from "./Videouploadmodal";
+import { VideoUploadModal } from "./Videouploadmodal"; 
+import apiBaseUrl from "../../../config/baseurl"; // 🚀 FIXED: Imported your base URL
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -54,7 +55,7 @@ const SAMPLE_MODULES = [
     expanded: false,
     contents: [
       { id: 21, type: "document", label: "Lecture Notes"   },
-      { id: 22, type: "link",     label: "Reference Guide" },
+      { id: 22, type: "link",     label: "Reference Guide", url: "" },
     ],
   },
   {
@@ -144,21 +145,52 @@ const InlineEdit = ({ value, placeholder, onChange, multiline = false, className
 
 const ModuleCard = ({ module, index, onUpdate, onRemove, canRemove }) => {
   const [videoModalOpen, setVideoModalOpen] = useState(false);
+  
+  const fileInputRef = useRef(null);
+  const pendingUploadType = useRef(null); // 🚀 FIXED: Remembers if we clicked Document or Upload
 
   const toggle = () => onUpdate({ ...module, expanded: !module.expanded });
   const updateField = (field, value) => onUpdate({ ...module, [field]: value });
 
   const addContent = (type) => {
-    // Video opens modal instead of directly adding
     if (type === "video") {
       setVideoModalOpen(true);
       return;
     }
+    
+    // 🚀 FIXED: BOTH document and upload trigger the file input now
+    if (type === "document" || type === "upload") {
+      pendingUploadType.current = type;
+      fileInputRef.current?.click();
+      return;
+    }
+
     const label = CONTENT_TYPES.find((c) => c.type === type)?.label ?? "Content";
     onUpdate({
       ...module,
-      contents: [...module.contents, { id: Date.now(), type, label }],
+      contents: [...module.contents, { id: Date.now(), type, label, url: "" }],
     });
+  };
+
+  const handleFileUpload = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const actualType = pendingUploadType.current || "upload"; // 🚀 FIXED: Uses correct type
+      onUpdate({
+        ...module,
+        contents: [
+          ...module.contents, 
+          { 
+            id: Date.now(), 
+            type: actualType, 
+            label: file.name, 
+            fileData: file    
+          }
+        ],
+      });
+    }
+    e.target.value = null;
+    pendingUploadType.current = null;
   };
 
   const handleVideoConfirm = (videoItem) => {
@@ -171,15 +203,23 @@ const ModuleCard = ({ module, index, onUpdate, onRemove, canRemove }) => {
   const removeContent = (cid) =>
     onUpdate({ ...module, contents: module.contents.filter((c) => c.id !== cid) });
 
-  const updateContentLabel = (cid, label) =>
+  // 🚀 FIXED: Generic update field so we can update URL for links
+  const updateContentField = (cid, field, value) =>
     onUpdate({
       ...module,
-      contents: module.contents.map((c) => (c.id === cid ? { ...c, label } : c)),
+      contents: module.contents.map((c) => (c.id === cid ? { ...c, [field]: value } : c)),
     });
 
   return (
     <>
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+        
+        <input 
+          type="file" 
+          ref={fileInputRef} 
+          onChange={handleFileUpload} 
+          className="hidden" 
+        />
 
         {/* ── Module Header ──────────────────────────────────────────────────── */}
         <div
@@ -249,17 +289,30 @@ const ModuleCard = ({ module, index, onUpdate, onRemove, canRemove }) => {
                   {module.contents.map((c) => (
                     <div
                       key={c.id}
-                      className="flex items-center gap-3 p-3 rounded-lg bg-gray-50 border border-gray-100 group"
+                      className="flex items-start gap-3 p-3 rounded-lg bg-gray-50 border border-gray-100 group"
                     >
                       <ContentIcon type={c.type} />
-                      <div className="flex-1 min-w-0">
+                      <div className="flex-1 min-w-0 mt-0.5">
                         <InlineEdit
                           value={c.label}
                           placeholder="Content title..."
-                          onChange={(v) => updateContentLabel(c.id, v)}
+                          onChange={(v) => updateContentField(c.id, "label", v)}
                           className="text-md"
                         />
-                        {/* Show platform badge for videos */}
+                        
+                        {/* 🚀 FIXED: Added the Link Input Box */}
+                        {c.type === "link" && (
+                          <div className="mt-2">
+                            <input 
+                              type="text" 
+                              placeholder="Paste URL here (e.g. https://docs.google.com/...)"
+                              value={c.url || ""}
+                              onChange={(e) => updateContentField(c.id, "url", e.target.value)}
+                              className="w-full border border-gray-200 rounded-md px-3 py-1.5 text-sm font-medium text-gray-600 outline-none focus:border-blue-400 transition"
+                            />
+                          </div>
+                        )}
+
                         {c.type === "video" && c.platform && (
                           <span className="text-sm text-blue-600 font-medium mt-0.5 inline-block">
                             {c.platform === "Upload" ? "📁 Uploaded file" : `🔗 ${c.platform}`}
@@ -304,7 +357,6 @@ const ModuleCard = ({ module, index, onUpdate, onRemove, canRemove }) => {
         )}
       </div>
 
-      {/* Video Upload Modal — scoped per module */}
       <VideoUploadModal
         open={videoModalOpen}
         onClose={() => setVideoModalOpen(false)}
@@ -329,10 +381,11 @@ export const CourseModules = () => {
     status: "Published",
   };
 
+  // 🚀 FIXED: Ensure empty arrays default to 1 blank module
   const [modules, setModules] = useState(
-    Array.isArray(state?.course?.modulesData)
+    Array.isArray(state?.course?.modulesData) && state.course.modulesData.length > 0
       ? state.course.modulesData
-      : SAMPLE_MODULES
+      : [initialModule(0)]
   );
 
   const [saved, setSaved] = useState(false);
@@ -348,17 +401,22 @@ export const CourseModules = () => {
 
   const handleSave = async () => {
     try {
-      // 🎯 FIXED: Removed local storage token and added withCredentials: true
+      // 🚀 FIXED: Uses apiBaseUrl so it actually connects to your backend properly
       const response = await axios.post(
-        `http://localhost:5000/api/faculty/courses/${course.id}/modules`,
+        `${apiBaseUrl}/faculty/courses/${course.id}/modules`,
         { modules }, 
-        { withCredentials: true } // 🎯 Automatically sends the HTTP-Only cookie!
+        { withCredentials: true } 
       );
 
       if (response.data.success) {
         console.log("✅ Data saved to MySQL!");
+        
+        // 🚀 FIXED: Redirects after 1.5 seconds!
         setSaved(true);
-        setTimeout(() => setSaved(false), 2000);
+        setTimeout(() => {
+          setSaved(false);
+          navigate("/faculty/courses");
+        }, 1500);
       }
     } catch (err) {
       console.error("❌ Save Failed:", err.response?.data || err.message);
@@ -406,7 +464,7 @@ export const CourseModules = () => {
               saved ? "bg-green-600 text-white" : "bg-blue-600 text-white hover:bg-blue-700"
             }`}
           >
-            {saved ? <><Check className="w-4 h-4" /> Saved!</> : <>Save Modules</>}
+            {saved ? <><Check className="w-4 h-4" /> Saved Successfully!</> : <>Save Modules</>}
           </button>
         </div>
       </div>
@@ -472,7 +530,7 @@ export const CourseModules = () => {
             saved ? "bg-green-600 text-white" : "bg-blue-600 text-white hover:bg-blue-700"
           }`}
         >
-          {saved ? "Saved!" : "Save Modules"}
+          {saved ? "Saved Successfully!" : "Save Modules"}
         </button>
         <button
           onClick={() => navigate("/faculty/courses")}

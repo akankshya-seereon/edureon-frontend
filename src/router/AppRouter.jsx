@@ -35,6 +35,10 @@ import { FacultyList } from "../pages/InstituteAdmin/People/FacultyList";
 import FacultyForm from "../pages/InstituteAdmin/People/FacultyForm";
 import { StudentList } from "../pages/InstituteAdmin/People/StudentList";
 import { StudentForm } from "../pages/InstituteAdmin/People/StudentForm";
+
+// ✅ CLASSES
+import { ClassList } from "../pages/InstituteAdmin/Classes/ClassList";
+
 import { BatchList } from "../pages/InstituteAdmin/Batch/BatchList";
 import BatchForm from "../pages/InstituteAdmin/Batch/BatchForm";
 import BatchBrowser from "../pages/InstituteAdmin/Batch/Batchbrowser.jsx";
@@ -162,6 +166,9 @@ export const AppRouter = () => (
       <Route path="students"         element={<StudentList />} />
       <Route path="students/create"  element={<StudentForm />} />
 
+      {/* ✅ CLASSES ROUTE */}
+      <Route path="classes"          element={<ClassList />} />
+
       {/* Batch */}
       <Route path="batch"            element={<BatchBrowser />} />
       <Route path="batch/list"       element={<BatchList />} />
@@ -239,7 +246,10 @@ export const AppRouter = () => (
       <Route path="notification"            element={<Notification />} />
       <Route path="Calendar"                element={<Calendar />} />
       <Route path="help"                    element={<StudentHelp />} />
-      <Route path="certificates"           element={<StudentCertificates />} />
+      <Route path="certificates"            element={<StudentCertificates />} />
+
+      {/* ✅ STUDENT CLASSES ROUTE */}
+      <Route path="classes"                 element={<Placeholder title="My Classes" />} />
     </Route>
 
     {/* ── 404 ─────────────────────────────────────────────────────────────── */}

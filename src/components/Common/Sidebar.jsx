@@ -20,6 +20,7 @@ export const Sidebar = () => {
     { label: 'Dashboard',       path: '/student/dashboard',    icon: LayoutDashboard },
     { label: 'Profile',         path: '/student/profile',      icon: User },
     { label: 'My Courses',      path: '/student/courses',      icon: BookOpen },
+    { label: 'Classes',         path: '/student/classes',      icon: Users },
     { label: 'Attendance',      path: '/student/attendance',   icon: Clock },
     { label: 'Assignments',     path: '/student/assignments',  icon: FileText },
     { label: 'Exams & Results', path: '/student/exams',        icon: GraduationCap },
@@ -50,11 +51,12 @@ export const Sidebar = () => {
     { label: "Dashboard",         path: "/admin/principal",      icon: LayoutDashboard },
     { label: "Attendance",        path: "/admin/attendance",     icon: Clock },
     { label: "Academic Programs", path: "/admin/programs",       icon: BookOpen },
-    { label: "Departments",       path: "/admin/departments",    icon: Briefcase }, 
-    { label: "Syllabus",          path: "/admin/syllabus",       icon: ClipboardList }, 
-    { label: "Employee Master",   path: "/admin/employees/directory", icon: UserCheck }, // 🚀 Fixed Path
+    { label: "Departments",       path: "/admin/departments",    icon: Briefcase },
+    { label: "Syllabus",          path: "/admin/syllabus",       icon: ClipboardList },
+    { label: "Employee Master",   path: "/admin/employees/directory", icon: UserCheck },
     { label: "Faculty",           path: "/admin/faculty",        icon: Users },
     { label: "Students",          path: "/admin/students",       icon: Users },
+    { label: "Classes",           path: "/admin/classes",        icon: BookOpen }, // ✅ ADDED
     { label: "Academics",         path: "/admin/academics",      icon: Building2 },
     { label: "Infrastructure",    path: "/admin/infrastructure", icon: Warehouse },
     { label: "Exam & Results",    path: "/admin/exams",          icon: GraduationCap },
@@ -75,7 +77,7 @@ export const Sidebar = () => {
   // 🚀 HOD Links
   const hodLinks = [
     { label: "Dashboard",       path: "/faculty/dashboard",    icon: LayoutDashboard },
-    { label: "Department",      path: "/admin/departments",    icon: Briefcase }, 
+    { label: "Department",      path: "/admin/departments",    icon: Briefcase },
     { label: "Syllabus",        path: "/faculty/syllabus",     icon: ClipboardList },
     { label: "My Classes",      path: "/faculty/classes",      icon: BookOpen },
     { label: "Attendance",      path: "/faculty/attendance",   icon: Clock },
@@ -88,17 +90,16 @@ export const Sidebar = () => {
   const adminLinks = [
     { label: 'Dashboard',         path: '/admin/dashboard',      icon: LayoutDashboard },
     { label: 'Institute',         path: '/admin/institute',      icon: Building2 },
-    { label: 'Infrastructure',    path: '/admin/infrastructure', icon: Warehouse }, 
+    { label: 'Infrastructure',    path: '/admin/infrastructure', icon: Warehouse },
     { label: 'Attendance',        path: '/admin/attendance',     icon: Clock },
     { label: 'Academic Programs', path: '/admin/programs',       icon: BookOpen },
-    { label: 'Departments',       path: '/admin/departments',    icon: Briefcase }, 
+    { label: 'Departments',       path: '/admin/departments',    icon: Briefcase },
     { label: 'Syllabus',          path: '/admin/syllabus',       icon: ClipboardList },
-    { label: 'Employee Master',   path: '/admin/employees/directory', icon: UserCheck }, // 🚀 Fixed Path
-    { label: 'Faculty',           path: '/admin/faculty',        icon: Users },
+    { label: 'Employee Master',   path: '/admin/employees/directory', icon: UserCheck },
     { label: 'Students',          path: '/admin/students',       icon: Users },
+    { label: 'Classes',           path: '/admin/classes',        icon: BookOpen }, // ✅ ADDED
     { label: 'Exam & Results',    path: '/admin/exams',          icon: GraduationCap },
     { label: 'Certificates',      path: '/admin/certificates',   icon: Award },
-    { label: 'Academic Year',     path: '/admin/batch',          icon: Users },
     { label: 'Expenses',          path: '/admin/expenses',       icon: CreditCard },
     { label: 'Fees Structure',    path: '/admin/fees/structure', icon: CreditCard },
     { label: 'Notifications',     path: '/admin/communication',  icon: Bell },
@@ -111,14 +112,15 @@ export const Sidebar = () => {
     { label: 'Institutes',   path: '/super-admin/institutes', icon: Building2 },
     { isDivider: true, label: 'Institute Management' },
     { label: 'Dashboard',    path: '/admin/dashboard',        icon: LayoutDashboard },
-    { label: 'Infrastructure', path: '/admin/infrastructure', icon: Warehouse }, 
+    { label: 'Infrastructure', path: '/admin/infrastructure', icon: Warehouse },
     { label: 'Attendance',   path: '/admin/attendance',       icon: Clock },
     { label: 'Academic Programs', path: '/admin/programs',    icon: BookOpen },
-    { label: 'Departments',       path: '/admin/departments', icon: Briefcase }, 
+    { label: 'Departments',       path: '/admin/departments', icon: Briefcase },
     { label: 'Syllabus',          path: '/admin/syllabus',    icon: ClipboardList },
-    { label: 'Employee Master',   path: '/admin/employees/directory', icon: UserCheck }, // 🚀 Fixed Path
+    { label: 'Employee Master',   path: '/admin/employees/directory', icon: UserCheck },
     { label: 'Faculty',      path: '/admin/faculty',          icon: Users },
     { label: 'Students',     path: '/admin/students',         icon: Users },
+    { label: 'Classes',      path: '/admin/classes',          icon: BookOpen }, // ✅ ADDED
     { label: 'Exam & Results', path: '/admin/exams',          icon: GraduationCap },
     { label: 'Certificates', path: '/admin/certificates',     icon: Award },
     { label: 'Academic Year', path: '/admin/batch',           icon: Users },
@@ -134,9 +136,9 @@ export const Sidebar = () => {
     userRole === 'super_admin' && isImpersonating ? adminLinks :
     userRole === 'super_admin'                    ? superAdminLinks :
     userRole === 'institute_admin'                ? adminLinks :
-    userRole === 'principal'                      ? principalLinks : 
-    userRole === 'accountant'                     ? accountantLinks : 
-    userRole === 'hod'                            ? hodLinks : 
+    userRole === 'principal'                      ? principalLinks :
+    userRole === 'accountant'                     ? accountantLinks :
+    userRole === 'hod'                            ? hodLinks :
     userRole === 'student'                        ? studentLinks :
     userRole === 'faculty'                        ? facultyLinks :
     adminLinks;
