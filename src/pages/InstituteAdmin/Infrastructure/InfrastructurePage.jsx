@@ -15,7 +15,7 @@ const InfrastructurePage = () => {
   // --- UI TOGGLE STATES ---
   const [showCampusForm, setShowCampusForm] = useState(false);
   const [showRoomForm, setShowRoomForm] = useState(false);
-  const [isBulkMode, setIsBulkMode] = useState(false); // 🚀 NEW: Bulk Toggle State
+  const [isBulkMode, setIsBulkMode] = useState(false); 
   const [savingBulk, setSavingBulk] = useState(false);
 
   // --- EDITING STATES ---
@@ -28,9 +28,9 @@ const InfrastructurePage = () => {
   const [newCampus, setNewCampus] = useState({ name: '', address: '', property: 'Owned' });
   const [buildingInputs, setBuildingInputs] = useState({}); 
   
-  // 🚀 FIXED: Added prefix, startNumber, and count for Bulk creation
+  // 🚀 FIXED: Removed prefix from state
   const [newRoom, setNewRoom] = useState({ 
-    roomNo: '', prefix: '', startNumber: '', count: '', 
+    roomNo: '', startNumber: '', count: '', 
     type: '', capacity: '', floor: '', block: '', building_id: '' 
   });
   const [equipmentList, setEquipmentList] = useState([]);
@@ -69,7 +69,7 @@ const InfrastructurePage = () => {
     } catch (error) { console.error("Error saving campus", error); }
   };
 
-  // 🚀 FIXED: Upgraded Save function to handle Bulk loops safely
+  // 🚀 FIXED: Removed prefix generation logic
   const handleSaveRoom = async () => {
     if (isBulkMode) {
       if (!newRoom.startNumber || !newRoom.count || !newRoom.building_id) {
@@ -79,17 +79,15 @@ const InfrastructurePage = () => {
       try {
         const count = Number(newRoom.count);
         const startStr = String(newRoom.startNumber);
-        const padLength = startStr.length; // Intelligent Zero-Padding (e.g. '01' retains padding)
+        const padLength = startStr.length; // Intelligent Zero-Padding
         const startNum = Number(startStr);
-        const prefix = newRoom.prefix || '';
 
         const promises = [];
         
-        // Generate payloads for all rooms and send them concurrently
         for(let i = 0; i < count; i++) {
           const currentNum = startNum + i;
           const paddedNum = String(currentNum).padStart(padLength, '0');
-          const generatedRoomNo = `${prefix}${paddedNum}`;
+          const generatedRoomNo = paddedNum; // Prefix removed completely
 
           const payload = {
             roomNo: generatedRoomNo,
@@ -107,7 +105,7 @@ const InfrastructurePage = () => {
         
         setShowRoomForm(false);
         setIsBulkMode(false);
-        setNewRoom({ roomNo: '', prefix: '', startNumber: '', count: '', type: '', capacity: '', floor: '', block: '', building_id: '' });
+        setNewRoom({ roomNo: '', startNumber: '', count: '', type: '', capacity: '', floor: '', block: '', building_id: '' });
         setEquipmentList([]);
         loadData();
       } catch (err) {
@@ -117,7 +115,6 @@ const InfrastructurePage = () => {
         setSavingBulk(false);
       }
     } else {
-      // Standard Single Room Logic
       if (!newRoom.roomNo || !newRoom.building_id) return alert("Room Number and Building are required");
       try {
         const payload = {
@@ -134,7 +131,7 @@ const InfrastructurePage = () => {
         
         setShowRoomForm(false);
         setEditingRoomId(null);
-        setNewRoom({ roomNo: '', prefix: '', startNumber: '', count: '', type: '', capacity: '', floor: '', block: '', building_id: '' });
+        setNewRoom({ roomNo: '', startNumber: '', count: '', type: '', capacity: '', floor: '', block: '', building_id: '' });
         setEquipmentList([]);
         loadData();
       } catch (error) { console.error("Error saving room", error); }
@@ -227,7 +224,7 @@ const InfrastructurePage = () => {
 
   const handleEditRoom = (room) => {
     setEditingRoomId(room.id);
-    setIsBulkMode(false); // Force single mode when editing
+    setIsBulkMode(false); 
     
     let b_id = '';
     campuses.forEach(c => {
@@ -236,7 +233,7 @@ const InfrastructurePage = () => {
     });
 
     setNewRoom({ 
-      roomNo: room.roomNo, prefix: '', startNumber: '', count: '',
+      roomNo: room.roomNo, startNumber: '', count: '',
       type: room.type, 
       capacity: room.cap || '', 
       floor: room.floor || '', 
@@ -268,7 +265,7 @@ const InfrastructurePage = () => {
     setShowRoomForm(false);
     setEditingRoomId(null);
     setIsBulkMode(false);
-    setNewRoom({ roomNo: '', prefix: '', startNumber: '', count: '', type: '', capacity: '', floor: '', block: '', building_id: '' });
+    setNewRoom({ roomNo: '', startNumber: '', count: '', type: '', capacity: '', floor: '', block: '', building_id: '' });
     setEquipmentList([]);
   };
 
@@ -331,7 +328,6 @@ const InfrastructurePage = () => {
                   <div className="p-4 space-y-3 bg-white text-left">
                     {campus.buildings.map(b => (
                       <div key={b.id} className="flex items-center justify-between p-3.5 rounded-lg border border-slate-100 text-left">
-                        {/* If editing this specific building, show inputs. Otherwise, show normal text. */}
                         {editingBuildingId === b.id ? (
                           <div className="flex gap-2 w-full items-center text-left">
                             <input 
@@ -447,11 +443,26 @@ const InfrastructurePage = () => {
                   )}
                 </div>
 
+                {/* 🚀 FIXED: Dynamic Top Grid for Building, Room Numbers, and Type */}
                 <div className="grid grid-cols-1 md:grid-cols-12 gap-5 mb-5 text-left">
                   {isBulkMode ? (
                     <>
-                      <div className="md:col-span-3">
-                        <InputField label="Prefix (Optional)" placeholder="e.g. Block A-" value={newRoom.prefix} onChange={(e) => setNewRoom({...newRoom, prefix: e.target.value})} />
+                      {/* Building Dropdown directly replaced prefix */}
+                      <div className="md:col-span-3 flex flex-col gap-1.5 text-left">
+                        <label className="text-xs font-bold text-slate-600 text-left">Building <span className="text-red-500">*</span></label>
+                        <select 
+                          className="px-3 py-2.5 rounded-lg border border-slate-200 outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400 bg-white text-sm text-left transition-all shadow-sm w-full"
+                          value={newRoom.building_id} onChange={(e) => setNewRoom({...newRoom, building_id: e.target.value})}
+                        >
+                          <option value="">Select building...</option>
+                          {campuses.map(c => (
+                            <optgroup key={c.id} label={`Campus: ${c.name}`}>
+                              {c.buildings.map(b => (
+                                <option key={b.id} value={b.id}>{b.name}</option>
+                              ))}
+                            </optgroup>
+                          ))}
+                        </select>
                       </div>
                       <div className="md:col-span-3">
                         <InputField label="Start Number" placeholder="e.g. 101 or 01" value={newRoom.startNumber} onChange={(e) => setNewRoom({...newRoom, startNumber: e.target.value})} required />
@@ -465,10 +476,27 @@ const InfrastructurePage = () => {
                     </>
                   ) : (
                     <>
-                      <div className="md:col-span-6">
+                      {/* Building Dropdown for single form */}
+                      <div className="md:col-span-4 flex flex-col gap-1.5 text-left">
+                        <label className="text-xs font-bold text-slate-600 text-left">Building <span className="text-red-500">*</span></label>
+                        <select 
+                          className="px-3 py-2.5 rounded-lg border border-slate-200 outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400 bg-white text-sm text-left transition-all shadow-sm w-full"
+                          value={newRoom.building_id} onChange={(e) => setNewRoom({...newRoom, building_id: e.target.value})}
+                        >
+                          <option value="">Select building...</option>
+                          {campuses.map(c => (
+                            <optgroup key={c.id} label={`Campus: ${c.name}`}>
+                              {c.buildings.map(b => (
+                                <option key={b.id} value={b.id}>{b.name}</option>
+                              ))}
+                            </optgroup>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="md:col-span-4">
                         <InputField label="Room Number" value={newRoom.roomNo} onChange={(e) => setNewRoom({...newRoom, roomNo: e.target.value})} required />
                       </div>
-                      <div className="md:col-span-6">
+                      <div className="md:col-span-4">
                         <InputField label="Type" placeholder="e.g. Classroom, Lab..." value={newRoom.type} onChange={(e) => setNewRoom({...newRoom, type: e.target.value})} />
                       </div>
                     </>
@@ -480,25 +508,8 @@ const InfrastructurePage = () => {
                   <InputField label="Floor" placeholder="e.g. Ground, 1st..." value={newRoom.floor} onChange={(e) => setNewRoom({...newRoom, floor: e.target.value})} />
                   <InputField label="Block" placeholder="e.g. Main" value={newRoom.block} onChange={(e) => setNewRoom({...newRoom, block: e.target.value})} />
                 </div>
-                
-                <div className="mb-5 w-full text-left">
-                  <label className="text-xs font-bold text-slate-600 text-left block">Building <span className="text-red-500">*</span></label>
-                  <select 
-                    className="w-full mt-1.5 px-3 py-2.5 rounded-lg border border-slate-200 outline-none bg-white text-sm text-left focus:border-blue-400 focus:ring-1 focus:ring-blue-400 transition-all shadow-sm"
-                    value={newRoom.building_id} onChange={(e) => setNewRoom({...newRoom, building_id: e.target.value})}
-                  >
-                    <option value="">Select a specific building...</option>
-                    {campuses.map(c => (
-                      <optgroup key={c.id} label={`Campus: ${c.name}`}>
-                        {c.buildings.map(b => (
-                          <option key={b.id} value={b.id}>{b.name}</option>
-                        ))}
-                      </optgroup>
-                    ))}
-                  </select>
-                </div>
 
-                <div className="border border-slate-200 bg-white rounded-lg p-5 mb-5 shadow-sm text-left">
+                <div className="border border-slate-200 bg-white rounded-lg p-5 mb-5 shadow-sm text-left mt-3">
                   <p className="text-xs font-bold text-slate-600 mb-3 text-left">Default Equipment ({equipmentList.length}) {isBulkMode && <span className="text-emerald-500 ml-2 italic font-medium">— Will be duplicated across all {newRoom.count || '0'} rooms</span>}</p>
                   {equipmentList.map((eq, idx) => (
                     <div key={idx} className="flex gap-3 items-center mb-3 text-left">
