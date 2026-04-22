@@ -23,8 +23,9 @@ import InstituteForm from "../pages/InstituteAdmin/Institute/InstituteForm";
 
 // 🚀 Academic Programs, Departments, Syllabus, and Employee Master
 import AcademicProgram from "../pages/InstituteAdmin/AcademicPrograms/AcademicProgram";
-import {Department} from "../pages/InstituteAdmin/Departments/Department";
+import { Department } from "../pages/InstituteAdmin/Departments/Department";
 import { Syllabus } from "../pages/InstituteAdmin/Syllabus/Syllabus"; 
+import { ViewSyllabus } from "../pages/InstituteAdmin/Syllabus/ViewSyllabus"; // 🚀 ADDED VIEW SYLLABUS IMPORT
 
 // 🚀 EMPLOYEE MASTER IMPORTS
 import { Employee } from "../pages/InstituteAdmin/Employee/Employee"; 
@@ -154,6 +155,7 @@ export const AppRouter = () => (
       <Route path="programs"         element={<AcademicProgram />} />
       <Route path="departments"      element={<Department />} />
       <Route path="syllabus"         element={<Syllabus />} /> 
+      <Route path="view-syllabus"    element={<ViewSyllabus />} /> {/* 🚀 ADDED VIEW SYLLABUS ROUTE */}
       
       {/* 🚀 EMPLOYEE MASTER ROUTES */}
       <Route path="employees/directory"   element={<EmployeeDirectory />} />
