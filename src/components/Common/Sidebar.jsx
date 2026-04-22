@@ -46,7 +46,6 @@ export const Sidebar = () => {
     { label: 'Help & Support',  path: '/faculty/help',         icon: HelpCircle },
   ];
 
-  // 🚀 Principal Links
   const principalLinks = [
     { label: "Dashboard",         path: "/admin/principal",      icon: LayoutDashboard },
     { label: "Attendance",        path: "/admin/attendance",     icon: Clock },
@@ -56,7 +55,7 @@ export const Sidebar = () => {
     { label: "Employee Master",   path: "/admin/employees/directory", icon: UserCheck },
     { label: "Faculty",           path: "/admin/faculty",        icon: Users },
     { label: "Students",          path: "/admin/students",       icon: Users },
-    { label: "Classes",           path: "/admin/classes",        icon: BookOpen }, // ✅ ADDED
+    { label: "Classes",           path: "/admin/classes",        icon: BookOpen }, 
     { label: "Academics",         path: "/admin/academics",      icon: Building2 },
     { label: "Infrastructure",    path: "/admin/infrastructure", icon: Warehouse },
     { label: "Exam & Results",    path: "/admin/exams",          icon: GraduationCap },
@@ -64,7 +63,6 @@ export const Sidebar = () => {
     { label: "Notifications",     path: "/admin/communication",  icon: Bell },
   ];
 
-  // 🚀 Accountant Links
   const accountantLinks = [
     { label: "Dashboard",       path: "/admin/dashboard",      icon: LayoutDashboard },
     { label: "Fee Collection",  path: "/admin/fees",           icon: CreditCard },
@@ -74,7 +72,6 @@ export const Sidebar = () => {
     { label: "Reports",         path: "/admin/reports",        icon: PieChart },
   ];
 
-  // 🚀 HOD Links
   const hodLinks = [
     { label: "Dashboard",       path: "/faculty/dashboard",    icon: LayoutDashboard },
     { label: "Department",      path: "/admin/departments",    icon: Briefcase },
@@ -97,7 +94,7 @@ export const Sidebar = () => {
     { label: 'Syllabus',          path: '/admin/syllabus',       icon: ClipboardList },
     { label: 'Employee Master',   path: '/admin/employees/directory', icon: UserCheck },
     { label: 'Students',          path: '/admin/students',       icon: Users },
-    { label: 'Classes',           path: '/admin/classes',        icon: BookOpen }, // ✅ ADDED
+    { label: 'Classes',           path: '/admin/classes',        icon: BookOpen }, 
     { label: 'Exam & Results',    path: '/admin/exams',          icon: GraduationCap },
     { label: 'Certificates',      path: '/admin/certificates',   icon: Award },
     { label: 'Expenses',          path: '/admin/expenses',       icon: CreditCard },
@@ -107,41 +104,47 @@ export const Sidebar = () => {
     { label: 'Settings',          path: '/admin/settings',       icon: Settings },
   ];
 
+  // 🚀 FIXED (Point 7): Super Admin Links now strictly contain ONLY SA routes.
   const superAdminLinks = [
     { label: 'SA Dashboard', path: '/super-admin/dashboard',  icon: ShieldCheck },
     { label: 'Institutes',   path: '/super-admin/institutes', icon: Building2 },
-    { isDivider: true, label: 'Institute Management' },
-    { label: 'Dashboard',    path: '/admin/dashboard',        icon: LayoutDashboard },
-    { label: 'Infrastructure', path: '/admin/infrastructure', icon: Warehouse },
-    { label: 'Attendance',   path: '/admin/attendance',       icon: Clock },
-    { label: 'Academic Programs', path: '/admin/programs',    icon: BookOpen },
-    { label: 'Departments',       path: '/admin/departments', icon: Briefcase },
-    { label: 'Syllabus',          path: '/admin/syllabus',    icon: ClipboardList },
-    { label: 'Employee Master',   path: '/admin/employees/directory', icon: UserCheck },
-    { label: 'Faculty',      path: '/admin/faculty',          icon: Users },
-    { label: 'Students',     path: '/admin/students',         icon: Users },
-    { label: 'Classes',      path: '/admin/classes',          icon: BookOpen }, // ✅ ADDED
-    { label: 'Exam & Results', path: '/admin/exams',          icon: GraduationCap },
-    { label: 'Certificates', path: '/admin/certificates',     icon: Award },
-    { label: 'Academic Year', path: '/admin/batch',           icon: Users },
-    { label: 'Expenses',     path: '/admin/expenses',         icon: CreditCard },
-    { label: 'Fees Structure', path: '/admin/fees/structure', icon: CreditCard },
-    { label: 'Notifications', path: '/admin/communication',   icon: Bell },
-    { label: 'Reports',      path: '/admin/reports',          icon: FileText },
-    { label: 'Settings',     path: '/admin/settings',         icon: Settings },
   ];
 
-  // ─── Which links to show ───────────────────────────────────────────────────
-  const links =
-    userRole === 'super_admin' && isImpersonating ? adminLinks :
-    userRole === 'super_admin'                    ? superAdminLinks :
-    userRole === 'institute_admin'                ? adminLinks :
-    userRole === 'principal'                      ? principalLinks :
-    userRole === 'accountant'                     ? accountantLinks :
-    userRole === 'hod'                            ? hodLinks :
-    userRole === 'student'                        ? studentLinks :
-    userRole === 'faculty'                        ? facultyLinks :
-    adminLinks;
+  // ─── Dynamic Link Resolver ──────────────────────────────────────────────────
+  
+  const getLinks = () => {
+    if (userRole === 'super_admin') {
+      // 🚀 FIXED (Point 6 & 7): When impersonating, completely hide the SA routes 
+      // and inject the Institute Admin routes along with a special "Back" button!
+      if (isImpersonating) {
+        return [
+          { 
+            label: 'Exit Institute View', // The requested "Back" button
+            path: '/super-admin/dashboard', 
+            icon: ArrowLeftCircle,
+            onClick: () => {
+              if (stopImpersonation) stopImpersonation();
+            }
+          },
+          { isDivider: true, label: 'Institute Management' },
+          ...adminLinks // Show ONLY institute management links
+        ];
+      }
+      // If NOT impersonating, show ONLY Super Admin links (Sidebar is Locked)
+      return superAdminLinks;
+    }
+
+    // Standard routing for other roles
+    if (userRole === 'institute_admin') return adminLinks;
+    if (userRole === 'principal') return principalLinks;
+    if (userRole === 'accountant') return accountantLinks;
+    if (userRole === 'hod') return hodLinks;
+    if (userRole === 'student') return studentLinks;
+    if (userRole === 'faculty') return facultyLinks;
+    return adminLinks;
+  };
+
+  const links = getLinks();
 
   const exactPaths = [
     '/admin/dashboard',
@@ -188,9 +191,15 @@ export const Sidebar = () => {
           const Icon = item.icon;
           return (
             <NavLink
-              key={item.path}
+              key={item.label} // Changed key to label to prevent React key conflicts when swapping menus
               to={item.path}
               end={exactPaths.includes(item.path)}
+              onClick={(e) => {
+                // Execute custom onClick (like stopImpersonation) if it exists
+                if (item.onClick) {
+                  item.onClick(e);
+                }
+              }}
               className={({ isActive }) =>
                 `flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 font-medium text-sm ${
                   isActive

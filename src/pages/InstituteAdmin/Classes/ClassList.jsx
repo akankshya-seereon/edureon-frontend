@@ -26,7 +26,7 @@ const EMPTY_FORM = {
 // ─── Toast ────────────────────────────────────────────────────────────────────
 const Toast = ({ msg, type, onClose }) => (
   <div className={`fixed top-6 right-6 z-[9999] flex items-center gap-3 px-5 py-4 rounded-xl shadow-2xl text-white text-sm font-semibold text-left transition-all
-    ${type === 'success' ? 'bg-green-500' : 'bg-red-500'}`}>
+    ${type === 'success' ? 'bg-blue-600' : 'bg-red-500'}`}>
     {type === 'success' ? <CheckCircle size={18} /> : <AlertCircle size={18} />}
     {msg}
     <button onClick={onClose} className="ml-2 opacity-70 hover:opacity-100"><X size={15} /></button>
@@ -34,7 +34,7 @@ const Toast = ({ msg, type, onClose }) => (
 );
 
 // ─── Upgraded Select (Handles Real DB Objects) ────────────────────────────────
-const Select = ({ label, name, value, onChange, options = [], required, placeholder, valueKey = 'name', labelKey = 'name' }) => (
+const Select = ({ label, name, value, onChange, options = [], required, placeholder, valueKey = 'name', labelKey = 'name', customDisplay }) => (
   <div className="flex flex-col gap-1.5 text-left">
     <label className="text-sm font-semibold text-gray-700">
       {label} {required && <span className="text-red-500">*</span>}
@@ -45,13 +45,14 @@ const Select = ({ label, name, value, onChange, options = [], required, placehol
         value={value}
         onChange={onChange}
         required={required}
-        className="w-full appearance-none border border-gray-200 rounded-xl px-4 py-2.5 text-sm bg-white text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent pr-10 text-left"
+        className="w-full appearance-none border border-gray-200 rounded-xl px-4 py-2.5 text-sm bg-white text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent pr-10 text-left disabled:bg-gray-50 disabled:text-gray-400"
+        disabled={options.length === 0}
       >
         <option value="">{placeholder || `Select ${label}`}</option>
         {options.map((o, idx) => {
-          // Supports both flat strings ['CS', 'IT'] OR objects [{id: 1, name: 'CS'}]
           const val = typeof o === 'string' ? o : o[valueKey];
-          const display = typeof o === 'string' ? o : o[labelKey];
+          // Support custom display formatting (like showing Subject Name + Code)
+          const display = typeof o === 'string' ? o : (customDisplay ? customDisplay(o) : o[labelKey]);
           return <option key={idx} value={val}>{display}</option>;
         })}
       </select>
@@ -86,7 +87,7 @@ const SectionHeader = ({ icon: Icon, title, color = 'blue' }) => {
   const colors = {
     blue: 'bg-blue-50 text-blue-700 border-blue-200',
     purple: 'bg-purple-50 text-purple-700 border-purple-200',
-    green: 'bg-green-50 text-green-700 border-green-200',
+    green: 'bg-blue-50 text-blue-600 border-blue-200',
     orange: 'bg-orange-50 text-orange-700 border-orange-200',
   };
   return (
@@ -101,13 +102,36 @@ const SectionHeader = ({ icon: Icon, title, color = 'blue' }) => {
 const CreateClassModal = ({ onClose, onSave, editData, dropdownData }) => {
   const [form, setForm] = useState(editData || EMPTY_FORM);
   const [errors, setErrors] = useState({});
+  const [availableSubjects, setAvailableSubjects] = useState([]);
 
   // 🚀 Pulling real data passed from the main component
   const { programs, departments, subjects, faculty, academicYears, semesters, sections, days, rooms } = dropdownData;
 
+  // 🚀 DYNAMIC SUBJECT FILTERING
+  // When 'program' changes, filter subjects. (Requires backend to return 'course_name' alongside subjects)
+  useEffect(() => {
+    if (form.program && subjects?.length > 0) {
+      if (subjects[0].course_name) {
+        // If backend provides course_name, filter perfectly
+        setAvailableSubjects(subjects.filter(s => s.course_name === form.program));
+      } else {
+        // Fallback: show all subjects if backend isn't updated with course_name yet
+        setAvailableSubjects(subjects);
+      }
+    } else {
+      setAvailableSubjects([]); // Clear if no program selected
+    }
+  }, [form.program, subjects]);
+
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setForm(f => ({ ...f, [name]: value }));
+    // If Program changes, clear the Subject field so they have to pick a new valid one
+    if (name === 'program') {
+      setForm(f => ({ ...f, [name]: value, subject: '' }));
+    } else {
+      setForm(f => ({ ...f, [name]: value }));
+    }
+    
     if (errors[name]) setErrors(e => ({ ...e, [name]: '' }));
   };
 
@@ -162,17 +186,25 @@ const CreateClassModal = ({ onClose, onSave, editData, dropdownData }) => {
                 {errors.className && <p className="text-red-500 text-xs mt-1 text-left">{errors.className}</p>}
               </div>
               
-              {/* 🚀 Dynamic Dropdowns using real DB Data */}
+              {/* 🚀 FIXED: Keys updated to "name" to match the backend query */}
               <div>
-                <Select label="Program" name="program" value={form.program} onChange={handleChange} options={programs} placeholder="Select Program" />
+                <Select label="Program" name="program" value={form.program} onChange={handleChange} options={programs} valueKey="name" labelKey="name" placeholder="Select Program" />
               </div>
               <div>
-                {/* Notice valueKey and labelKey to handle objects correctly */}
-                <Select label="Department" name="department" value={form.department} onChange={handleChange} options={departments} valueKey="department_name" labelKey="department_name" required placeholder="Select Department" />
+                <Select label="Department" name="department" value={form.department} onChange={handleChange} options={departments} valueKey="name" labelKey="name" required placeholder="Select Department" />
                 {errors.department && <p className="text-red-500 text-xs mt-1 text-left">{errors.department}</p>}
               </div>
               <div>
-                <Select label="Subject" name="subject" value={form.subject} onChange={handleChange} options={subjects} valueKey="subject_name" labelKey="subject_name" placeholder="Select Subject" />
+                <Select 
+                  label="Subject" 
+                  name="subject" 
+                  value={form.subject} 
+                  onChange={handleChange} 
+                  options={availableSubjects} 
+                  valueKey="name" 
+                  customDisplay={(sub) => sub.code ? `${sub.name} (${sub.code})` : sub.name} // 🚀 Formats display as "Data Structure (D868)"
+                  placeholder={form.program ? "Select Subject" : "Select a Program first"} 
+                />
               </div>
               <div>
                 <Select label="Faculty Assigned" name="facultyAssigned" value={form.facultyAssigned} onChange={handleChange} options={faculty} valueKey="name" labelKey="name" placeholder="Select Faculty" />
@@ -201,7 +233,7 @@ const CreateClassModal = ({ onClose, onSave, editData, dropdownData }) => {
 
           {/* ── Schedule ── */}
           <div>
-            <SectionHeader icon={Clock} title="Class Schedule" color="green" />
+            <SectionHeader icon={Clock} title="Class Schedule" color="blue" />
             <div className="space-y-3">
               {form.schedule.map((slot, idx) => (
                 <div key={idx} className="grid grid-cols-12 gap-3 items-end bg-gray-50 rounded-xl p-3">
@@ -221,7 +253,8 @@ const CreateClassModal = ({ onClose, onSave, editData, dropdownData }) => {
                     </div>
                   </div>
                   <div className="col-span-2 text-left">
-                    <Select label="Room" name="room" value={slot.room} onChange={e => handleScheduleChange(idx, 'room', e.target.value)} options={rooms} valueKey="room_number" labelKey="room_number" placeholder="Room" />
+                    {/* 🚀 FIXED: Keys updated to "name" for rooms */}
+                    <Select label="Room" name="room" value={slot.room} onChange={e => handleScheduleChange(idx, 'room', e.target.value)} options={rooms} valueKey="name" labelKey="name" placeholder="Room" />
                   </div>
                   <div className="col-span-1 flex justify-end pb-1">
                     {form.schedule.length > 1 && (
@@ -297,9 +330,8 @@ export const ClassList = () => {
   const [toast, setToast] = useState(null);
 
   // 🚀 Real Database Dropdown State
-  // We keep some hardcoded defaults for static things like Days and Semesters
   const [dropdownData, setDropdownData] = useState({
-    programs: ['B.Tech', 'M.Tech', 'BCA', 'MCA'], 
+    programs: [],    // Will be filled from DB
     departments: [], // Will be filled from DB
     subjects: [],    // Will be filled from DB
     faculty: [],     // Will be filled from DB
@@ -315,7 +347,6 @@ export const ClassList = () => {
     setTimeout(() => setToast(null), 3500);
   };
 
-  // 🚀 Fetch Classes
   const fetchClasses = async () => {
     try {
       setLoading(true);
@@ -329,25 +360,23 @@ export const ClassList = () => {
     }
   };
 
-  // 🚀 Fetch Real Dropdown Data
   const fetchDropdownData = async () => {
     try {
       const response = await axios.get(`${apiBaseUrl}/admin/classes/form-data`, { withCredentials: true });
       if (response.data.success) {
         setDropdownData(prev => ({
           ...prev, 
-          ...response.data.data // Merges in departments, faculty, subjects, rooms from DB
+          ...response.data.data 
         }));
       }
     } catch (error) {
       console.error("Error fetching dropdown data:", error);
-      // Fails silently, falls back to defaults if backend route isn't ready
     }
   };
 
   useEffect(() => {
     fetchClasses();
-    fetchDropdownData(); // Execute when page loads
+    fetchDropdownData(); 
   }, []);
 
   const filtered = classes.filter(c =>
@@ -358,7 +387,6 @@ export const ClassList = () => {
 
   const handleSave = async (data) => {
     try {
-      // Flexible mappings for backend matching
       const payload = { ...data, departmentId: data.department };
       if (editData) {
         const response = await axios.put(`${apiBaseUrl}/admin/classes/${data.id}`, payload, { withCredentials: true });
@@ -435,7 +463,7 @@ export const ClassList = () => {
                     <td className="px-5 py-4 text-sm text-gray-700 font-medium">{cls.subject}</td>
                     <td className="px-5 py-4"><span className="inline-flex items-center gap-1.5 bg-purple-50 text-purple-700 text-xs font-semibold px-3 py-1 rounded-full"><Calendar size={11} />{cls.academicYear}</span></td>
                     <td className="px-5 py-4 text-xs text-gray-600"><div className="flex items-start gap-1.5"><Clock size={12} className="text-gray-400 mt-0.5 shrink-0" /><span>{getScheduleSummary(cls.schedule)}</span></div></td>
-                    <td className="px-5 py-4"><span className="inline-flex items-center gap-1.5 bg-green-50 text-green-700 text-xs font-bold px-3 py-1 rounded-full"><Users size={11} />{cls.students || 0} / {cls.maxStudents}</span></td>
+                    <td className="px-5 py-4"><span className="inline-flex items-center gap-1.5 bg-blue-50 text-blue-600 text-xs font-bold px-3 py-1 rounded-full"><Users size={11} />{cls.students || 0} / {cls.maxStudents}</span></td>
                     <td className="px-5 py-4 text-sm text-gray-700">{cls.facultyAssigned}</td>
                     <td className="px-5 py-4">
                       <div className="flex items-center gap-1.5">

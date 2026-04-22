@@ -203,7 +203,7 @@ const InstituteDetail = ({ institute: initialInst, onBack }) => {
 
               <button
                 onClick={handleImpersonate}
-                className="mt-4 bg-slate-900 text-white px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider hover:bg-blue-600 transition-colors shadow-md flex items-center gap-2 w-fit"
+                className="mt-4 bg-blue-600 text-white px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider hover:bg-blue-600 transition-colors shadow-md flex items-center gap-2 w-fit"
               >
                 <Eye size={14} /> Manage This Institute
               </button>
@@ -246,8 +246,8 @@ const InstituteDetail = ({ institute: initialInst, onBack }) => {
         })}
       </div>
 
-      {/* Tab Panels */}
-      <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-sm min-h-[400px]">
+      {/* 🚀 FIXED SPACING: Removed min-h-[400px] so the box tightly wraps its content */}
+      <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-sm">
         {tab === "overview" && (
           <div className="animate-fadeIn">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -435,12 +435,13 @@ export const SuperAdminDashboard = () => {
   const cardsConfig = [
     { title: "Total Institutes",  value: statsData?.totalInstitutes || institutes.length || 0,               subtext: "All registered institutes",  icon: Building2, bgType: "purple" },
     { title: "Active Institutes", value: statsData?.activeInstitutes || institutes.filter(i => i.status === 'Active').length || 0, subtext: "Currently active", icon: Zap, bgType: "beige" },
-    { title: "Total Teachers",    value: statsData?.totalTeachers?.toLocaleString() || 0,                    subtext: "All faculties",              icon: Users,     bgType: "purple" },
-    { title: "Total Students",    value: statsData?.totalStudents?.toLocaleString() || 0,                    subtext: "All enrolled students",       icon: GraduationCap, bgType: "beige" },
-    { title: "Monthly Revenue",   value: `₹${statsData?.monthlyRevenue?.toLocaleString() || 0}`,             subtext: "Subscription revenue",        icon: Wallet,    bgType: "purple" },
-    { title: "Total Collections", value: `₹${statsData?.totalCollections?.toLocaleString() || 0}`,          subtext: "Cross-institute fees",         icon: Banknote,  bgType: "green" },
-    { title: "Total Placements",  value: statsData?.totalPlacements?.toLocaleString() || 0,                  subtext: "Students hired globally",     icon: Briefcase, bgType: "blue" },
-    { title: "Active Courses",    value: statsData?.expiringSubscriptions || 0,                              subtext: "Next 30 days",                icon: Clock,     bgType: "beige" },
+    { title: "Total Students",    value: statsData?.totalStudents?.toLocaleString() || 0,                    subtext: "All enrolled students",       icon: GraduationCap, bgType: "blue" },
+    { title: "Total Teachers",    value: statsData?.totalTeachers?.toLocaleString() || 0,                    subtext: "All faculties",              icon: Users,     bgType: "green" },
+    { title: "Monthly Revenue",   value: `₹${statsData?.monthlyRevenue?.toLocaleString() || 0}`,             subtext: "This month's revenue",        icon: Wallet,    bgType: "purple" },
+    { title: "Monthly Expenses",  value: `₹${statsData?.monthlyExpenses?.toLocaleString() || 0}`,            subtext: "This month's expenses",       icon: Receipt,   bgType: "beige" },
+    { title: "Total Revenue",     value: `₹${statsData?.totalRevenue?.toLocaleString() || statsData?.totalCollections?.toLocaleString() || 0}`, subtext: "Overall revenue", icon: Banknote,  bgType: "blue" },
+    { title: "Total Courses",     value: statsData?.totalCourses?.toLocaleString() || 0,                     subtext: "Across all institutes",       icon: BookOpen,  bgType: "green" },
+    { title: "Total Placements",  value: statsData?.totalPlacements?.toLocaleString() || 0,                  subtext: "Students hired globally",     icon: Briefcase, bgType: "purple" },
   ];
 
   return (
@@ -451,37 +452,42 @@ export const SuperAdminDashboard = () => {
         .recharts-wrapper { font-family: inherit !important; }
       `}</style>
 
-      <div className="w-full px-4 sm:px-6 lg:px-8 py-6">
-        {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
-          <div>
-            <h1 className="text-xl sm:text-2xl lg:text-3xl font-black text-slate-900 tracking-tight">Super Admin Hub</h1>
-            <p className="text-sm sm:text-base text-slate-500 mt-1 font-medium">Manage and monitor all tenant institutes</p>
+      <div className="w-full px-4 sm:px-6 lg:px-8 py-6 text-left">
+        {/* 🚀 FIXED: Alignment - Used exact vertical centering on the header container */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+          <div className="flex flex-col justify-center">
+            <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight leading-none">Super Admin Hub</h1>
+            <p className="text-sm text-slate-500 mt-1.5 font-medium">Manage and monitor all tenant institutes</p>
           </div>
           <button
             onClick={() => setShowPicker(true)}
-            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white text-sm font-bold px-5 py-2.5 rounded-xl transition-all shadow-md shadow-blue-200"
+            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white text-sm font-bold px-5 py-2.5 rounded-xl transition-all shadow-md shadow-blue-200 shrink-0"
           >
             <Search size={16} /> Select Institute
           </button>
         </div>
 
         {/* Selected Institute Banner */}
+        {/* 🚀 FIXED: Alignment - Banner uses better flex wrap to keep things level */}
         {selectedInstitute && !showPicker && (
-          <div className="mb-6 bg-violet-50 border border-violet-200 rounded-2xl px-5 py-3 flex items-center justify-between gap-3 animate-fadeIn">
+          <div className="mb-6 bg-violet-50 border border-violet-200 rounded-2xl px-5 py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 animate-fadeIn">
             <div className="flex items-center gap-3 min-w-0">
               <Building2 size={18} className="text-blue-600 shrink-0" />
-              <span className="text-sm font-semibold text-blue-600 truncate">
-                Viewing Database: {selectedInstitute.name || selectedInstitute.organisation?.name || "Unnamed"}
+              {/* 🚀 FIXED: Text changed to "Viewing Institute" */}
+              <span className="text-sm font-semibold text-blue-800 truncate">
+                <span className="text-slate-500 font-medium mr-1">Viewing Institute:</span> 
+                {selectedInstitute.name || selectedInstitute.organisation?.name || "Unnamed"}
               </span>
               <Badge label={selectedInstitute.status} />
             </div>
-            <div className="flex items-center gap-2 shrink-0">
-              <button onClick={() => setShowPicker(true)} className="text-xs text-blue-500 font-semibold hover:underline">
-                Change Target
+            <div className="flex items-center gap-3 shrink-0">
+              {/* 🚀 FIXED: Text changed to "Change Institute" */}
+              <button onClick={() => setShowPicker(true)} className="text-xs text-blue-600 font-bold hover:text-blue-800 hover:underline transition-all">
+                Change Institute
               </button>
+              <div className="w-px h-4 bg-violet-200"></div>
               <button onClick={() => setSelectedInstitute(null)} className="p-1 rounded-lg hover:bg-violet-100 transition-colors">
-                <X size={14} className="text-violet-400" />
+                <X size={16} className="text-violet-500 hover:text-rose-500 transition-colors" />
               </button>
             </div>
           </div>
@@ -495,7 +501,7 @@ export const SuperAdminDashboard = () => {
           />
         ) : (
           <div className="animate-fadeIn">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {cardsConfig.map((stat, idx) => (
                 <DashboardCard key={idx} {...stat} />
               ))}
