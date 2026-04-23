@@ -318,8 +318,8 @@ const SpecializationsSection = ({ course, fetchPrograms, api }) => {
         <div className="hidden md:grid grid-cols-12 gap-4 pb-3 border-b border-gray-200 text-[11px] font-black text-gray-500 uppercase tracking-wider items-center">
           <div className="col-span-4 text-left">Name</div>
           <div className="col-span-2 text-center">Code</div>
-          <div className="col-span-2 text-center">Total</div>
-          <div className="col-span-2 text-center">Intake</div>
+          <div className="col-span-2 text-center">Total Capacity</div>
+          <div className="col-span-2 text-center">Intake Capacity</div>
           <div className="col-span-2 text-right">Actions</div>
         </div>
 
