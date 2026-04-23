@@ -266,7 +266,8 @@ export default function InstituteAttendance() {
   ];
 
   return (
-    <div className="min-h-screen bg-slate-50" style={{ fontFamily: "'Georgia', serif" }}>
+    // 🚀 FIXED: Added text-left to the root container
+    <div className="min-h-screen bg-slate-50 text-left" style={{ fontFamily: "'Georgia', serif" }}>
       <div className="w-full max-w-8xl mx-auto px-4 py-8 pb-32">
 
         {/* HEADER SECTION */}
@@ -275,9 +276,10 @@ export default function InstituteAttendance() {
             <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shrink-0">
               <ShieldCheck className="w-5 h-5 text-white" />
             </div>
-            <div>
-              <h1 className="text-2xl sm:text-3xl font-bold text-slate-900">Institute Attendance</h1>
-              <p className="text-sm text-slate-500" style={{ fontFamily: "sans-serif" }}>
+            {/* 🚀 FIXED: Explicit text-left added to prevent inherited centering */}
+            <div className="text-left">
+              <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 text-left">Institute Attendance</h1>
+              <p className="text-sm text-slate-500 text-left" style={{ fontFamily: "sans-serif" }}>
                 Mark your attendance · Approve faculty · Shift: <span className="font-semibold text-slate-700">9:30 AM – 6:30 PM</span>
               </p>
             </div>
@@ -309,11 +311,10 @@ export default function InstituteAttendance() {
             {!shiftOn && (
               <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-xl flex items-start gap-2">
                 <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-                <p className="text-amber-700 text-xs font-semibold">Punch-in is only available during shift hours (9:30 AM – 6:30 PM).</p>
+                <p className="text-amber-700 text-xs font-semibold text-left">Punch-in is only available during shift hours (9:30 AM – 6:30 PM).</p>
               </div>
             )}
 
-            {/* 🚀 FIXED: 3-Column Responsive Alignment for Admin */}
             <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6 w-full">
               
               {/* 1. Left Col: Profile */}
@@ -321,7 +322,7 @@ export default function InstituteAttendance() {
                 <div className="w-14 h-14 rounded-2xl bg-blue-600 flex items-center justify-center text-white font-black text-lg shadow-md relative shrink-0">
                   IA
                 </div>
-                <div>
+                <div className="text-left">
                   <p className="font-bold text-slate-800" style={{ fontFamily: "Georgia, serif" }}>Institute Admin</p>
                   <p className="text-xs text-slate-500 mb-1">Administrator</p>
                   <span className={`inline-block px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider border ${adminRecord.punchOut ? "bg-blue-50 text-blue-600 border-blue-200" : adminRecord.status === "Present" ? "bg-emerald-50 text-emerald-700 border-emerald-200" : adminRecord.status === "Late" ? "bg-orange-50 text-orange-600 border-orange-200" : "bg-slate-100 text-slate-500 border-slate-200"}`}>
@@ -334,7 +335,7 @@ export default function InstituteAttendance() {
               <div className="flex flex-wrap items-center gap-3 flex-1 lg:justify-center">
                 <div className={`flex items-center gap-2 px-4 py-3 rounded-xl border-2 text-sm font-bold min-w-[125px] ${adminRecord.punchIn ? "bg-emerald-50 border-emerald-300 text-emerald-700" : "bg-slate-50 border-dashed border-slate-300 text-slate-400"}`}>
                   <LogIn size={14} className={adminRecord.punchIn ? "text-emerald-500 shrink-0" : "text-slate-300 shrink-0"} />
-                  <div>
+                  <div className="text-left">
                     <p className="text-[9px] uppercase tracking-wider font-black opacity-60">Punch In</p>
                     <p className="tabular-nums text-base whitespace-nowrap">{adminRecord.punchIn ? fmt12(adminRecord.punchIn) : "--:-- --"}</p>
                   </div>
@@ -346,7 +347,7 @@ export default function InstituteAttendance() {
 
                 <div className={`flex items-center gap-2 px-4 py-3 rounded-xl border-2 text-sm font-bold min-w-[125px] ${adminRecord.punchOut ? "bg-rose-50 border-rose-300 text-rose-600" : "bg-slate-50 border-dashed border-slate-300 text-slate-400"}`}>
                   <LogOut size={14} className={adminRecord.punchOut ? "text-rose-400 shrink-0" : "text-slate-300 shrink-0"} />
-                  <div>
+                  <div className="text-left">
                     <p className="text-[9px] uppercase tracking-wider font-black opacity-60">Punch Out</p>
                     <p className="tabular-nums text-base whitespace-nowrap">{adminRecord.punchOut ? fmt12(adminRecord.punchOut) : "--:-- --"}</p>
                   </div>
@@ -437,7 +438,6 @@ export default function InstituteAttendance() {
 
               return (
                 <div key={faculty.id} className="p-4 hover:bg-slate-50 transition-colors">
-                  {/* 🚀 FIXED: 3-Column Responsive Alignment for Faculty Rows */}
                   <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 w-full">
                     
                     {/* 1. Left Col: Profile Info */}
@@ -445,7 +445,7 @@ export default function InstituteAttendance() {
                       <div className={`w-11 h-11 rounded-xl ${dc.avatar} flex items-center justify-center text-white font-black text-xs shrink-0 shadow-sm`}>
                         {faculty.icon || faculty.name.charAt(0)}
                       </div>
-                      <div className="min-w-0">
+                      <div className="min-w-0 text-left">
                         <p className="font-bold text-slate-800 text-sm truncate">{faculty.name}</p>
                         <p className="text-xs text-slate-500 truncate mb-1">{faculty.designation}</p>
                         <span className={`inline-block px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider border whitespace-nowrap ${dc.bg} ${dc.text} ${dc.border}`}>
@@ -458,7 +458,7 @@ export default function InstituteAttendance() {
                     <div className="flex flex-wrap items-center gap-2 lg:gap-3 flex-1 lg:justify-center" style={{ fontFamily: "sans-serif" }}>
                       <div className={`flex items-center gap-2 px-3 py-2 rounded-xl border-2 text-xs font-bold min-w-[110px] ${rec.punchIn ? "bg-emerald-50 border-emerald-300 text-emerald-700" : "bg-slate-50 border-dashed border-slate-300 text-slate-400"}`}>
                         <LogIn size={12} className={rec.punchIn ? "text-emerald-500 shrink-0" : "text-slate-300 shrink-0"} />
-                        <div>
+                        <div className="text-left">
                           <p className="text-[9px] uppercase tracking-wider font-black opacity-60">Req. In</p>
                           <p className="tabular-nums whitespace-nowrap">{rec.punchIn ? fmt12(rec.punchIn) : "--:-- --"}</p>
                         </div>
@@ -470,7 +470,7 @@ export default function InstituteAttendance() {
 
                       <div className={`flex items-center gap-2 px-3 py-2 rounded-xl border-2 text-xs font-bold min-w-[110px] ${rec.punchOut ? "bg-rose-50 border-rose-300 text-rose-600" : "bg-slate-50 border-dashed border-slate-300 text-slate-400"}`}>
                         <LogOut size={12} className={rec.punchOut ? "text-rose-400 shrink-0" : "text-slate-300 shrink-0"} />
-                        <div>
+                        <div className="text-left">
                           <p className="text-[9px] uppercase tracking-wider font-black opacity-60">Out</p>
                           <p className="tabular-nums whitespace-nowrap">{rec.punchOut ? fmt12(rec.punchOut) : "--:-- --"}</p>
                         </div>

@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Eye, Users, Loader2, AlertCircle, BookOpen } from "lucide-react";
-import api from "../../../services/api"; // 👈 DOUBLE CHECK: Is your api.js in src/services/api.js?
+import { Eye, Users, Loader2, AlertCircle, BookOpen, Clock } from "lucide-react";
+import api from "../../../services/api";
 
 export const FacultyClasses = () => {
   const navigate = useNavigate();
@@ -34,11 +34,32 @@ export const FacultyClasses = () => {
 
   // --- HANDLERS ---
   const handleView = (cls) => {
-   navigate("/faculty/classes/detail", { state: { cls } });
+    navigate("/faculty/classes/detail", { state: { cls } });
+  };
+
+  // 🚀 FIXED: Helper function to safely format the schedule array into a string
+  const formatSchedule = (schedule) => {
+    if (!Array.isArray(schedule) || schedule.length === 0 || !schedule[0]?.day) {
+      return <span className="text-gray-400 italic">No schedule assigned</span>;
+    }
+    
+    return (
+      <div className="flex flex-col gap-1">
+        {schedule.filter(s => s.day).map((slot, idx) => (
+          <div key={idx} className="flex items-center gap-1.5">
+            <Clock size={12} className="text-gray-400 shrink-0" />
+            <span>
+              <span className="font-semibold text-gray-700">{slot.day.slice(0, 3)}</span> {slot.startTime || ''}{slot.startTime && slot.endTime ? ` - ${slot.endTime}` : ''}
+              {slot.room && <span className="ml-1 text-gray-400">({slot.room})</span>}
+            </span>
+          </div>
+        ))}
+      </div>
+    );
   };
 
   return (
-    <div className="p-8 space-y-6 bg-slate-50 min-h-screen">
+    <div className="p-8 space-y-6 bg-slate-50 min-h-screen text-left">
       {/* Page Header */}
       <div>
         <h1 className="text-3xl text-left font-bold text-gray-900">My Classes</h1>
@@ -80,8 +101,8 @@ export const FacultyClasses = () => {
             <table className="w-full text-left text-sm">
               <thead>
                 <tr className="border-b text-left border-gray-100 text-blue-600 bg-slate-50">
-                  <th className="text-left font-semibold px-5 py-4 whitespace-nowrap">Course Name</th>
-                  <th className="text-left font-semibold px-5 py-4 whitespace-nowrap">Class/Section</th>
+                  <th className="text-left font-semibold px-5 py-4 whitespace-nowrap">Class Name</th>
+                  <th className="text-left font-semibold px-5 py-4 whitespace-nowrap">Section</th>
                   <th className="text-left font-semibold px-5 py-4 whitespace-nowrap">Subject</th>
                   <th className="text-left font-semibold px-5 py-4 whitespace-nowrap">Academic Year</th>
                   <th className="text-left font-semibold px-5 py-4 whitespace-nowrap">Schedule</th>
@@ -99,20 +120,24 @@ export const FacultyClasses = () => {
                       }`}
                     >
                       <td className="px-5 py-4 font-semibold text-gray-900 whitespace-nowrap">
-                        {cls.courseName || cls.course_name}
+                        {/* 🚀 FIXED: using className directly as defined in your backend model */}
+                        {cls.className}
                       </td>
                       <td className="px-5 py-4 whitespace-nowrap">
                         <span className="inline-block border border-gray-300 rounded-md px-2.5 py-0.5 text-xs font-bold text-gray-700 bg-white uppercase">
-                          {cls.classSection || cls.class_section}
+                          {cls.section || 'N/A'}
                         </span>
                       </td>
                       <td className="px-5 py-4 text-gray-700 whitespace-nowrap">{cls.subject}</td>
-                      <td className="px-5 py-4 text-gray-700 whitespace-nowrap">{cls.academicYear || cls.academic_year}</td>
-                      <td className="px-5 py-4 text-gray-500 whitespace-nowrap">{cls.schedule}</td>
+                      <td className="px-5 py-4 text-gray-700 whitespace-nowrap">{cls.academicYear}</td>
+                      <td className="px-5 py-4 text-gray-500 whitespace-nowrap">
+                        {/* 🚀 FIXED: Passing the array to our new helper function */}
+                        {formatSchedule(cls.schedule)}
+                      </td>
                       <td className="px-5 py-4 whitespace-nowrap">
                         <div className="flex items-center gap-1.5 text-gray-700 font-medium">
                           <Users className="w-4 h-4 text-blue-500" />
-                          {cls.students || cls.students_count || 0}
+                          {cls.students || 0}
                         </div>
                       </td>
                       <td className="px-5 py-4 whitespace-nowrap">
@@ -133,7 +158,7 @@ export const FacultyClasses = () => {
                       <div className="flex flex-col items-center justify-center opacity-50">
                         <BookOpen className="w-12 h-12 text-slate-400 mb-3" />
                         <p className="text-lg font-bold text-slate-600">No Classes Assigned</p>
-                        <p className="text-sm text-slate-400 mt-1">Refresh the page after updating the database.</p>
+                        <p className="text-sm text-slate-400 mt-1">Check back later or contact the administrator.</p>
                       </div>
                     </td>
                   </tr>

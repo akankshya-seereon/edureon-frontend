@@ -15,6 +15,7 @@ const EMPTY_FORM = {
   department: '',
   subject: '',
   facultyAssigned: '',
+  batchId: '', // 🚀 ADDED: Track the selected batch
   academicYear: '',
   semester: '',
   section: '',
@@ -104,28 +105,24 @@ const CreateClassModal = ({ onClose, onSave, editData, dropdownData }) => {
   const [errors, setErrors] = useState({});
   const [availableSubjects, setAvailableSubjects] = useState([]);
 
-  // 🚀 Pulling real data passed from the main component
-  const { programs, departments, subjects, faculty, academicYears, semesters, sections, days, rooms } = dropdownData;
+  // 🚀 Pulling real data passed from the main component (Added batches)
+  const { programs, departments, subjects, faculty, academicYears, semesters, sections, days, rooms, batches } = dropdownData;
 
   // 🚀 DYNAMIC SUBJECT FILTERING
-  // When 'program' changes, filter subjects. (Requires backend to return 'course_name' alongside subjects)
   useEffect(() => {
     if (form.program && subjects?.length > 0) {
       if (subjects[0].course_name) {
-        // If backend provides course_name, filter perfectly
         setAvailableSubjects(subjects.filter(s => s.course_name === form.program));
       } else {
-        // Fallback: show all subjects if backend isn't updated with course_name yet
         setAvailableSubjects(subjects);
       }
     } else {
-      setAvailableSubjects([]); // Clear if no program selected
+      setAvailableSubjects([]); 
     }
   }, [form.program, subjects]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    // If Program changes, clear the Subject field so they have to pick a new valid one
     if (name === 'program') {
       setForm(f => ({ ...f, [name]: value, subject: '' }));
     } else {
@@ -186,7 +183,6 @@ const CreateClassModal = ({ onClose, onSave, editData, dropdownData }) => {
                 {errors.className && <p className="text-red-500 text-xs mt-1 text-left">{errors.className}</p>}
               </div>
               
-              {/* 🚀 FIXED: Keys updated to "name" to match the backend query */}
               <div>
                 <Select label="Program" name="program" value={form.program} onChange={handleChange} options={programs} valueKey="name" labelKey="name" placeholder="Select Program" />
               </div>
@@ -202,7 +198,7 @@ const CreateClassModal = ({ onClose, onSave, editData, dropdownData }) => {
                   onChange={handleChange} 
                   options={availableSubjects} 
                   valueKey="name" 
-                  customDisplay={(sub) => sub.code ? `${sub.name} (${sub.code})` : sub.name} // 🚀 Formats display as "Data Structure (D868)"
+                  customDisplay={(sub) => sub.code ? `${sub.name} (${sub.code})` : sub.name}
                   placeholder={form.program ? "Select Subject" : "Select a Program first"} 
                 />
               </div>
@@ -224,6 +220,19 @@ const CreateClassModal = ({ onClose, onSave, editData, dropdownData }) => {
               </div>
               <div>
                 <Select label="Section" name="section" value={form.section} onChange={handleChange} options={sections} />
+              </div>
+              <div>
+                {/* 🚀 FIXED: New Batch Assignment Dropdown! */}
+                <Select 
+                  label="Assign Batch" 
+                  name="batchId" 
+                  value={form.batchId} 
+                  onChange={handleChange} 
+                  options={batches} 
+                  valueKey="id" 
+                  customDisplay={(b) => `${b.name} (${b.student_count || 0} Students)`}
+                  placeholder="Select a Batch" 
+                />
               </div>
               <div>
                 <Input label="Max Students" name="maxStudents" value={form.maxStudents} onChange={handleChange} type="number" placeholder="e.g. 60" icon={Users} />
@@ -253,7 +262,6 @@ const CreateClassModal = ({ onClose, onSave, editData, dropdownData }) => {
                     </div>
                   </div>
                   <div className="col-span-2 text-left">
-                    {/* 🚀 FIXED: Keys updated to "name" for rooms */}
                     <Select label="Room" name="room" value={slot.room} onChange={e => handleScheduleChange(idx, 'room', e.target.value)} options={rooms} valueKey="name" labelKey="name" placeholder="Room" />
                   </div>
                   <div className="col-span-1 flex justify-end pb-1">
@@ -329,17 +337,17 @@ export const ClassList = () => {
   const [search, setSearch] = useState('');
   const [toast, setToast] = useState(null);
 
-  // 🚀 Real Database Dropdown State
   const [dropdownData, setDropdownData] = useState({
-    programs: [],    // Will be filled from DB
-    departments: [], // Will be filled from DB
-    subjects: [],    // Will be filled from DB
-    faculty: [],     // Will be filled from DB
-    rooms: [],       // Will be filled from DB
-    academicYears: ['2024-25', '2025-26', '2026-27'],
-    semesters: ['Semester 1', 'Semester 2', 'Semester 3', 'Semester 4', 'Semester 5', 'Semester 6', 'Semester 7', 'Semester 8'],
-    sections: ['A', 'B', 'C', 'D', 'E'],
-    days: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],
+    programs: [],    
+    departments: [], 
+    subjects: [],    
+    faculty: [],     
+    rooms: [],       
+    academicYears: [], 
+    semesters: [],     
+    sections: [],      
+    batches: [], // 🚀 ADDED: Initializing the batches array
+    days: [],          
   });
 
   const showToast = (msg, type = 'success') => {
@@ -387,7 +395,15 @@ export const ClassList = () => {
 
   const handleSave = async (data) => {
     try {
-      const payload = { ...data, departmentId: data.department };
+      const selectedFaculty = dropdownData.faculty.find(f => f.name === data.facultyAssigned);
+
+      const payload = { 
+        ...data, 
+        departmentId: data.department,
+        facultyId: selectedFaculty ? selectedFaculty.id : null,
+        // 🚀 Note: data.batchId is automatically handled by the Select component!
+      };
+
       if (editData) {
         const response = await axios.put(`${apiBaseUrl}/admin/classes/${data.id}`, payload, { withCredentials: true });
         if (response.data.success) { showToast('Class updated successfully!'); fetchClasses(); }

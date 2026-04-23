@@ -32,13 +32,24 @@ const Avatar = ({ name, size = "md" }) => {
   );
 };
 
+// 🚀 FIXED: Helper function to safely format schedule array into a readable string
+const formatSchedule = (schedule) => {
+  if (!Array.isArray(schedule) || schedule.length === 0 || !schedule[0]?.day) {
+    return "No schedule assigned";
+  }
+  return schedule
+    .filter(s => s.day)
+    .map(s => `${s.day.slice(0, 3)} ${s.startTime || ''}${s.startTime && s.endTime ? `-${s.endTime}` : ''}`)
+    .join(', ');
+};
+
 // ─── Overview Tab ─────────────────────────────────────────────────────────────
 const OverviewTab = ({ cls, studentCount }) => (
   <div className="space-y-5">
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 text-left">
       {[
-        { label: "Course Name",     value: cls.courseName,   icon: BookOpen },
-        { label: "Class / Section", value: cls.classSection, icon: GraduationCap },
+        { label: "Course Name",     value: cls.courseName || cls.className,   icon: BookOpen },
+        { label: "Class / Section", value: cls.classSection || cls.section, icon: GraduationCap },
         { label: "Subject",         value: cls.subject,      icon: ClipboardList },
         { label: "Total Students",  value: studentCount,     icon: Users },
       ].map(({ label, value, icon: Icon }) => (
@@ -49,7 +60,7 @@ const OverviewTab = ({ cls, studentCount }) => (
               <Icon className="w-4 h-4 text-blue-600" />
             </div>
           </div>
-          <p className="text-lg font-bold text-gray-900">{value}</p>
+          <p className="text-lg font-bold text-gray-900">{value || "N/A"}</p>
         </div>
       ))}
     </div>
@@ -64,7 +75,8 @@ const OverviewTab = ({ cls, studentCount }) => (
             </div>
             <div>
               <p className="text-xs text-gray-400 font-medium">Schedule</p>
-              <p className="text-sm font-bold text-gray-900">{cls.schedule}</p>
+              {/* 🚀 FIXED: Using our helper function here! */}
+              <p className="text-sm font-bold text-gray-900">{formatSchedule(cls.schedule)}</p>
             </div>
           </div>
           <div className="flex items-center gap-4 p-3 bg-blue-50 rounded-xl">
@@ -121,11 +133,11 @@ const StudentModal = ({ student, onClose }) => {
           <div className="bg-white rounded-2xl border border-gray-100 shadow-md grid grid-cols-2 divide-x divide-gray-100 overflow-hidden">
             <div className="p-4 text-center">
               <p className="text-xs text-gray-400 font-semibold uppercase tracking-wide mb-1">Grade</p>
-              <span className={`px-3 py-1 rounded-lg text-sm font-black ${gradeColor}`}>{student.grade}</span>
+              <span className={`px-3 py-1 rounded-lg text-sm font-black ${gradeColor}`}>{student.grade || 'N/A'}</span>
             </div>
             <div className="p-4 text-center">
               <p className="text-xs text-gray-400 font-semibold uppercase tracking-wide mb-1">Attendance</p>
-              <p className="text-sm font-black text-gray-900">{student.attendance}%</p>
+              <p className="text-sm font-black text-gray-900">{student.attendance || 0}%</p>
             </div>
           </div>
         </div>
@@ -137,7 +149,7 @@ const StudentModal = ({ student, onClose }) => {
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
-            {[ { label: "Student ID", value: student.studentId }, { label: "Current Grade", value: student.grade }, { label: "Assignments", value: "12/14" }, { label: "Status", value: "Active" } ].map(({ label, value }) => (
+            {[ { label: "Student ID", value: student.studentId }, { label: "Current Grade", value: student.grade || 'N/A' }, { label: "Assignments", value: "12/14" }, { label: "Status", value: "Active" } ].map(({ label, value }) => (
               <div key={label} className="bg-gray-50 rounded-xl p-3">
                 <p className="text-xs text-gray-400 font-medium mb-0.5 text-left">{label}</p>
                 <p className="text-sm font-bold text-gray-900 text-left">{value}</p>
@@ -168,27 +180,42 @@ export const ClassDetail = () => {
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [showAssignModal, setShowAssignModal] = useState(false);
 
-  // Fetch Logic
+  // 🚀 FIXED: Resilient Fetch Logic
   useEffect(() => {
-    if (!cls?.id) return;
+    if (!cls?.id) {
+        navigate("/faculty/classes"); // Failsafe if accessed without data
+        return;
+    }
+
     const fetchData = async () => {
       setLoading(true);
       try {
         const headers = { Authorization: `Bearer ${token}` };
-        const [stuRes, assignRes] = await Promise.all([
-          axios.get(`${apiBaseUrl}/faculty/classes/${cls.id}/students`, { headers }),
-          axios.get(`${apiBaseUrl}/faculty/classes/${cls.id}/assignments`, { headers })
-        ]);
+        
+        // Use individual catch blocks so if assignments fails (500 error), students still load perfectly!
+        const fetchStudents = axios.get(`${apiBaseUrl}/faculty/classes/${cls.id}/students`, { headers })
+            .catch(err => ({ data: { success: false, data: [] } })); // Fallback on fail
+            
+        const fetchAssignments = axios.get(`${apiBaseUrl}/faculty/classes/${cls.id}/assignments`, { headers })
+            .catch(err => ({ data: { success: false, data: [] } })); // Fallback on fail
+
+        const [stuRes, assignRes] = await Promise.all([fetchStudents, fetchAssignments]);
+
         if (stuRes.data.success) {
           setStudents(stuRes.data.data);
           setAttendance(Object.fromEntries(stuRes.data.data.map(s => [s.id, null])));
         }
-        if (assignRes.data.success) setAssignments(assignRes.data.data);
-      } catch (err) { console.error("Error loading data", err); }
-      finally { setLoading(false); }
+        if (assignRes.data.success) {
+          setAssignments(assignRes.data.data);
+        }
+      } catch (err) { 
+        console.error("Error loading data", err); 
+      } finally { 
+        setLoading(false); 
+      }
     };
     fetchData();
-  }, [cls?.id, token]);
+  }, [cls?.id, token, navigate]);
 
   const mark = (id, status) => { setSaved(false); setAttendance(p => ({ ...p, [id]: p[id] === status ? null : status })); };
   const markAll = (status) => { setSaved(false); setAttendance(Object.fromEntries(students.map(s => [s.id, status]))); };
@@ -220,7 +247,7 @@ export const ClassDetail = () => {
     { key: "assignments",  label: "Assignments",  icon: ClipboardList },
   ];
 
-  if (loading) return <div className="h-screen flex items-center justify-center text-gray-500 font-bold animate-pulse">Loading Class Information...</div>;
+  if (loading) return <div className="h-screen flex items-center justify-center text-blue-600 font-bold"><Loader2 className="w-8 h-8 animate-spin" /></div>;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -231,9 +258,9 @@ export const ClassDetail = () => {
         </button>
         <div className="max-w-8xl mx-auto space-y-3">
           <div className="flex flex-col items-start gap-3 w-full">
-            <h1 className="text-3xl font-black text-white tracking-tight text-left">{cls.courseName}</h1>
+            <h1 className="text-3xl font-black text-white tracking-tight text-left">{cls.courseName || cls.className}</h1>
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="bg-white/20 text-white border border-white/30 rounded-full px-3 py-0.5 text-xs font-semibold backdrop-blur">{cls.classSection}</span>
+              <span className="bg-white/20 text-white border border-white/30 rounded-full px-3 py-0.5 text-xs font-semibold backdrop-blur">{cls.classSection || cls.section}</span>
               <span className="bg-white/20 text-white border border-white/30 rounded-full px-3 py-0.5 text-xs font-semibold backdrop-blur">{cls.subject}</span>
               <span className="bg-white/20 text-white border border-white/30 rounded-full px-3 py-0.5 text-xs font-semibold backdrop-blur">{cls.academicYear}</span>
               <div className="flex items-center gap-1.5 bg-white/20 border border-white/30 rounded-full px-3 py-0.5 backdrop-blur">
@@ -247,7 +274,7 @@ export const ClassDetail = () => {
 
       {/* Tabs */}
       <div className="max-w-8xl mx-auto px-6 -mt-12">
-        <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-1.5 flex gap-1 w-fit">
+        <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-1.5 flex gap-1 w-fit flex-wrap">
           {tabs.map(({ key, label, icon: Icon }) => (
             <button key={key} onClick={() => setActiveTab(key)}
               className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all ${activeTab === key ? "bg-blue-600 text-white shadow-sm" : "text-gray-500 hover:bg-gray-50"}`}>
@@ -281,16 +308,19 @@ export const ClassDetail = () => {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-50">
+                    {students.length === 0 && (
+                       <tr><td colSpan="5" className="text-center py-10 text-gray-400">No students enrolled yet.</td></tr>
+                    )}
                     {students.map((s) => (
                       <tr key={s.id} className="hover:bg-blue-50/30 transition-colors">
                         <td className="px-6 py-3.5 flex items-center gap-3">
                           <Avatar name={s.name} size="sm" /> <span className="font-semibold text-gray-900">{s.name}</span>
                         </td>
                         <td className="px-6 py-3.5 text-gray-400 font-mono text-xs">{s.studentId}</td>
-                        <td className="px-6 py-3.5"><span className={`px-2.5 py-1 rounded-lg text-xs font-bold ${s.grade?.startsWith("A") ? "bg-green-100 text-green-700" : "bg-blue-100 text-blue-700"}`}>{s.grade}</span></td>
+                        <td className="px-6 py-3.5"><span className={`px-2.5 py-1 rounded-lg text-xs font-bold ${s.grade?.startsWith("A") ? "bg-green-100 text-green-700" : "bg-blue-100 text-blue-700"}`}>{s.grade || 'N/A'}</span></td>
                         <td className="px-6 py-3.5 flex items-center gap-2">
-                           <div className="w-16 h-1.5 bg-gray-100 rounded-full overflow-hidden"><div className="h-full bg-blue-500 rounded-full" style={{ width: `${s.attendance}%` }} /></div>
-                           <span className="text-xs font-semibold text-gray-600">{s.attendance}%</span>
+                           <div className="w-16 h-1.5 bg-gray-100 rounded-full overflow-hidden"><div className="h-full bg-blue-500 rounded-full" style={{ width: `${s.attendance || 0}%` }} /></div>
+                           <span className="text-xs font-semibold text-gray-600">{s.attendance || 0}%</span>
                         </td>
                         <td className="px-6 py-3.5"><button onClick={() => setSelectedStudent(s)} className="flex items-center gap-1 text-xs text-blue-600 font-semibold hover:underline"><Eye className="w-3.5 h-3.5" /> View</button></td>
                       </tr>
@@ -318,10 +348,11 @@ export const ClassDetail = () => {
 
              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
                <div className="divide-y divide-gray-50">
+                 {students.length === 0 && <div className="p-10 text-center text-gray-400">No students to mark attendance for.</div>}
                  {students.map((student) => {
                    const current = attendance[student.id];
                    return (
-                     <div key={student.id} className="flex items-center justify-between px-6 py-3.5 hover:bg-blue-50/30 transition-colors">
+                     <div key={student.id} className="flex items-center justify-between px-6 py-3.5 hover:bg-blue-50/30 transition-colors flex-wrap gap-4">
                        <div className="flex items-center gap-3 text-left">
                          <Avatar name={student.name} size="sm" />
                          <div><p className="text-sm font-semibold text-gray-900">{student.name}</p><p className="text-xs text-gray-400 font-mono">{student.studentId}</p></div>
@@ -331,7 +362,7 @@ export const ClassDetail = () => {
                            const isActive = current === s;
                            const cfg = statusConfig[s];
                            return (
-                             <button key={s} onClick={() => mark(student.id, s)} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-semibold transition ${isActive ? cfg.pill : "border-gray-200 text-gray-400 bg-white"}`}>
+                             <button key={s} onClick={() => mark(student.id, s)} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-semibold transition ${isActive ? cfg.pill : "border-gray-200 text-gray-400 bg-white hover:bg-gray-50"}`}>
                                <cfg.icon className={`w-3.5 h-3.5 ${isActive ? cfg.iconCls : ""}`} /> <span className="hidden sm:inline">{cfg.label}</span>
                              </button>
                            );
@@ -343,7 +374,7 @@ export const ClassDetail = () => {
                </div>
              </div>
              <div className="flex items-center gap-4">
-               <button onClick={handleSaveAttendance} disabled={students.length === 0} className="px-6 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700 transition shadow-sm active:scale-95">Save Attendance</button>
+               <button onClick={handleSaveAttendance} disabled={students.length === 0} className="px-6 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700 transition shadow-sm active:scale-95 disabled:opacity-50">Save Attendance</button>
                {saved && <span className="flex items-center gap-1.5 text-sm text-green-600 font-semibold animate-bounce"><CheckCircle className="w-4 h-4" /> Saved successfully</span>}
              </div>
            </div>
@@ -356,9 +387,10 @@ export const ClassDetail = () => {
               <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
                 <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
                   <h3 className="text-sm font-bold text-gray-800">Assignments</h3>
-                  <button onClick={() => setShowAssignModal(true)} className="px-3 py-1.5 bg-blue-600 text-white rounded-xl text-xs font-bold hover:bg-blue-700">+ New</button>
+                  <button onClick={() => setShowAssignModal(true)} className="px-3 py-1.5 bg-blue-600 text-white rounded-xl text-xs font-bold hover:bg-blue-700 shadow-sm">+ New</button>
                 </div>
                 <div className="divide-y divide-gray-50">
+                  {assignments.length === 0 && <div className="p-10 text-center text-gray-400">No assignments created yet.</div>}
                   {assignments.map(a => (
                     <div key={a.id} className="px-6 py-4 hover:bg-blue-50/30 transition-colors">
                        <div className="flex items-start justify-between gap-4">
@@ -366,7 +398,7 @@ export const ClassDetail = () => {
                             <div className="w-9 h-9 rounded-xl bg-blue-50 flex items-center justify-center shrink-0 mt-0.5"><FileText className="w-4 h-4 text-blue-600" /></div>
                             <div className="space-y-1"><p className="text-sm font-bold text-gray-900">{a.title}</p><p className="text-xs text-gray-400">Due {new Date(a.dueDate).toLocaleDateString()}</p></div>
                          </div>
-                         <span className={`px-2.5 py-1 rounded-lg text-xs font-bold shrink-0 ${assignmentStatus[a.status]?.cls}`}>{a.status}</span>
+                         <span className={`px-2.5 py-1 rounded-lg text-xs font-bold shrink-0 ${assignmentStatus[a.status]?.cls || "bg-gray-100 text-gray-600"}`}>{a.status || "Unknown"}</span>
                        </div>
                     </div>
                   ))}
@@ -394,15 +426,17 @@ const NewAssignmentModal = ({ onClose, onAdd }) => {
       <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md mx-4 overflow-hidden" onClick={(e) => e.stopPropagation()}>
         <div className="bg-blue-600 px-6 py-5 flex items-center justify-between">
           <h2 className="text-base font-black text-white">New Assignment</h2>
-          <button onClick={onClose} className="text-white text-xl font-bold">×</button>
+          <button onClick={onClose} className="text-white hover:text-blue-200 text-xl font-bold transition">×</button>
         </div>
         <div className="px-6 py-5 space-y-4 text-left">
           {error && <div className="text-red-500 text-xs font-bold">⚠️ {error}</div>}
-          <div className="space-y-1"><label className="text-xs font-bold text-gray-400 uppercase">Title</label><input className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm" placeholder="Chapter Name" value={form.title} onChange={e => setForm({...form, title: e.target.value})} /></div>
-          <div className="space-y-1"><label className="text-xs font-bold text-gray-400 uppercase">Due Date</label><input type="date" className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm" value={form.dueDate} onChange={e => setForm({...form, dueDate: e.target.value})} /></div>
-          <div className="flex gap-3"><button onClick={onClose} className="flex-1 py-2.5 border rounded-xl text-sm font-bold">Cancel</button><button onClick={handleSubmit} className="flex-1 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-bold">Add</button></div>
+          <div className="space-y-1"><label className="text-xs font-bold text-gray-400 uppercase">Title</label><input className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-blue-500" placeholder="Chapter Name" value={form.title} onChange={e => setForm({...form, title: e.target.value})} /></div>
+          <div className="space-y-1"><label className="text-xs font-bold text-gray-400 uppercase">Due Date</label><input type="date" className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-blue-500" value={form.dueDate} onChange={e => setForm({...form, dueDate: e.target.value})} /></div>
+          <div className="flex gap-3 pt-2"><button onClick={onClose} className="flex-1 py-2.5 border rounded-xl text-sm font-bold text-gray-600 hover:bg-gray-50 transition">Cancel</button><button onClick={handleSubmit} className="flex-1 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700 shadow-sm transition">Add Assignment</button></div>
         </div>
       </div>
     </div>
   );
 };
+
+export default ClassDetail;
