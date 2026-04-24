@@ -3,7 +3,7 @@ import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import {
   Search, Loader2, Users, Briefcase, GraduationCap, 
-  Trash2, Mail, BadgeInfo, Edit, Eye, Plus
+  Trash2, Mail, Phone, BadgeInfo, Edit, Eye, Plus
 } from 'lucide-react';
 import apiBaseUrl from "../../../config/baseurl"; 
 
@@ -30,7 +30,15 @@ export const EmployeeDirectory = () => {
   const fetchEmployees = async () => {
     try {
       setLoading(true);
-      const res = await api.get('/admin/employees/list');
+      // 🚀 FIXED: Added Cache-Control headers to prevent 304 stale data issues!
+      const res = await api.get('/admin/employees/list', {
+        headers: {
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache',
+          'Expires': '0',
+        }
+      });
+      
       if (res.data.success) {
         setEmployees(Array.isArray(res.data.data) ? res.data.data : []);
       }
@@ -73,7 +81,8 @@ export const EmployeeDirectory = () => {
         (emp.lastName || '').toLowerCase().includes(searchLower) ||
         (emp.email || '').toLowerCase().includes(searchLower) ||
         (emp.employeeId || '').toLowerCase().includes(searchLower) ||
-        (emp.designation || '').toLowerCase().includes(searchLower);
+        (emp.designation || '').toLowerCase().includes(searchLower) ||
+        (emp.department_name || '').toLowerCase().includes(searchLower); // Added department to search
       
       return matchesTab && matchesSearch;
     });
@@ -119,7 +128,7 @@ export const EmployeeDirectory = () => {
             </div>
           </div>
           <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm flex items-center gap-5">
-            <div className="w-14 h-14 rounded-full bg-purple-50 text-purple-600 flex items-center justify-center"><Briefcase size={24} /></div>
+            <div className="w-14 h-14 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center"><Briefcase size={24} /></div>
             <div>
               <p className="text-sm font-bold text-gray-500">Non-Academic Staff</p>
               <h3 className="text-3xl font-black text-gray-900">{nonAcademicCount}</h3>
@@ -166,11 +175,12 @@ export const EmployeeDirectory = () => {
                 <p className="text-sm font-bold text-gray-400 animate-pulse">Loading staff records...</p>
               </div>
             ) : (
-              <table className="w-full text-left border-collapse min-w-[900px]">
+              <table className="w-full text-left border-collapse min-w-[1000px]">
                 <thead>
                   <tr className="bg-white border-b border-gray-200">
-                    <th className="px-6 py-4 text-[11px] font-black text-gray-400 uppercase tracking-wider">Employee Name</th>
+                    <th className="px-6 py-4 text-[11px] font-black text-gray-400 uppercase tracking-wider">Employee Profile</th>
                     <th className="px-6 py-4 text-[11px] font-black text-gray-400 uppercase tracking-wider">Contact Info</th>
+                    <th className="px-6 py-4 text-[11px] font-black text-gray-400 uppercase tracking-wider">Department</th>
                     <th className="px-6 py-4 text-[11px] font-black text-gray-400 uppercase tracking-wider">Designation</th>
                     <th className="px-6 py-4 text-[11px] font-black text-gray-400 uppercase tracking-wider text-center">Employee ID</th>
                     <th className="px-6 py-4 text-[11px] font-black text-gray-400 uppercase tracking-wider text-right">Actions</th>
@@ -194,18 +204,31 @@ export const EmployeeDirectory = () => {
                           </div>
                         </td>
 
-                        {/* Contact Info */}
+                        {/* Contact Info (Now includes Phone!) */}
                         <td className="px-6 py-4">
-                          <div className="flex items-center gap-2 text-xs text-gray-600 font-semibold">
-                            <Mail size={14} className="text-gray-400" />
-                            {emp.email || <span className="text-gray-300 italic">No email</span>}
+                          <div className="flex flex-col gap-1 text-xs text-gray-600 font-semibold">
+                            <div className="flex items-center gap-2">
+                              <Mail size={13} className="text-gray-400 flex-shrink-0" />
+                              <span className="truncate max-w-[150px]" title={emp.email}>{emp.email || <span className="text-gray-300 italic">No email</span>}</span>
+                            </div>
+                            {emp.phone && (
+                              <div className="flex items-center gap-2 mt-0.5">
+                                <Phone size={13} className="text-gray-400 flex-shrink-0" />
+                                <span className="font-mono tracking-wide">{emp.phone}</span>
+                              </div>
+                            )}
                           </div>
+                        </td>
+
+                        {/* Department Name */}
+                        <td className="px-6 py-4">
+                          <p className="text-sm font-bold text-gray-700">{emp.department_name || '—'}</p>
                         </td>
 
                         {/* Designation */}
                         <td className="px-6 py-4">
                           <span className={`inline-flex px-3 py-1 text-[11px] font-black rounded-lg border ${
-                            emp.staffType === 'Academic' ? 'bg-indigo-50 text-indigo-700 border-indigo-100' : 'bg-purple-50 text-purple-700 border-purple-100'
+                            emp.staffType === 'Academic' ? 'bg-indigo-50 text-indigo-700 border-indigo-100' : 'bg-blue-50 text-blue-700 border-blue-100'
                           }`}>
                             {emp.designation || 'Staff'}
                           </span>
@@ -219,10 +242,9 @@ export const EmployeeDirectory = () => {
                           </div>
                         </td>
 
-                        {/* 🚀 ACTIONS: View, Edit, Delete */}
+                        {/* Actions */}
                         <td className="px-6 py-4 text-right">
-                          <div className="flex items-center justify-end gap-2">
-                            {/* View Profile */}
+                          <div className="flex items-center justify-end gap-2 opacity-80 group-hover:opacity-100 transition-opacity">
                             <button 
                               onClick={() => navigate(`/admin/employees/profile/${emp.id}`)}
                               className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors outline-none"
@@ -230,8 +252,6 @@ export const EmployeeDirectory = () => {
                             >
                               <Eye size={18} />
                             </button>
-                            
-                            {/* Edit Employee */}
                             <button 
                               onClick={() => navigate(`/admin/employees/edit/${emp.id}`)}
                               className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors outline-none"
@@ -239,8 +259,6 @@ export const EmployeeDirectory = () => {
                             >
                               <Edit size={18} />
                             </button>
-
-                            {/* Delete Employee */}
                             <button 
                               onClick={() => handleDelete(emp.id, emp.firstName)}
                               className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors outline-none"
@@ -254,8 +272,8 @@ export const EmployeeDirectory = () => {
                     ))
                   ) : (
                     <tr>
-                      <td colSpan="5" className="px-6 py-20 text-center">
-                        <Users size={40} className="mx-auto text-gray-200 mb-4" />
+                      <td colSpan="6" className="px-6 py-24 text-center">
+                        <Users size={48} className="mx-auto text-gray-200 mb-4" />
                         <h3 className="text-lg font-bold text-gray-700">No employees found.</h3>
                         <p className="text-sm text-gray-400 mt-1">Try adjusting your search or switch tabs.</p>
                       </td>

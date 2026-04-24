@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { 
   Plus, Edit2, Trash2, ChevronDown, ChevronRight, 
-  Copy, X, Check, Calendar
+  Copy, X, Check, Calendar, Loader2
 } from 'lucide-react';
 import apiBaseUrl from "../../../config/baseurl";
 
@@ -59,12 +59,9 @@ const INITIAL_COURSES = [
   }
 ];
 
-// ─────────────────────────────────────────────────────────────────────────────
-
 export default function AcademicProgram() { 
   
   const [courses, setCourses] = useState([]);
-  // ✅ No hardcoded buildings — starts empty, filled from institute's own API
   const [buildings, setBuildings] = useState([]);
   const [buildingsLoading, setBuildingsLoading] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -79,28 +76,23 @@ export default function AcademicProgram() {
   const [courseFormData, setCourseFormData] = useState(defaultCourseState);
 
   // ─── 🚀 1. FETCH PROGRAMS FROM BACKEND ───────────────────────────────────
-  const fetchPrograms = async () => {
+  const fetchPrograms = async (isRefresh = false) => {
+    if (!isRefresh) setLoading(true);
     try {
-      setLoading(true);
       const res = await api.get('/admin/programs');
       if (res.data && res.data.success) {
         setCourses(res.data.data);
-      } else {
+      } else if (!isRefresh) {
         setCourses(INITIAL_COURSES); 
       }
     } catch (error) {
       console.error("Error fetching programs:", error);
-      setCourses(INITIAL_COURSES); 
+      if (!isRefresh) setCourses(INITIAL_COURSES); 
     } finally {
-      setLoading(false);
+      if (!isRefresh) setLoading(false);
     }
   };
 
-  // ─── 🚀 2. FETCH BUILDINGS from /admin/infrastructure ────────────────────
-  // /api/admin/infrastructure EXISTS (returns 200/304).
-  // 304 = "Not Modified" — browser uses cached response, axios still resolves
-  // it as success but the body may be empty. We force cache-bypass with a
-  // timestamp param so we always get a fresh JSON body.
   const fetchBuildings = async () => {
     setBuildingsLoading(true);
     try {
@@ -108,28 +100,13 @@ export default function AcademicProgram() {
         params: { _t: Date.now() },
         headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' }
       });
+      const campuses = res.data?.campuses ?? [];
+      const buildingNames = campuses
+        .flatMap(campus => campus.buildings ?? [])   
+        .map(b => b.name)                            
+        .filter(Boolean);                            
 
-      const d = res.data;
-
-      // Handles all response shapes:
-      // { success, data: [...] } | { buildings: [...] } | { infrastructure: [...] } | [...]
-      let list = [];
-      if (Array.isArray(d))                       list = d;
-      else if (Array.isArray(d?.data))            list = d.data;
-      else if (Array.isArray(d?.buildings))       list = d.buildings;
-      else if (Array.isArray(d?.infrastructure))  list = d.infrastructure;
-
-      const extractName = (item) => {
-        if (typeof item === 'string') return item;
-        if (item.building_name)                    return item.building_name;
-        if (item.block_name)                       return item.block_name;
-        if (item.name)                             return item.name;
-        if (item.infrastructure?.building_name)    return item.infrastructure.building_name;
-        if (item.infrastructure?.name)             return item.infrastructure.name;
-        return null;
-      };
-
-      setBuildings(list.map(extractName).filter(Boolean));
+      setBuildings(buildingNames);
     } catch (err) {
       console.error('[Buildings] fetch error:', err?.response?.status, err?.message);
       setBuildings([]);
@@ -143,14 +120,13 @@ export default function AcademicProgram() {
     fetchBuildings(); 
   }, []);
 
-  // ─── 🚀 3. COURSE HANDLERS ────────────────────────────────────────────────
+  // ─── 🚀 2. COURSE HANDLERS ────────────────────────────────────────────────
   const handleOpenCourseForm = (course = null) => {
     if (course) {
       setEditingCourse(course.id);
       setCourseFormData(course);
     } else {
       setEditingCourse(null);
-      // Auto-select first building from the institute's own list (if any)
       setCourseFormData({
         ...defaultCourseState, 
         building: buildings.length > 0 ? buildings[0] : '' 
@@ -168,7 +144,7 @@ export default function AcademicProgram() {
         await api.post('/admin/programs/courses', courseFormData);
       }
       setShowCourseForm(false);
-      fetchPrograms(); 
+      fetchPrograms(true); // ✅ Silent refresh
     } catch (error) {
       console.error("Error saving course:", error);
       alert("Failed to save course.");
@@ -179,7 +155,7 @@ export default function AcademicProgram() {
     if (window.confirm("Are you sure you want to delete this entire course? This cannot be undone.")) {
       try {
         await api.delete(`/admin/programs/courses/${id}`);
-        fetchPrograms();
+        fetchPrograms(true); // ✅ Silent refresh
       } catch (error) {
         console.error("Error deleting course:", error);
         alert("Failed to delete course.");
@@ -191,7 +167,11 @@ export default function AcademicProgram() {
     setExpandedCourseId(expandedCourseId === id ? null : id);
   };
 
-  if (loading) return <div className="p-8 text-center text-gray-500 font-bold">Loading Academic Programs...</div>;
+  if (loading) return (
+    <div className="min-h-screen flex items-center justify-center bg-slate-50 text-gray-500 font-bold gap-3">
+      <Loader2 className="animate-spin w-6 h-6 text-blue-600" /> Loading Academic Programs...
+    </div>
+  );
 
   return (
     <div className="min-h-screen bg-slate-50 p-4 md:p-8 font-sans text-left">
@@ -234,15 +214,11 @@ export default function AcademicProgram() {
               <SelectField label="Sem System" value={courseFormData.semSystem} onChange={e => setCourseFormData({...courseFormData, semSystem: e.target.value})} options={['Semester', 'Yearly']} />
               <InputField label="Semesters" value={courseFormData.semesters} onChange={e => setCourseFormData({...courseFormData, semesters: e.target.value})} type="number" />
               
-              {/* ✅ BUILDING FIELD — dropdown when API returns data, free-text when not */}
               <div className="flex flex-col gap-1.5 text-left">
                 <label className="text-[12px] font-bold text-gray-600">Building</label>
                 {buildingsLoading ? (
                   <div className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm text-gray-400 bg-gray-50 flex items-center gap-2">
-                    <svg className="animate-spin h-4 w-4 text-blue-500" viewBox="0 0 24 24" fill="none">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
-                    </svg>
+                    <Loader2 className="animate-spin h-4 w-4 text-blue-500" />
                     Loading buildings...
                   </div>
                 ) : buildings.length > 0 ? (
@@ -255,7 +231,6 @@ export default function AcademicProgram() {
                     {buildings.map(b => <option key={b} value={b}>{b}</option>)}
                   </select>
                 ) : (
-                  /* Infrastructure API not yet available — allow free-text entry */
                   <input
                     type="text"
                     placeholder="e.g. Main Block, Engineering Wing..."
@@ -304,7 +279,7 @@ export default function AcademicProgram() {
                       <span className="text-sm font-semibold text-blue-600">{dynamicIntake}/{dynamicTotal}</span>
                     </div>
                     <p className="text-xs text-gray-500 font-medium">
-                      {course.duration} · {course.building} · {course.evaluation} · {course.specializations?.length || 0} specs · {course.batches?.length || 0} batches
+                      {course.duration} · {course.building} · {course.evaluation} · {(course.specializations || []).length} specs · {(course.batches || []).length} batches
                     </p>
                     
                     <div className="w-32 h-1.5 bg-gray-200 rounded-full mt-2 overflow-hidden">
@@ -362,7 +337,7 @@ const SpecializationsSection = ({ course, fetchPrograms, api }) => {
       }
       setNewSpec({ name: '', code: '', total: '', intake: '' });
       setEditingSpecId(null);
-      fetchPrograms();
+      fetchPrograms(true); // ✅ Silent Refresh (No Flicker!)
     } catch (error) {
       console.error(error);
       alert("Failed to save specialization");
@@ -378,7 +353,7 @@ const SpecializationsSection = ({ course, fetchPrograms, api }) => {
     if (window.confirm("Delete this specialization?")) {
       try {
         await api.delete(`/admin/programs/specializations/${specId}`);
-        fetchPrograms();
+        fetchPrograms(true); // ✅ Silent Refresh
       } catch(e) { console.error(e); }
     }
   };
@@ -386,7 +361,7 @@ const SpecializationsSection = ({ course, fetchPrograms, api }) => {
   const handleToggleSpecActive = async (spec) => {
     try {
       await api.put(`/admin/programs/specializations/${spec.id}`, { ...spec, active: !spec.active });
-      fetchPrograms();
+      fetchPrograms(true); // ✅ Silent Refresh
     } catch(e) { console.error(e); }
   };
 
@@ -404,7 +379,7 @@ const SpecializationsSection = ({ course, fetchPrograms, api }) => {
         </div>
 
         <div className="space-y-0">
-          {course.specializations?.map(spec => (
+          {(course.specializations || []).map(spec => (
             <div key={spec.id} className="grid grid-cols-1 md:grid-cols-12 gap-4 py-3 items-center text-sm font-semibold text-gray-800 border-b border-gray-50">
               <div className="md:col-span-4 text-left truncate pr-2">{spec.name}</div>
               <div className="md:col-span-2 text-center text-gray-600 font-bold">{spec.code || '—'}</div>
@@ -475,9 +450,7 @@ const BatchesSection = ({ course, fetchPrograms, api, courseSpecializations }) =
 
   const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   
-  // 🚀 DYNAMIC YEARS (2016 to 2036)
   const currentYear = new Date().getFullYear();
-  const YEARS = Array.from({ length: 21 }, (_, i) => (currentYear - 10 + i).toString()); 
 
   const availableSpecs = (courseSpecializations && courseSpecializations.length > 0)
     ? courseSpecializations
@@ -494,8 +467,10 @@ const BatchesSection = ({ course, fetchPrograms, api, courseSpecializations }) =
   const handleEditBatch = (batch) => {
     setEditBatchData({ 
       ...batch, 
-      startYear: batch.startYear?.toString(), 
-      endYear: batch.endYear?.toString() 
+      startYear: batch.startYear?.toString() || '', 
+      endYear: batch.endYear?.toString() || '',
+      specs: batch.specs || [],      
+      sections: batch.sections || [] 
     });
     setEditingBatchId(batch.id);
   };
@@ -504,7 +479,7 @@ const BatchesSection = ({ course, fetchPrograms, api, courseSpecializations }) =
     try {
       const newBatch = { ...batch, name: `${batch.name} (Copy)`, course_id: course.id };
       await api.post('/admin/programs/batches', newBatch); 
-      fetchPrograms();
+      fetchPrograms(true); // ✅ Silent Refresh
     } catch(e) { console.error(e); alert("Failed to duplicate batch"); }
   };
 
@@ -512,7 +487,7 @@ const BatchesSection = ({ course, fetchPrograms, api, courseSpecializations }) =
     if (window.confirm("Are you sure you want to delete this batch?")) {
       try {
         await api.delete(`/admin/programs/batches/${batchId}`); 
-        fetchPrograms();
+        fetchPrograms(true); // ✅ Silent Refresh
       } catch(e) { console.error(e); }
     }
   };
@@ -527,7 +502,7 @@ const BatchesSection = ({ course, fetchPrograms, api, courseSpecializations }) =
       }
       setEditingBatchId(null);
       setEditBatchData(null);
-      fetchPrograms();
+      fetchPrograms(true); // ✅ Silent Refresh
     } catch (error) {
       console.error(error);
       alert("Failed to save batch");
@@ -541,22 +516,23 @@ const BatchesSection = ({ course, fetchPrograms, api, courseSpecializations }) =
   };
 
   const addSection = () => {
-    if (newSectionText.trim() && !editBatchData.sections.includes(newSectionText.toUpperCase())) {
-      setEditBatchData({ ...editBatchData, sections: [...editBatchData.sections, newSectionText.toUpperCase()] });
+    if (newSectionText.trim() && !(editBatchData.sections || []).includes(newSectionText.toUpperCase())) {
+      setEditBatchData({ ...editBatchData, sections: [...(editBatchData.sections || []), newSectionText.toUpperCase()] });
       setNewSectionText('');
     }
   };
 
   const removeSection = (sec) => {
-    setEditBatchData({ ...editBatchData, sections: editBatchData.sections.filter(s => s !== sec) });
+    setEditBatchData({ ...editBatchData, sections: (editBatchData.sections || []).filter(s => s !== sec) });
   };
 
   const toggleSpec = (specName) => {
     if (!specName) return;
-    const isActive = editBatchData.specs.includes(specName);
+    const currentSpecs = editBatchData.specs || []; 
+    const isActive = currentSpecs.includes(specName);
     const newSpecs = isActive 
-      ? editBatchData.specs.filter(s => s !== specName) 
-      : [...editBatchData.specs, specName];
+      ? currentSpecs.filter(s => s !== specName) 
+      : [...currentSpecs, specName];
     setEditBatchData({ ...editBatchData, specs: newSpecs });
   };
 
@@ -584,7 +560,7 @@ const BatchesSection = ({ course, fetchPrograms, api, courseSpecializations }) =
             addSection={addSection} removeSection={removeSection}
             toggleSpec={toggleSpec} 
             courseSpecs={availableSpecs}
-            MONTHS={MONTHS} YEARS={YEARS}
+            MONTHS={MONTHS}
           />
         )}
 
@@ -592,7 +568,7 @@ const BatchesSection = ({ course, fetchPrograms, api, courseSpecializations }) =
           <p className="text-sm text-gray-400">No batches added yet.</p>
         )}
 
-        {course.batches?.map(batch => {
+        {(course.batches || []).map(batch => {
           if (editingBatchId === batch.id) {
             return (
               <BatchEditForm 
@@ -603,7 +579,7 @@ const BatchesSection = ({ course, fetchPrograms, api, courseSpecializations }) =
                 addSection={addSection} removeSection={removeSection}
                 toggleSpec={toggleSpec} 
                 courseSpecs={availableSpecs}
-                MONTHS={MONTHS} YEARS={YEARS}
+                MONTHS={MONTHS}
               />
             );
           }
@@ -629,7 +605,7 @@ const BatchesSection = ({ course, fetchPrograms, api, courseSpecializations }) =
                 <div className="flex items-start gap-2">
                   <span className="text-[11px] font-bold text-gray-400 uppercase mt-1 w-10">Sec:</span>
                   <div className="flex flex-wrap gap-1.5">
-                    {batch.sections?.map(sec => (
+                    {(batch.sections || []).map(sec => (
                       <span key={sec} className="bg-gray-50 border border-gray-200 text-gray-700 px-2 py-0.5 rounded text-xs font-bold shadow-sm">{sec}</span>
                     ))}
                     {(!batch.sections || batch.sections.length === 0) && <span className="text-xs font-semibold text-gray-400 italic mt-0.5">None</span>}
@@ -638,7 +614,7 @@ const BatchesSection = ({ course, fetchPrograms, api, courseSpecializations }) =
                 <div className="flex items-start gap-2">
                   <span className="text-[11px] font-bold text-gray-400 uppercase mt-1 w-10">Specs:</span>
                   <div className="flex flex-wrap gap-1.5">
-                    {batch.specs?.map(spec => (
+                    {(batch.specs || []).map(spec => (
                       <span key={spec} className="bg-green-50 border border-green-200 text-green-700 px-2 py-0.5 rounded text-xs font-bold shadow-sm">{spec}</span>
                     ))}
                     {(!batch.specs || batch.specs.length === 0) && <span className="text-xs font-semibold text-gray-400 italic mt-0.5">None</span>}
@@ -656,11 +632,13 @@ const BatchesSection = ({ course, fetchPrograms, api, courseSpecializations }) =
 // ══════════════════════════════════════════════════════════════════════════════
 // BATCH EDIT FORM
 // ══════════════════════════════════════════════════════════════════════════════
-const BatchEditForm = ({ data, setData, onSave, onCancel, newSectionText, setNewSectionText, addSection, removeSection, toggleSpec, courseSpecs, MONTHS, YEARS }) => {
+const BatchEditForm = ({ data, setData, onSave, onCancel, newSectionText, setNewSectionText, addSection, removeSection, toggleSpec, courseSpecs, MONTHS }) => {
   const [specToAdd, setSpecToAdd] = useState('');
 
+  // ✅ Safely filter unselected specs to prevent crashing if data.specs is null
+  const currentSelectedSpecs = data.specs || [];
   const unselectedSpecs = (courseSpecs || []).filter(
-    spec => !data.specs.includes(spec.name)
+    spec => !currentSelectedSpecs.includes(spec.name)
   );
 
   return (
@@ -684,16 +662,30 @@ const BatchEditForm = ({ data, setData, onSave, onCancel, newSectionText, setNew
             <select value={data.startMonth} onChange={(e) => setData({...data, startMonth: e.target.value})} className="px-2 py-2.5 border border-gray-200 rounded-lg text-sm font-semibold outline-none flex-1 focus:border-blue-500">
               {MONTHS.map(m => <option key={m} value={m}>{m}</option>)}
             </select>
-            <select value={data.startYear} onChange={(e) => setData({...data, startYear: e.target.value})} className="px-2 py-2.5 border border-gray-200 rounded-lg text-sm font-semibold outline-none flex-1 focus:border-blue-500">
-              {YEARS.map(y => <option key={y} value={y}>{y}</option>)}
-            </select>
+            
+            {/* 🚀 UNLIMITED TEXT INPUT FOR YEAR */}
+            <input 
+              type="number"
+              value={data.startYear} 
+              onChange={(e) => setData({...data, startYear: e.target.value})} 
+              placeholder="YYYY"
+              className="px-2 py-2.5 border border-gray-200 rounded-lg text-sm font-semibold outline-none w-20 text-center focus:border-blue-500"
+            />
+            
             <span className="text-gray-400 font-bold px-1">→</span>
+            
             <select value={data.endMonth} onChange={(e) => setData({...data, endMonth: e.target.value})} className="px-2 py-2.5 border border-gray-200 rounded-lg text-sm font-semibold outline-none flex-1 focus:border-blue-500">
               {MONTHS.map(m => <option key={m} value={m}>{m}</option>)}
             </select>
-            <select value={data.endYear} onChange={(e) => setData({...data, endYear: e.target.value})} className="px-2 py-2.5 border border-gray-200 rounded-lg text-sm font-semibold outline-none flex-1 focus:border-blue-500">
-              {YEARS.map(y => <option key={y} value={y}>{y}</option>)}
-            </select>
+            
+            {/* 🚀 UNLIMITED TEXT INPUT FOR YEAR */}
+            <input 
+              type="number"
+              value={data.endYear} 
+              onChange={(e) => setData({...data, endYear: e.target.value})} 
+              placeholder="YYYY"
+              className="px-2 py-2.5 border border-gray-200 rounded-lg text-sm font-semibold outline-none w-20 text-center focus:border-blue-500"
+            />
           </div>
         </div>
       </div>
@@ -703,7 +695,7 @@ const BatchEditForm = ({ data, setData, onSave, onCancel, newSectionText, setNew
         <div>
           <label className="text-[12px] font-bold text-gray-600 block mb-2">Sections</label>
           <div className="flex flex-wrap gap-2 mb-3">
-            {data.sections.map(sec => (
+            {(data.sections || []).map(sec => (
               <span key={sec} className="bg-gray-100 border border-gray-200 text-gray-700 px-2 py-1 rounded text-xs font-bold flex items-center gap-1 shadow-sm">
                 {sec} <X size={12} className="cursor-pointer hover:text-red-500" onClick={() => removeSection(sec)}/>
               </span>
@@ -724,9 +716,10 @@ const BatchEditForm = ({ data, setData, onSave, onCancel, newSectionText, setNew
         <div>
           <label className="text-[12px] font-bold text-gray-600 block mb-2">Included Specializations</label>
           
+          {/* Selected chips */}
           <div className="flex flex-wrap gap-2 mb-3 min-h-[28px]">
-            {data.specs.length > 0 ? (
-              data.specs.map(specName => (
+            {currentSelectedSpecs.length > 0 ? (
+              currentSelectedSpecs.map(specName => (
                 <span key={specName} className="bg-green-50 border border-green-200 text-green-700 px-2 py-1 rounded text-xs font-bold flex items-center gap-1 shadow-sm">
                   {specName} 
                   <X size={12} className="cursor-pointer hover:text-red-500" onClick={() => toggleSpec(specName)}/>
@@ -739,6 +732,7 @@ const BatchEditForm = ({ data, setData, onSave, onCancel, newSectionText, setNew
             )}
           </div>
 
+          {/* Dropdown logic with 3 clear states */}
           {courseSpecs.length === 0 ? (
             <div className="text-xs text-amber-600 font-semibold bg-amber-50 p-2.5 rounded border border-amber-200 text-center">
               ⚠️ No specializations found. Add specializations to this course first.
@@ -779,7 +773,22 @@ const BatchEditForm = ({ data, setData, onSave, onCancel, newSectionText, setNew
 
       <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
         <button onClick={onCancel} className="px-5 py-2.5 text-sm font-bold text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-xl transition">Cancel</button>
-        <button onClick={onSave} className="px-5 py-2.5 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-md shadow-blue-200 flex items-center gap-2 transition">
+        
+        {/* 🚀 FIXED: Added safety guard to prevent saving if inputs are pending */}
+        <button 
+          onClick={(e) => {
+            if (specToAdd) {
+              alert("⚠️ You selected a Specialization but forgot to click 'Add'!\n\nPlease click the blue 'Add' button next to the dropdown first, then save.");
+              return;
+            }
+            if (newSectionText.trim()) {
+              alert("⚠️ You typed a Section but forgot to click 'Add'!\n\nPlease click the 'Add' button next to the section input first, then save.");
+              return;
+            }
+            onSave();
+          }} 
+          className="px-5 py-2.5 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-md shadow-blue-200 flex items-center gap-2 transition"
+        >
           <Check size={16}/> Save Batch
         </button>
       </div>

@@ -76,7 +76,7 @@ export const EmployeeProfile = () => {
 
   return (
     <div className="min-h-screen bg-slate-50 p-4 md:p-8 font-sans text-left">
-      <div className="max-w-6xl mx-auto space-y-6">
+      <div className="max-w-8xl mx-auto space-y-6">
         
         {/* Back Button */}
         <button 
@@ -95,7 +95,7 @@ export const EmployeeProfile = () => {
           <div className="flex-1 text-center md:text-left">
             <div className="flex flex-col md:flex-row md:items-center gap-3 mb-2">
               <h1 className="text-2xl font-black text-gray-900">{employee.firstName} {employee.lastName}</h1>
-              <span className={`px-3 py-1 text-xs font-black uppercase tracking-wider rounded-lg border inline-block ${isAcademic ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-purple-50 text-purple-700 border-purple-200'}`}>
+              <span className={`px-3 py-1 text-xs font-black uppercase tracking-wider rounded-lg border inline-block ${isAcademic ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-blue-50 text-blue-700 border-blue-200'}`}>
                 {employee.staffType} Staff
               </span>
             </div>
