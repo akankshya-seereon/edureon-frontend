@@ -59,7 +59,7 @@ const INITIAL_COURSES = [
   }
 ];
 
-export default function AcademicProgram() { 
+export const AcademicProgram = () => { 
   
   const [courses, setCourses] = useState([]);
   const [buildings, setBuildings] = useState([]);

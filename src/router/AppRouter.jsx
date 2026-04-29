@@ -21,25 +21,25 @@ import Institute from "../pages/InstituteAdmin/Institute/Institute";
 import InfrastructurePage from "../pages/InstituteAdmin/Infrastructure/InfrastructurePage.jsx";
 import InstituteForm from "../pages/InstituteAdmin/Institute/InstituteForm";
 
-// 🚀 Academic Programs, Departments, Syllabus, and Employee Master
-import AcademicProgram from "../pages/InstituteAdmin/AcademicPrograms/AcademicProgram";
+// Academic Programs, Departments, Syllabus
+import { AcademicProgram } from "../pages/InstituteAdmin/AcademicPrograms/AcademicProgram";
 import { Department } from "../pages/InstituteAdmin/Departments/Department";
 import { Syllabus } from "../pages/InstituteAdmin/Syllabus/Syllabus"; 
-import { ViewSyllabus } from "../pages/InstituteAdmin/Syllabus/ViewSyllabus"; // 🚀 ADDED VIEW SYLLABUS IMPORT
+import { ViewSyllabus } from "../pages/InstituteAdmin/Syllabus/ViewSyllabus"; 
 
-// 🚀 EMPLOYEE MASTER IMPORTS
+// Employee Master
 import { Employee } from "../pages/InstituteAdmin/Employee/Employee"; 
 import { EmployeeDirectory } from "../pages/InstituteAdmin/Employee/EmployeeDirectory";
 import { EmployeeProfile } from "../pages/InstituteAdmin/Employee/EmployeeProfile";
 
+// People & Classes
 import { FacultyList } from "../pages/InstituteAdmin/People/FacultyList";
 import FacultyForm from "../pages/InstituteAdmin/People/FacultyForm";
 import { StudentList } from "../pages/InstituteAdmin/People/StudentList";
 import { StudentForm } from "../pages/InstituteAdmin/People/StudentForm";
-
-// ✅ CLASSES
 import { ClassList } from "../pages/InstituteAdmin/Classes/ClassList";
 
+// Batch & Finance
 import { BatchList } from "../pages/InstituteAdmin/Batch/BatchList";
 import BatchForm from "../pages/InstituteAdmin/Batch/BatchForm";
 import BatchBrowser from "../pages/InstituteAdmin/Batch/Batchbrowser.jsx";
@@ -47,12 +47,12 @@ import { FeeCollection } from "../pages/InstituteAdmin/Finance/FeeCollection";
 import { FeeStructure } from "../pages/InstituteAdmin/Finance/FeeStructure";
 import { PublishFees } from "../pages/InstituteAdmin/Finance/PublishFees";
 import { ExpensePage } from "../pages/InstituteAdmin/Expenses/ExpensePage";
+
+// Operations & Reports
 import { Notifications } from "../pages/InstituteAdmin/Communication/Notifications";
 import { Reports } from "../pages/InstituteAdmin/Reports/Reports";
 import { Settings } from "../pages/InstituteAdmin/Settings/Settings";
 import InstituteAttendance from "../pages/InstituteAdmin/Attendance/InstituteAttendance";
-
-// IMPORTS REAL CERTIFICATE PAGE (ADMIN)
 import Certificates from "../pages/InstituteAdmin/Certificates/Certificates";
 
 // Exams
@@ -94,12 +94,10 @@ import { StudentFees }      from "../pages/Student/Fees/StudentFees";
 import { Notification }     from "../pages/Student/Notification/Notifications";
 import { Calendar }         from "../pages/Student/Calendar/Calendar";
 import { Help as StudentHelp } from "../pages/Student/Help/Help"; 
-
-// IMPORTS REAL CERTIFICATE PAGE (STUDENT)
 import { StudentCertificates } from "../pages/Student/Certificates/StudentCertificates";
 
 
-// TEMPORARY PLACEHOLDER FOR FACULTY CERTIFICATE ROUTES
+// TEMPORARY PLACEHOLDER FOR INCOMPLETE ROUTES
 const Placeholder = ({ title }) => (
   <div className="flex flex-col items-center justify-center h-full w-full bg-slate-50 text-slate-400 p-12">
     <h2 className="text-3xl font-black mb-2">{title}</h2>
@@ -133,7 +131,7 @@ export const AppRouter = () => (
       <Route path="attendance"         element={<InstituteAttendance role="super_admin" />} />
     </Route>
 
-    {/* ── INSTITUTE ADMIN + SUPER ADMIN + NEW ROLES ───────────────────────── */}
+    {/* ── INSTITUTE ADMIN ─────────────────────────────────────────────────── */}
     <Route
       path="/admin"
       element={
@@ -148,16 +146,15 @@ export const AppRouter = () => (
       <Route path="institute"        element={<Institute />} />
       <Route path="institute/:id/view" element={<InstituteProfile />} />
       <Route path="institute/form"   element={<InstituteForm />} />
-      
       <Route path="infrastructure"   element={<InfrastructurePage />} />
       
-      {/* 🚀 Academic Programs, Departments, Syllabus, and Employee Routes */}
-      <Route path="programs"         element={<AcademicProgram />} />
+      {/* 🚀 Changed to 'academic-programs' to sync with Breadcrumb and Sidebar */}
+      <Route path="academic-programs" element={<AcademicProgram />} />
       <Route path="departments"      element={<Department />} />
       <Route path="syllabus"         element={<Syllabus />} /> 
-      <Route path="view-syllabus"    element={<ViewSyllabus />} /> {/* 🚀 ADDED VIEW SYLLABUS ROUTE */}
+      <Route path="view-syllabus"    element={<ViewSyllabus />} /> 
       
-      {/* 🚀 EMPLOYEE MASTER ROUTES */}
+      {/* Employee Master */}
       <Route path="employees/directory"   element={<EmployeeDirectory />} />
       <Route path="employees/register"    element={<Employee />} />
       <Route path="employees/edit/:id"    element={<Employee />} />
@@ -167,8 +164,6 @@ export const AppRouter = () => (
       <Route path="faculty/create"   element={<FacultyForm />} />
       <Route path="students"         element={<StudentList />} />
       <Route path="students/create"  element={<StudentForm />} />
-
-      {/* ✅ CLASSES ROUTE */}
       <Route path="classes"          element={<ClassList />} />
 
       {/* Batch */}
@@ -176,6 +171,7 @@ export const AppRouter = () => (
       <Route path="batch/list"       element={<BatchList />} />
       <Route path="batch/create"     element={<BatchForm />} />
 
+      {/* Finance & Ops */}
       <Route path="fees"             element={<FeeCollection />} />
       <Route path="fees/structure"   element={<FeeStructure />} />
       <Route path="fees/publish"     element={<PublishFees />} />
@@ -184,8 +180,6 @@ export const AppRouter = () => (
       <Route path="reports"          element={<Reports />} />
       <Route path="settings"         element={<Settings />} />
       <Route path="attendance"       element={<InstituteAttendance role="institute_admin" />} />
-      
-      {/* REAL CERTIFICATES PAGE (INSTITUTE ADMIN) */}
       <Route path="certificates"     element={<Certificates />} />
 
       {/* Exams */}
@@ -195,11 +189,10 @@ export const AppRouter = () => (
       <Route path="exams/results"    element={<Examresult />} />
     </Route>
 
-    {/* ── FACULTY + HOD + PROFESSORS ──────────────────────────────────────── */}
+    {/* ── FACULTY / HOD ───────────────────────────────────────────────────── */}
     <Route
       path="/faculty"
       element={
-        // 🚀 FIXED: Added all valid academic designations to the allowed list
         <ProtectedRoute allowedRoles={["faculty", "hod", "professor", "lecturer", "lab instructor"]}>
           <DashboardLayout />
         </ProtectedRoute>
@@ -246,11 +239,11 @@ export const AppRouter = () => (
       <Route path="exams"                   element={<Exam />} />
       <Route path="fees"                    element={<StudentFees />} />
       <Route path="notification"            element={<Notification />} />
-      <Route path="Calendar"                element={<Calendar />} />
+      
+      {/* 🚀 Changed to strictly lowercase 'calendar' */}
+      <Route path="calendar"                element={<Calendar />} />
       <Route path="help"                    element={<StudentHelp />} />
       <Route path="certificates"            element={<StudentCertificates />} />
-
-      {/* ✅ STUDENT CLASSES ROUTE */}
       <Route path="classes"                 element={<Placeholder title="My Classes" />} />
     </Route>
 

@@ -89,7 +89,7 @@ export const Sidebar = () => {
     { label: 'Institute',         path: '/admin/institute',      icon: Building2 },
     { label: 'Infrastructure',    path: '/admin/infrastructure', icon: Warehouse },
     { label: 'Attendance',        path: '/admin/attendance',     icon: Clock },
-    { label: 'Academic Programs', path: '/admin/programs',       icon: BookOpen },
+    { label: 'Academic Programs', path: '/admin/academic-programs',       icon: BookOpen },
     { label: 'Departments',       path: '/admin/departments',    icon: Briefcase },
     { label: 'Syllabus',          path: '/admin/syllabus',       icon: ClipboardList },
     { label: 'Employee Master',   path: '/admin/employees/directory', icon: UserCheck },

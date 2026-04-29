@@ -3,7 +3,7 @@ import axios from 'axios';
 import {
   BookOpen, Plus, Search, X, ChevronDown, Users,
   Calendar, Clock, Layers, Building2, GraduationCap,
-  Edit2, Trash2, Eye, AlertCircle, CheckCircle, Hash
+  Edit2, Trash2, Eye, AlertCircle, CheckCircle, Hash, MapPin
 } from 'lucide-react';
 
 // 🚀 IMPORTANT: Adjust this path to match your project structure
@@ -11,22 +11,26 @@ import apiBaseUrl from "../../../config/baseurl";
 
 const EMPTY_FORM = {
   className: '',
-  program: '',
+  course: '', // Renamed from program
+  specialization: '', // Added field
   department: '',
   subject: '',
   facultyAssigned: '',
-  batchId: '', // 🚀 ADDED: Track the selected batch
   academicYear: '',
-  semester: '',
+  batchId: '', 
   section: '',
+  semester: '', // Now depends on batch
   maxStudents: '',
-  schedule: [{ day: '', startTime: '', endTime: '', room: '' }],
+  schedule: [{ 
+    day: '', startTime: '', endTime: '', 
+    campus: '', building: '', block: '', floor: '', roomDepartment: '', room: '' 
+  }],
   description: '',
 };
 
 // ─── Toast ────────────────────────────────────────────────────────────────────
 const Toast = ({ msg, type, onClose }) => (
-  <div className={`fixed top-6 right-6 z-[9999] flex items-center gap-3 px-5 py-4 rounded-xl shadow-2xl text-white text-sm font-semibold text-left transition-all
+  <div className={`fixed top-6 right-6 z-9999 flex items-center gap-3 px-5 py-4 rounded-xl shadow-2xl text-white text-sm font-semibold text-left transition-all
     ${type === 'success' ? 'bg-blue-600' : 'bg-red-500'}`}>
     {type === 'success' ? <CheckCircle size={18} /> : <AlertCircle size={18} />}
     {msg}
@@ -34,8 +38,8 @@ const Toast = ({ msg, type, onClose }) => (
   </div>
 );
 
-// ─── Upgraded Select (Handles Real DB Objects) ────────────────────────────────
-const Select = ({ label, name, value, onChange, options = [], required, placeholder, valueKey = 'name', labelKey = 'name', customDisplay }) => (
+// ─── Upgraded Select ──────────────────────────────────────────────────────────
+const Select = ({ label, name, value, onChange, options = [], required, placeholder, valueKey = 'name', labelKey = 'name', customDisplay, disabled = false }) => (
   <div className="flex flex-col gap-1.5 text-left">
     <label className="text-sm font-semibold text-gray-700">
       {label} {required && <span className="text-red-500">*</span>}
@@ -46,13 +50,12 @@ const Select = ({ label, name, value, onChange, options = [], required, placehol
         value={value}
         onChange={onChange}
         required={required}
-        className="w-full appearance-none border border-gray-200 rounded-xl px-4 py-2.5 text-sm bg-white text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent pr-10 text-left disabled:bg-gray-50 disabled:text-gray-400"
-        disabled={options.length === 0}
+        disabled={disabled || options.length === 0}
+        className="w-full appearance-none border border-gray-200 rounded-xl px-4 py-2.5 text-sm bg-white text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent pr-10 text-left disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed transition-colors"
       >
         <option value="">{placeholder || `Select ${label}`}</option>
         {options.map((o, idx) => {
           const val = typeof o === 'string' ? o : o[valueKey];
-          // Support custom display formatting (like showing Subject Name + Code)
           const display = typeof o === 'string' ? o : (customDisplay ? customDisplay(o) : o[labelKey]);
           return <option key={idx} value={val}>{display}</option>;
         })}
@@ -63,7 +66,7 @@ const Select = ({ label, name, value, onChange, options = [], required, placehol
 );
 
 // ─── Input ────────────────────────────────────────────────────────────────────
-const Input = ({ label, name, value, onChange, type = 'text', required, placeholder, icon: Icon }) => (
+const Input = ({ label, name, value, onChange, type = 'text', required, placeholder, icon: Icon, min }) => (
   <div className="flex flex-col gap-1.5 text-left">
     <label className="text-sm font-semibold text-gray-700">
       {label} {required && <span className="text-red-500">*</span>}
@@ -77,6 +80,7 @@ const Input = ({ label, name, value, onChange, type = 'text', required, placehol
         onChange={onChange}
         required={required}
         placeholder={placeholder}
+        min={min}
         className={`w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm bg-white text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-left ${Icon ? 'pl-9' : ''}`}
       />
     </div>
@@ -88,7 +92,7 @@ const SectionHeader = ({ icon: Icon, title, color = 'blue' }) => {
   const colors = {
     blue: 'bg-blue-50 text-blue-700 border-blue-200',
     purple: 'bg-purple-50 text-purple-700 border-purple-200',
-    green: 'bg-blue-50 text-blue-600 border-blue-200',
+    green: 'bg-green-50 text-green-700 border-green-200',
     orange: 'bg-orange-50 text-orange-700 border-orange-200',
   };
   return (
@@ -103,47 +107,109 @@ const SectionHeader = ({ icon: Icon, title, color = 'blue' }) => {
 const CreateClassModal = ({ onClose, onSave, editData, dropdownData }) => {
   const [form, setForm] = useState(editData || EMPTY_FORM);
   const [errors, setErrors] = useState({});
+
+  // Cascading state filters
+  const [availableSpecializations, setAvailableSpecializations] = useState([]);
+  const [availableDepartments, setAvailableDepartments] = useState([]);
   const [availableSubjects, setAvailableSubjects] = useState([]);
+  const [availableFaculty, setAvailableFaculty] = useState([]);
+  const [availableSemesters, setAvailableSemesters] = useState([]);
 
-  // 🚀 Pulling real data passed from the main component (Added batches)
-  const { programs, departments, subjects, faculty, academicYears, semesters, sections, days, rooms, batches } = dropdownData;
+  const { 
+    courses, specializations, departments, subjects, faculty, 
+    academicYears, batches, sections, semesters, days, 
+    campuses, buildings, blocks, floors, roomDepartments, rooms 
+  } = dropdownData;
 
-  // 🚀 DYNAMIC SUBJECT FILTERING
+  // 1. Course -> Specialization
   useEffect(() => {
-    if (form.program && subjects?.length > 0) {
-      if (subjects[0].course_name) {
-        setAvailableSubjects(subjects.filter(s => s.course_name === form.program));
-      } else {
-        setAvailableSubjects(subjects);
-      }
+    if (form.course) {
+      // Adjust property matching your DB (e.g. course_id or course_name)
+      setAvailableSpecializations(specializations?.filter(s => s.course === form.course) || specializations);
     } else {
-      setAvailableSubjects([]); 
+      setAvailableSpecializations([]);
     }
-  }, [form.program, subjects]);
+  }, [form.course, specializations]);
+
+  // 2. Specialization -> Department & Subject
+  useEffect(() => {
+    if (form.specialization) {
+      setAvailableDepartments(departments?.filter(d => d.specialization === form.specialization) || departments);
+      setAvailableSubjects(subjects?.filter(s => s.specialization === form.specialization) || subjects);
+    } else {
+      setAvailableDepartments([]);
+      setAvailableSubjects([]);
+    }
+  }, [form.specialization, departments, subjects]);
+
+  // 3. Subject -> Faculty
+  useEffect(() => {
+    if (form.subject) {
+      setAvailableFaculty(faculty?.filter(f => f.subject === form.subject) || faculty);
+    } else {
+      setAvailableFaculty([]);
+    }
+  }, [form.subject, faculty]);
+
+  // 4. Batch -> Semester
+  useEffect(() => {
+    if (form.batchId) {
+      setAvailableSemesters(semesters?.filter(s => s.batchId === form.batchId || !s.batchId) || semesters);
+    } else {
+      setAvailableSemesters([]);
+    }
+  }, [form.batchId, semesters]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    if (name === 'program') {
-      setForm(f => ({ ...f, [name]: value, subject: '' }));
-    } else {
-      setForm(f => ({ ...f, [name]: value }));
+    let updates = { [name]: value };
+
+    // Reset downstream dependencies to ensure clean data
+    if (name === 'course') {
+      updates = { ...updates, specialization: '', department: '', subject: '', facultyAssigned: '' };
+    } else if (name === 'specialization') {
+      updates = { ...updates, department: '', subject: '', facultyAssigned: '' };
+    } else if (name === 'subject') {
+      updates = { ...updates, facultyAssigned: '' };
+    } else if (name === 'batchId') {
+      updates = { ...updates, semester: '' };
     }
-    
+
+    setForm(f => ({ ...f, ...updates }));
     if (errors[name]) setErrors(e => ({ ...e, [name]: '' }));
   };
 
   const handleScheduleChange = (idx, field, value) => {
-    const updated = form.schedule.map((s, i) => i === idx ? { ...s, [field]: value } : s);
+    const updated = form.schedule.map((s, i) => {
+      if (i !== idx) return s;
+      let slotUpdates = { [field]: value };
+      
+      // Basic top-down reset for room cascading
+      if (field === 'campus') slotUpdates = { ...slotUpdates, building: '', block: '', floor: '', roomDepartment: '', room: '' };
+      else if (field === 'building') slotUpdates = { ...slotUpdates, block: '', floor: '', roomDepartment: '', room: '' };
+      else if (field === 'block') slotUpdates = { ...slotUpdates, floor: '', roomDepartment: '', room: '' };
+      else if (field === 'floor') slotUpdates = { ...slotUpdates, roomDepartment: '', room: '' };
+      else if (field === 'roomDepartment') slotUpdates = { ...slotUpdates, room: '' };
+
+      return { ...s, ...slotUpdates };
+    });
     setForm(f => ({ ...f, schedule: updated }));
   };
 
-  const addScheduleRow = () => setForm(f => ({ ...f, schedule: [...f.schedule, { day: '', startTime: '', endTime: '', room: '' }] }));
-  const removeScheduleRow = (idx) => setForm(f => ({ ...f, schedule: f.schedule.filter((_, i) => i !== idx) }));
+  const addScheduleRow = () => setForm(f => ({ 
+    ...f, 
+    schedule: [...f.schedule, { day: '', startTime: '', endTime: '', campus: '', building: '', block: '', floor: '', roomDepartment: '', room: '' }] 
+  }));
+  
+  const removeScheduleRow = (idx) => setForm(f => ({ 
+    ...f, 
+    schedule: f.schedule.filter((_, i) => i !== idx) 
+  }));
 
   const validate = () => {
     const e = {};
     if (!form.className.trim()) e.className = 'Class name is required';
-    if (!form.department) e.department = 'Department is required';
+    if (!form.course) e.course = 'Course is required';
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -156,16 +222,16 @@ const CreateClassModal = ({ onClose, onSave, editData, dropdownData }) => {
 
   return (
     <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-start justify-center overflow-y-auto py-8 px-4 text-left">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl text-left">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl text-left">
 
-        <div className="flex items-center justify-between px-7 py-5 border-b border-gray-100">
+        <div className="flex items-center justify-between px-7 py-5 border-b border-gray-100 sticky top-0 bg-white z-10 rounded-t-2xl">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center">
               <BookOpen size={20} className="text-white" />
             </div>
             <div className="text-left">
               <h2 className="text-lg font-bold text-gray-900">{editData ? 'Edit Class' : 'Create New Class'}</h2>
-              <p className="text-xs text-gray-500">Using live data from your database</p>
+              <p className="text-xs text-gray-500">Fill in hierarchical details to establish the class</p>
             </div>
           </div>
           <button onClick={onClose} className="w-8 h-8 rounded-xl hover:bg-gray-100 flex items-center justify-center text-gray-400 hover:text-gray-700 transition">
@@ -173,8 +239,9 @@ const CreateClassModal = ({ onClose, onSave, editData, dropdownData }) => {
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="px-7 py-6 space-y-6 text-left">
-          {/* ── Basic Info ── */}
+        <form onSubmit={handleSubmit} className="px-7 py-6 space-y-8 text-left">
+          
+          {/* ── 1. Basic Info ── */}
           <div>
             <SectionHeader icon={BookOpen} title="Basic Information" color="blue" />
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -184,119 +251,87 @@ const CreateClassModal = ({ onClose, onSave, editData, dropdownData }) => {
               </div>
               
               <div>
-                <Select label="Program" name="program" value={form.program} onChange={handleChange} options={programs} valueKey="name" labelKey="name" placeholder="Select Program" />
+                <Select label="Course" name="course" value={form.course} onChange={handleChange} options={courses} required placeholder="Select Course" />
+                {errors.course && <p className="text-red-500 text-xs mt-1 text-left">{errors.course}</p>}
               </div>
               <div>
-                <Select label="Department" name="department" value={form.department} onChange={handleChange} options={departments} valueKey="name" labelKey="name" required placeholder="Select Department" />
-                {errors.department && <p className="text-red-500 text-xs mt-1 text-left">{errors.department}</p>}
+                <Select label="Specialization" name="specialization" value={form.specialization} onChange={handleChange} options={availableSpecializations} disabled={!form.course} placeholder={form.course ? "Select Specialization" : "Select Course First"} />
               </div>
               <div>
-                <Select 
-                  label="Subject" 
-                  name="subject" 
-                  value={form.subject} 
-                  onChange={handleChange} 
-                  options={availableSubjects} 
-                  valueKey="name" 
-                  customDisplay={(sub) => sub.code ? `${sub.name} (${sub.code})` : sub.name}
-                  placeholder={form.program ? "Select Subject" : "Select a Program first"} 
-                />
+                <Select label="Department" name="department" value={form.department} onChange={handleChange} options={availableDepartments} disabled={!form.specialization} placeholder={form.specialization ? "Select Department" : "Select Specialization First"} />
               </div>
               <div>
-                <Select label="Faculty Assigned" name="facultyAssigned" value={form.facultyAssigned} onChange={handleChange} options={faculty} valueKey="name" labelKey="name" placeholder="Select Faculty" />
+                <Select label="Subject" name="subject" value={form.subject} onChange={handleChange} options={availableSubjects} disabled={!form.specialization} placeholder={form.specialization ? "Select Subject" : "Select Specialization First"} />
+              </div>
+              <div className="md:col-span-2">
+                <Select label="Faculty Assigned" name="facultyAssigned" value={form.facultyAssigned} onChange={handleChange} options={availableFaculty} disabled={!form.subject} placeholder={form.subject ? "Select Faculty" : "Select Subject First"} />
               </div>
             </div>
           </div>
 
-          {/* ── Academic Details ── */}
+          {/* ── 2. Academic Details ── */}
           <div>
             <SectionHeader icon={GraduationCap} title="Academic Details" color="purple" />
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <Select label="Academic Year" name="academicYear" value={form.academicYear} onChange={handleChange} options={academicYears} />
-              </div>
-              <div>
-                <Select label="Semester" name="semester" value={form.semester} onChange={handleChange} options={semesters} />
-              </div>
-              <div>
-                <Select label="Section" name="section" value={form.section} onChange={handleChange} options={sections} />
-              </div>
-              <div>
-                {/* 🚀 FIXED: New Batch Assignment Dropdown! */}
-                <Select 
-                  label="Assign Batch" 
-                  name="batchId" 
-                  value={form.batchId} 
-                  onChange={handleChange} 
-                  options={batches} 
-                  valueKey="id" 
-                  customDisplay={(b) => `${b.name} (${b.student_count || 0} Students)`}
-                  placeholder="Select a Batch" 
-                />
-              </div>
-              <div>
-                <Input label="Max Students" name="maxStudents" value={form.maxStudents} onChange={handleChange} type="number" placeholder="e.g. 60" icon={Users} />
-              </div>
+              <div><Select label="1. Academic Year" name="academicYear" value={form.academicYear} onChange={handleChange} options={academicYears} /></div>
+              <div><Select label="2. Batch" name="batchId" value={form.batchId} onChange={handleChange} options={batches} valueKey="id" customDisplay={(b) => `${b.name} (${b.student_count || 0} Students)`} /></div>
+              <div><Select label="3. Section" name="section" value={form.section} onChange={handleChange} options={sections} /></div>
+              <div><Select label="4. Semester" name="semester" value={form.semester} onChange={handleChange} options={availableSemesters} disabled={!form.batchId} placeholder={form.batchId ? "Select Semester" : "Select Batch First"} /></div>
+              <div><Input label="5. Max Students (Optional)" name="maxStudents" value={form.maxStudents} onChange={handleChange} type="number" min="1" placeholder="e.g. 60" icon={Users} /></div>
             </div>
           </div>
 
-          {/* ── Schedule ── */}
+          {/* ── 3. Schedule & Room Selection ── */}
           <div>
-            <SectionHeader icon={Clock} title="Class Schedule" color="blue" />
-            <div className="space-y-3">
+            <SectionHeader icon={Clock} title="Class Schedule & Room Allocation" color="green" />
+            <div className="space-y-4">
               {form.schedule.map((slot, idx) => (
-                <div key={idx} className="grid grid-cols-12 gap-3 items-end bg-gray-50 rounded-xl p-3">
-                  <div className="col-span-3 text-left">
-                    <Select label="Day" name="day" value={slot.day} onChange={e => handleScheduleChange(idx, 'day', e.target.value)} options={days} placeholder="Day" />
-                  </div>
-                  <div className="col-span-3 text-left">
+                <div key={idx} className="bg-gray-50 border border-gray-200 rounded-xl p-4 shadow-sm relative">
+                  {form.schedule.length > 1 && (
+                    <button type="button" onClick={() => removeScheduleRow(idx)} className="absolute top-4 right-4 w-8 h-8 rounded-lg bg-red-100 text-red-500 hover:bg-red-200 flex items-center justify-center transition">
+                      <X size={14} />
+                    </button>
+                  )}
+                  
+                  <h4 className="text-sm font-bold text-gray-800 mb-3 flex items-center gap-2">
+                    <Clock size={14} className="text-gray-500" /> Slot {idx + 1} Timing
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                    <Select label="Day" name="day" value={slot.day} onChange={e => handleScheduleChange(idx, 'day', e.target.value)} options={days} placeholder="Select Day" />
                     <div className="flex flex-col gap-1.5">
                       <label className="text-sm font-semibold text-gray-700">Start Time</label>
-                      <input type="time" value={slot.startTime} onChange={e => handleScheduleChange(idx, 'startTime', e.target.value)} className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-left" />
+                      <input type="time" value={slot.startTime} onChange={e => handleScheduleChange(idx, 'startTime', e.target.value)} className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500" />
                     </div>
-                  </div>
-                  <div className="col-span-3 text-left">
                     <div className="flex flex-col gap-1.5">
                       <label className="text-sm font-semibold text-gray-700">End Time</label>
-                      <input type="time" value={slot.endTime} onChange={e => handleScheduleChange(idx, 'endTime', e.target.value)} className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-left" />
+                      <input type="time" value={slot.endTime} onChange={e => handleScheduleChange(idx, 'endTime', e.target.value)} className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500" />
                     </div>
                   </div>
-                  <div className="col-span-2 text-left">
-                    <Select label="Room" name="room" value={slot.room} onChange={e => handleScheduleChange(idx, 'room', e.target.value)} options={rooms} valueKey="name" labelKey="name" placeholder="Room" />
-                  </div>
-                  <div className="col-span-1 flex justify-end pb-1">
-                    {form.schedule.length > 1 && (
-                      <button type="button" onClick={() => removeScheduleRow(idx)} className="w-9 h-9 rounded-xl bg-red-50 text-red-500 hover:bg-red-100 flex items-center justify-center transition">
-                        <X size={15} />
-                      </button>
-                    )}
+
+                  <div className="border-t border-gray-200 pt-4 mt-2">
+                    <h4 className="text-sm font-bold text-gray-800 mb-3 flex items-center gap-2">
+                      <MapPin size={14} className="text-gray-500" /> Hierarchical Room Selection
+                    </h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                      <Select label="Campus" value={slot.campus} onChange={e => handleScheduleChange(idx, 'campus', e.target.value)} options={campuses} placeholder="1. Campus" />
+                      <Select label="Building" value={slot.building} onChange={e => handleScheduleChange(idx, 'building', e.target.value)} options={buildings} disabled={!slot.campus} placeholder="2. Building" />
+                      <Select label="Block" value={slot.block} onChange={e => handleScheduleChange(idx, 'block', e.target.value)} options={blocks} disabled={!slot.building} placeholder="3. Block" />
+                      <Select label="Floor" value={slot.floor} onChange={e => handleScheduleChange(idx, 'floor', e.target.value)} options={floors} disabled={!slot.block} placeholder="4. Floor" />
+                      <Select label="Department" value={slot.roomDepartment} onChange={e => handleScheduleChange(idx, 'roomDepartment', e.target.value)} options={roomDepartments} disabled={!slot.floor} placeholder="5. Department" />
+                      <Select label="Room" value={slot.room} onChange={e => handleScheduleChange(idx, 'room', e.target.value)} options={rooms} disabled={!slot.roomDepartment} placeholder="6. Final Room" />
+                    </div>
                   </div>
                 </div>
               ))}
-              <button type="button" onClick={addScheduleRow} className="flex items-center gap-2 text-blue-600 text-sm font-semibold hover:text-blue-800 transition px-1">
-                <Plus size={15} /> Add Another Slot
+              
+              <button type="button" onClick={addScheduleRow} className="flex items-center gap-2 text-blue-600 text-sm font-bold hover:text-blue-800 transition px-2 py-1 bg-blue-50 hover:bg-blue-100 rounded-lg w-fit">
+                <Plus size={15} /> Add Another Schedule Slot
               </button>
             </div>
           </div>
 
-          {/* ── Description ── */}
-          <div className="text-left">
-            <SectionHeader icon={Layers} title="Additional Info" color="orange" />
-            <div className="flex flex-col gap-1.5">
-              <label className="text-sm font-semibold text-gray-700">Description <span className="text-gray-400 font-normal">(Optional)</span></label>
-              <textarea
-                name="description"
-                value={form.description}
-                onChange={handleChange}
-                rows={3}
-                placeholder="Brief description about this class..."
-                className="border border-gray-200 rounded-xl px-4 py-3 text-sm bg-white text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none text-left"
-              />
-            </div>
-          </div>
-
           {/* ── Footer ── */}
-          <div className="flex items-center justify-end gap-3 pt-2 border-t border-gray-100">
+          <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-100">
             <button type="button" onClick={onClose} className="px-6 py-2.5 rounded-xl border border-gray-200 text-gray-600 text-sm font-semibold hover:bg-gray-50 transition">Cancel</button>
             <button type="submit" className="px-6 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition flex items-center gap-2 shadow-md shadow-blue-200">
               <BookOpen size={15} /> {editData ? 'Update Class' : 'Create Class'}
@@ -337,17 +372,24 @@ export const ClassList = () => {
   const [search, setSearch] = useState('');
   const [toast, setToast] = useState(null);
 
+  // 🚀 Added new dropdown states to handle specializations, locations, and courses
   const [dropdownData, setDropdownData] = useState({
-    programs: [],    
+    courses: [],     
+    specializations: [],
     departments: [], 
     subjects: [],    
     faculty: [],     
-    rooms: [],       
     academicYears: [], 
-    semesters: [],     
+    batches: [], 
     sections: [],      
-    batches: [], // 🚀 ADDED: Initializing the batches array
+    semesters: [],     
     days: [],          
+    campuses: [],
+    buildings: [],
+    blocks: [],
+    floors: [],
+    roomDepartments: [],
+    rooms: [],       
   });
 
   const showToast = (msg, type = 'success') => {
@@ -401,7 +443,6 @@ export const ClassList = () => {
         ...data, 
         departmentId: data.department,
         facultyId: selectedFaculty ? selectedFaculty.id : null,
-        // 🚀 Note: data.batchId is automatically handled by the Select component!
       };
 
       if (editData) {
@@ -464,7 +505,7 @@ export const ClassList = () => {
           <table className="w-full text-left">
             <thead>
               <tr className="border-b border-gray-100 bg-gray-50/60">
-                {['Course Name', 'Class / Section', 'Subject', 'Academic Year', 'Schedule', 'Students', 'Faculty', 'Actions'].map(h => (
+                {['Course & Name', 'Class / Section', 'Subject', 'Academic Year', 'Schedule', 'Students', 'Faculty', 'Actions'].map(h => (
                   <th key={h} className="text-left px-5 py-3.5 text-xs font-bold text-blue-600 uppercase tracking-wider whitespace-nowrap">{h}</th>
                 ))}
               </tr>
@@ -474,7 +515,7 @@ export const ClassList = () => {
                 <tr><td colSpan={8} className="py-20 text-center"><p className="font-bold text-gray-500">Loading classes...</p></td></tr>
               ) : filtered.map((cls, idx) => (
                   <tr key={cls.id} className={`border-b border-gray-50 hover:bg-blue-50/30 transition ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'}`}>
-                    <td className="px-5 py-4"><p className="font-bold text-gray-900 text-sm">{cls.className}</p><p className="text-xs text-gray-400">{cls.program} · {cls.department}</p></td>
+                    <td className="px-5 py-4"><p className="font-bold text-gray-900 text-sm">{cls.className}</p><p className="text-xs text-gray-400">{cls.course} · {cls.specialization || cls.department}</p></td>
                     <td className="px-5 py-4"><span className="inline-flex items-center gap-1.5 bg-blue-50 text-blue-700 text-xs font-bold px-3 py-1 rounded-full"><Layers size={11} />{cls.semester} · Sec {cls.section}</span></td>
                     <td className="px-5 py-4 text-sm text-gray-700 font-medium">{cls.subject}</td>
                     <td className="px-5 py-4"><span className="inline-flex items-center gap-1.5 bg-purple-50 text-purple-700 text-xs font-semibold px-3 py-1 rounded-full"><Calendar size={11} />{cls.academicYear}</span></td>
