@@ -1,10 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Building2, Warehouse, Trash2, Plus, CheckCircle2, ChevronRight, ChevronDown,
-  LayoutDashboard, GraduationCap, Users, Palette, Edit2, Loader2, Package, X
+  LayoutDashboard, GraduationCap, Users, Palette, Edit2, Loader2, Package, X, AlertCircle
 } from 'lucide-react';
 import { infrastructureService } from '../../../services/infrastructureService';
-import apiBaseUrl from "../../../config/baseurl";
 
 // ─── CONSTANTS ───────────────────────────────────────────────────────────────
 const ROOM_TYPES = [
@@ -30,6 +29,9 @@ const InfrastructurePage = () => {
   const [showRoomForm, setShowRoomForm] = useState(false);
   const [isBulkMode, setIsBulkMode] = useState(false); 
   const [savingBulk, setSavingBulk] = useState(false);
+  
+  // 🚀 Form Error State for better UI
+  const [formError, setFormError] = useState("");
 
   // --- EDITING STATES ---
   const [editingCampusId, setEditingCampusId] = useState(null);
@@ -65,9 +67,19 @@ const InfrastructurePage = () => {
 
   useEffect(() => { loadData(); }, []);
 
-  // --- SAVE HANDLERS ---
+  // --- SAVE HANDLERS & VALIDATION ---
+  
   const handleSaveCampus = async () => {
-    if (!newCampus.name) return alert("Campus Name is required");
+    setFormError(""); 
+    
+    if (!newCampus.name.trim()) return setFormError("Campus Name is required.");
+    if (newCampus.name.trim().length < 3) return setFormError("Campus Name must be at least 3 characters.");
+
+    const isDuplicate = campuses.some(
+      c => c.id !== editingCampusId && c.name.toLowerCase() === newCampus.name.trim().toLowerCase()
+    );
+    if (isDuplicate) return setFormError(`A campus named "${newCampus.name.trim()}" already exists.`);
+
     try {
       if (editingCampusId) {
         await infrastructureService.updateCampus(editingCampusId, newCampus);
@@ -78,36 +90,116 @@ const InfrastructurePage = () => {
       setEditingCampusId(null);
       setNewCampus({ name: '', address: '', property: 'Owned' });
       loadData();
-    } catch (error) { console.error("Error saving campus", error); }
+    } catch (error) { 
+      setFormError(error.response?.data?.message || "Error saving campus"); 
+    }
+  };
+
+  const handleCreateBuilding = async (campusId) => {
+    const bData = buildingInputs[campusId];
+    
+    if (!bData?.name?.trim()) return alert("Building name is required.");
+    
+    const campus = campuses.find(c => c.id === campusId);
+    const isDuplicate = campus?.buildings.some(
+      b => b.name.toLowerCase() === bData.name.trim().toLowerCase()
+    );
+    if (isDuplicate) return alert(`Building "${bData.name.trim()}" already exists in this campus.`);
+
+    if (bData?.floors && Number(bData.floors) < 1) return alert("Building must have at least 1 floor.");
+    if (bData?.rooms && Number(bData.rooms) < 0) return alert("Rooms cannot be negative.");
+
+    try {
+      await infrastructureService.createBuilding({
+        campus_id: campusId,
+        name: bData.name.trim(),
+        floors: Number(bData.floors) || 1,
+        block: bData.block || '',
+        rooms: Number(bData.rooms) || 0
+      });
+      setBuildingInputs(prev => ({ ...prev, [campusId]: { name: '', floors: '', block: '', rooms: '' } }));
+      loadData();
+    } catch (error) { 
+      alert(error.response?.data?.message || "Error creating building"); 
+    }
+  };
+
+  const handleSaveBuildingEdit = async (campusId) => {
+    if (!editBuildingData.name.trim()) return alert("Building name is required.");
+    
+    const campus = campuses.find(c => c.id === campusId);
+    const isDuplicate = campus?.buildings.some(
+      b => b.id !== editingBuildingId && b.name.toLowerCase() === editBuildingData.name.trim().toLowerCase()
+    );
+    if (isDuplicate) return alert(`Building "${editBuildingData.name.trim()}" already exists.`);
+
+    if (Number(editBuildingData.floors) < 1) return alert("Building must have at least 1 floor.");
+
+    try {
+      await infrastructureService.updateBuilding(editingBuildingId, {
+        campus_id: campusId,
+        ...editBuildingData,
+        name: editBuildingData.name.trim(),
+        floors: Number(editBuildingData.floors) || 1,
+        rooms: Number(editBuildingData.rooms) || 0
+      });
+      setEditingBuildingId(null);
+      loadData();
+    } catch (error) { 
+      alert(error.response?.data?.message || "Error updating building"); 
+    }
   };
 
   const handleSaveRoom = async () => {
+    setFormError(""); 
+
+    // Helper to find the actual building name based on ID (needed for checking our existing `rooms` state)
+    let selectedBuildingName = "";
+    campuses.forEach(c => {
+      const b = c.buildings.find(bld => bld.id === Number(newRoom.building_id));
+      if (b) selectedBuildingName = b.name;
+    });
+
     if (isBulkMode) {
-      if (!newRoom.startNumber || !newRoom.count || !newRoom.building_id) {
-        return alert("Starting Number, Number of Rooms, and Building are required for Bulk Add.");
+      if (!newRoom.building_id) return setFormError("Please select a Building.");
+      if (!newRoom.startNumber.trim()) return setFormError("Starting Number is required.");
+      if (!newRoom.count || Number(newRoom.count) < 1) return setFormError("Total Rooms must be at least 1.");
+      if (Number(newRoom.count) > 100) return setFormError("You can only bulk create up to 100 rooms at a time.");
+      if (!newRoom.type) return setFormError("Please select a Room Type.");
+
+      // 🚀 DUPLICATE VALIDATION: Bulk Room Generation
+      const count = Number(newRoom.count);
+      const startStr = String(newRoom.startNumber);
+      const padLength = startStr.length; 
+      const startNum = Number(startStr);
+      
+      const generatedRoomNumbers = [];
+      for(let i = 0; i < count; i++) {
+        generatedRoomNumbers.push(String(startNum + i).padStart(padLength, '0'));
       }
+
+      // Check if ANY of the generated rooms already exist in the chosen building
+      const conflictingRoom = rooms.find(r => 
+        r.building === selectedBuildingName && generatedRoomNumbers.includes(r.roomNo)
+      );
+
+      if (conflictingRoom) {
+        return setFormError(`Conflict: Room "${conflictingRoom.roomNo}" already exists in the selected building. Please choose a different starting number.`);
+      }
+
       setSavingBulk(true);
       try {
-        const count = Number(newRoom.count);
-        const startStr = String(newRoom.startNumber);
-        const padLength = startStr.length; 
-        const startNum = Number(startStr);
-
         const promises = [];
         
         for(let i = 0; i < count; i++) {
-          const currentNum = startNum + i;
-          const paddedNum = String(currentNum).padStart(padLength, '0');
-          const generatedRoomNo = paddedNum; 
-
           const payload = {
-            roomNo: generatedRoomNo,
+            roomNo: generatedRoomNumbers[i],
             type: newRoom.type,
             capacity: Number(newRoom.capacity) || 0,
             floor: newRoom.floor,
             block: newRoom.block,
             building_id: newRoom.building_id,
-            equipment: equipmentList.filter(eq => eq.name)
+            equipment: equipmentList.filter(eq => eq.name.trim())
           };
           promises.push(infrastructureService.createRoom(payload));
         }
@@ -120,18 +212,32 @@ const InfrastructurePage = () => {
         setEquipmentList([]);
         loadData();
       } catch (err) {
-        console.error("Error bulk saving rooms", err);
-        alert("Failed to create some or all rooms. Please check your backend constraints.");
+        setFormError(err.response?.data?.message || "Failed to create some rooms. Check constraints.");
       } finally {
         setSavingBulk(false);
       }
     } else {
-      if (!newRoom.roomNo || !newRoom.building_id) return alert("Room Number and Building are required");
+      if (!newRoom.building_id) return setFormError("Please select a Building.");
+      if (!newRoom.roomNo.trim()) return setFormError("Room Number is required.");
+      if (!newRoom.type) return setFormError("Please select a Room Type.");
+
+      // 🚀 DUPLICATE VALIDATION: Single Room
+      const isDuplicate = rooms.some(r => 
+        r.id !== editingRoomId && // Ignore if we are editing this exact room
+        r.building === selectedBuildingName && 
+        r.roomNo.toLowerCase() === newRoom.roomNo.trim().toLowerCase()
+      );
+
+      if (isDuplicate) {
+        return setFormError(`Room "${newRoom.roomNo}" already exists in the selected building.`);
+      }
+
       try {
         const payload = {
           ...newRoom,
+          roomNo: newRoom.roomNo.trim(),
           capacity: Number(newRoom.capacity) || 0,
-          equipment: equipmentList.filter(eq => eq.name) 
+          equipment: equipmentList.filter(eq => eq.name.trim()) 
         };
 
         if (editingRoomId) {
@@ -145,36 +251,10 @@ const InfrastructurePage = () => {
         setNewRoom({ roomNo: '', startNumber: '', count: '', type: '', capacity: '', floor: '', block: '', building_id: '' });
         setEquipmentList([]);
         loadData();
-      } catch (error) { console.error("Error saving room", error); }
+      } catch (error) { 
+        setFormError(error.response?.data?.message || "Error saving room"); 
+      }
     }
-  };
-
-  const handleCreateBuilding = async (campusId) => {
-    const bData = buildingInputs[campusId];
-    if (!bData?.name) return alert("Building name required");
-    try {
-      await infrastructureService.createBuilding({
-        campus_id: campusId,
-        name: bData.name,
-        floors: bData.floors || 1,
-        block: bData.block || '',
-        rooms: bData.rooms || 0
-      });
-      setBuildingInputs(prev => ({ ...prev, [campusId]: { name: '', floors: '', block: '', rooms: '' } }));
-      loadData();
-    } catch (error) { console.error("Error creating building", error); }
-  };
-
-  const handleSaveBuildingEdit = async (campusId) => {
-    if (!editBuildingData.name) return alert("Building name required");
-    try {
-      await infrastructureService.updateBuilding(editingBuildingId, {
-        campus_id: campusId,
-        ...editBuildingData
-      });
-      setEditingBuildingId(null);
-      loadData();
-    } catch (error) { console.error("Error updating building", error); }
   };
 
   const handleBuildingInputChange = (campusId, field, value) => {
@@ -218,6 +298,7 @@ const InfrastructurePage = () => {
 
   // --- EDIT TRIGGER HANDLERS ---
   const handleEditCampus = (campus) => {
+    setFormError("");
     setEditingCampusId(campus.id);
     setNewCampus({ name: campus.name, address: campus.address || '', property: campus.property });
     setShowCampusForm(true);
@@ -234,6 +315,7 @@ const InfrastructurePage = () => {
   };
 
   const handleEditRoom = (room) => {
+    setFormError("");
     setEditingRoomId(room.id);
     setIsBulkMode(false); 
     
@@ -269,6 +351,7 @@ const InfrastructurePage = () => {
   const cancelCampusForm = () => {
     setShowCampusForm(false);
     setEditingCampusId(null);
+    setFormError("");
     setNewCampus({ name: '', address: '', property: 'Owned' });
   };
 
@@ -276,6 +359,7 @@ const InfrastructurePage = () => {
     setShowRoomForm(false);
     setEditingRoomId(null);
     setIsBulkMode(false);
+    setFormError("");
     setNewRoom({ roomNo: '', startNumber: '', count: '', type: '', capacity: '', floor: '', block: '', building_id: '' });
     setEquipmentList([]);
   };
@@ -302,6 +386,14 @@ const InfrastructurePage = () => {
                 <h4 className="text-sm font-bold text-emerald-700 mb-4 text-left">
                   {editingCampusId ? 'Edit Campus' : 'New Campus'}
                 </h4>
+
+                {/* 🚀 FORM ERROR BANNER */}
+                {formError && (
+                  <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-600 rounded-lg text-xs font-bold flex items-center gap-2">
+                    <AlertCircle size={16} /> {formError}
+                  </div>
+                )}
+
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4 text-left">
                   <InputField label="Name" required placeholder="South Campus" value={newCampus.name} onChange={(e) => setNewCampus({...newCampus, name: e.target.value})} />
                   <InputField label="Address" placeholder="123 Main St" value={newCampus.address} onChange={(e) => setNewCampus({...newCampus, address: e.target.value})} />
@@ -346,7 +438,7 @@ const InfrastructurePage = () => {
                               className="flex-1 px-3 py-2 rounded-lg border border-slate-200 outline-none focus:border-blue-400 text-sm" 
                             />
                             <input 
-                              type="number" placeholder="Floors" value={editBuildingData.floors} onChange={(e) => setEditBuildingData({...editBuildingData, floors: e.target.value})} 
+                              type="number" min="1" placeholder="Floors" value={editBuildingData.floors} onChange={(e) => setEditBuildingData({...editBuildingData, floors: e.target.value})} 
                               className="w-20 px-3 py-2 rounded-lg border border-slate-200 outline-none text-sm text-center" 
                             />
                             <input 
@@ -354,7 +446,7 @@ const InfrastructurePage = () => {
                               className="w-20 px-3 py-2 rounded-lg border border-slate-200 outline-none text-sm text-center" 
                             />
                             <input 
-                              type="number" placeholder="Rooms" value={editBuildingData.rooms} onChange={(e) => setEditBuildingData({...editBuildingData, rooms: e.target.value})} 
+                              type="number" min="0" placeholder="Rooms" value={editBuildingData.rooms} onChange={(e) => setEditBuildingData({...editBuildingData, rooms: e.target.value})} 
                               className="w-20 px-3 py-2 rounded-lg border border-slate-200 outline-none text-sm text-center" 
                             />
                             <button onClick={() => handleSaveBuildingEdit(campus.id)} className="bg-emerald-500 hover:bg-emerald-600 text-white p-2 rounded-lg transition outline-none">
@@ -392,7 +484,7 @@ const InfrastructurePage = () => {
                           className="flex-1 px-4 py-2.5 rounded-lg border border-slate-200 outline-none focus:border-blue-400 text-sm text-left" 
                         />
                         <input 
-                          type="number" placeholder="Floors" 
+                          type="number" min="1" placeholder="Floors" 
                           value={buildingInputs[campus.id]?.floors || ''} 
                           onChange={(e) => handleBuildingInputChange(campus.id, 'floors', e.target.value)}
                           className="w-20 px-3 py-2.5 rounded-lg border border-slate-200 outline-none text-sm text-center" 
@@ -404,7 +496,7 @@ const InfrastructurePage = () => {
                           className="w-20 px-3 py-2.5 rounded-lg border border-slate-200 outline-none text-sm text-center" 
                         />
                         <input 
-                          type="number" placeholder="Rooms" 
+                          type="number" min="0" placeholder="Rooms" 
                           value={buildingInputs[campus.id]?.rooms || ''} 
                           onChange={(e) => handleBuildingInputChange(campus.id, 'rooms', e.target.value)}
                           className="w-20 px-3 py-2.5 rounded-lg border border-slate-200 outline-none text-sm text-center" 
@@ -448,11 +540,18 @@ const InfrastructurePage = () => {
                   
                   {!editingRoomId && (
                     <div className="flex bg-blue-100/50 p-1 rounded-lg">
-                      <button onClick={() => setIsBulkMode(false)} type="button" className={`px-4 py-1.5 text-[11px] uppercase tracking-wider font-bold rounded-md transition-all outline-none ${!isBulkMode ? 'bg-white text-blue-700 shadow-sm' : 'text-blue-500 hover:text-blue-700'}`}>Single</button>
-                      <button onClick={() => setIsBulkMode(true)} type="button" className={`px-4 py-1.5 text-[11px] uppercase tracking-wider font-bold rounded-md transition-all outline-none ${isBulkMode ? 'bg-white text-emerald-600 shadow-sm' : 'text-blue-500 hover:text-emerald-600'}`}>Bulk</button>
+                      <button onClick={() => { setIsBulkMode(false); setFormError(""); }} type="button" className={`px-4 py-1.5 text-[11px] uppercase tracking-wider font-bold rounded-md transition-all outline-none ${!isBulkMode ? 'bg-white text-blue-700 shadow-sm' : 'text-blue-500 hover:text-blue-700'}`}>Single</button>
+                      <button onClick={() => { setIsBulkMode(true); setFormError(""); }} type="button" className={`px-4 py-1.5 text-[11px] uppercase tracking-wider font-bold rounded-md transition-all outline-none ${isBulkMode ? 'bg-white text-emerald-600 shadow-sm' : 'text-blue-500 hover:text-emerald-600'}`}>Bulk</button>
                     </div>
                   )}
                 </div>
+
+                {/* 🚀 FORM ERROR BANNER */}
+                {formError && (
+                  <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-600 rounded-lg text-xs font-bold flex items-center gap-2">
+                    <AlertCircle size={16} /> {formError}
+                  </div>
+                )}
 
                 <div className="grid grid-cols-1 md:grid-cols-12 gap-5 mb-5 text-left">
                   {isBulkMode ? (
@@ -477,10 +576,10 @@ const InfrastructurePage = () => {
                         <InputField label="Start Number" placeholder="e.g. 101 or 01" value={newRoom.startNumber} onChange={(e) => setNewRoom({...newRoom, startNumber: e.target.value})} required />
                       </div>
                       <div className="md:col-span-3">
-                        <InputField label="Total Rooms" type="number" placeholder="e.g. 32" value={newRoom.count} onChange={(e) => setNewRoom({...newRoom, count: e.target.value})} required />
+                        <InputField label="Total Rooms" type="number" min="1" max="100" placeholder="e.g. 32" value={newRoom.count} onChange={(e) => setNewRoom({...newRoom, count: e.target.value})} required />
                       </div>
                       <div className="md:col-span-3">
-                        <SelectField label="Type" options={ROOM_TYPES} value={newRoom.type} onChange={(e) => setNewRoom({...newRoom, type: e.target.value})} />
+                        <SelectField label="Type" options={ROOM_TYPES} value={newRoom.type} onChange={(e) => setNewRoom({...newRoom, type: e.target.value})} required />
                       </div>
                     </>
                   ) : (
@@ -505,14 +604,14 @@ const InfrastructurePage = () => {
                         <InputField label="Room Number" value={newRoom.roomNo} onChange={(e) => setNewRoom({...newRoom, roomNo: e.target.value})} required />
                       </div>
                       <div className="md:col-span-4">
-                        <SelectField label="Type" options={ROOM_TYPES} value={newRoom.type} onChange={(e) => setNewRoom({...newRoom, type: e.target.value})} />
+                        <SelectField label="Type" options={ROOM_TYPES} value={newRoom.type} onChange={(e) => setNewRoom({...newRoom, type: e.target.value})} required />
                       </div>
                     </>
                   )}
                 </div>
                 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-5 text-left">
-                  <InputField label="Capacity" type="number" placeholder="e.g. 60" value={newRoom.capacity} onChange={(e) => setNewRoom({...newRoom, capacity: e.target.value})} />
+                  <InputField label="Capacity" type="number" min="0" placeholder="e.g. 60" value={newRoom.capacity} onChange={(e) => setNewRoom({...newRoom, capacity: e.target.value})} />
                   <InputField label="Floor" placeholder="e.g. Ground, 1st..." value={newRoom.floor} onChange={(e) => setNewRoom({...newRoom, floor: e.target.value})} />
                   <InputField label="Block" placeholder="e.g. Main" value={newRoom.block} onChange={(e) => setNewRoom({...newRoom, block: e.target.value})} />
                 </div>
@@ -522,7 +621,7 @@ const InfrastructurePage = () => {
                   {equipmentList.map((eq, idx) => (
                     <div key={idx} className="flex gap-3 items-center mb-3 text-left">
                       <input type="text" placeholder="Equipment Name (e.g. Projector)" value={eq.name} onChange={(e) => updateEquipmentRow(idx, 'name', e.target.value)} className="flex-1 px-3 py-2.5 border border-slate-200 rounded-lg text-sm outline-none focus:border-blue-400 text-left shadow-sm" />
-                      <input type="number" placeholder="Qty" value={eq.quantity} onChange={(e) => updateEquipmentRow(idx, 'quantity', e.target.value)} className="w-24 px-3 py-2.5 border border-slate-200 rounded-lg text-sm text-center outline-none focus:border-blue-400 shadow-sm" />
+                      <input type="number" min="1" placeholder="Qty" value={eq.quantity} onChange={(e) => updateEquipmentRow(idx, 'quantity', e.target.value)} className="w-24 px-3 py-2.5 border border-slate-200 rounded-lg text-sm text-center outline-none focus:border-blue-400 shadow-sm" />
                       <input type="text" placeholder="Asset ID (Optional)" value={eq.asset_id} onChange={(e) => updateEquipmentRow(idx, 'asset_id', e.target.value)} className="w-40 px-3 py-2.5 border border-slate-200 rounded-lg text-sm outline-none focus:border-blue-400 text-left shadow-sm" />
                       <button onClick={() => setEquipmentList(equipmentList.filter((_, i) => i !== idx))} className="text-red-400 hover:text-red-600 p-2 outline-none hover:bg-red-50 rounded-lg transition-colors"><Trash2 size={18}/></button>
                     </div>
@@ -587,10 +686,10 @@ const ToggleSwitch = ({ active, onToggle }) => (
   </div>
 );
 
-const InputField = ({ label, placeholder, required, type="text", value, onChange }) => (
+const InputField = ({ label, placeholder, required, type="text", min, max, value, onChange }) => (
   <div className="flex flex-col gap-1.5 w-full text-left">
     <label className="text-xs font-bold text-slate-600 text-left">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
-    <input type={type} placeholder={placeholder} value={value} onChange={onChange} className="px-3 py-2.5 rounded-lg border border-slate-200 outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400 bg-white text-sm text-left transition-all shadow-sm" />
+    <input type={type} min={min} max={max} placeholder={placeholder} value={value} onChange={onChange} className="px-3 py-2.5 rounded-lg border border-slate-200 outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400 bg-white text-sm text-left transition-all shadow-sm" />
   </div>
 );
 
