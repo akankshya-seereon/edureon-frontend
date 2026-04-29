@@ -6,6 +6,19 @@ import {
 import { infrastructureService } from '../../../services/infrastructureService';
 import apiBaseUrl from "../../../config/baseurl";
 
+// ─── CONSTANTS ───────────────────────────────────────────────────────────────
+const ROOM_TYPES = [
+  'Classroom', 
+  'Laboratory', 
+  'Library', 
+  'Office', 
+  'Staff Room', 
+  'Auditorium', 
+  'Seminar Hall', 
+  'Meeting Room',
+  'Other'
+];
+
 const InfrastructurePage = () => {
   // --- DATA STATES ---
   const [loading, setLoading] = useState(true);
@@ -28,7 +41,6 @@ const InfrastructurePage = () => {
   const [newCampus, setNewCampus] = useState({ name: '', address: '', property: 'Owned' });
   const [buildingInputs, setBuildingInputs] = useState({}); 
   
-  // 🚀 FIXED: Removed prefix from state
   const [newRoom, setNewRoom] = useState({ 
     roomNo: '', startNumber: '', count: '', 
     type: '', capacity: '', floor: '', block: '', building_id: '' 
@@ -53,7 +65,7 @@ const InfrastructurePage = () => {
 
   useEffect(() => { loadData(); }, []);
 
-  // --- SAVE HANDLERS (Handles both Create & Update) ---
+  // --- SAVE HANDLERS ---
   const handleSaveCampus = async () => {
     if (!newCampus.name) return alert("Campus Name is required");
     try {
@@ -69,7 +81,6 @@ const InfrastructurePage = () => {
     } catch (error) { console.error("Error saving campus", error); }
   };
 
-  // 🚀 FIXED: Removed prefix generation logic
   const handleSaveRoom = async () => {
     if (isBulkMode) {
       if (!newRoom.startNumber || !newRoom.count || !newRoom.building_id) {
@@ -79,7 +90,7 @@ const InfrastructurePage = () => {
       try {
         const count = Number(newRoom.count);
         const startStr = String(newRoom.startNumber);
-        const padLength = startStr.length; // Intelligent Zero-Padding
+        const padLength = startStr.length; 
         const startNum = Number(startStr);
 
         const promises = [];
@@ -87,7 +98,7 @@ const InfrastructurePage = () => {
         for(let i = 0; i < count; i++) {
           const currentNum = startNum + i;
           const paddedNum = String(currentNum).padStart(padLength, '0');
-          const generatedRoomNo = paddedNum; // Prefix removed completely
+          const generatedRoomNo = paddedNum; 
 
           const payload = {
             roomNo: generatedRoomNo,
@@ -234,7 +245,7 @@ const InfrastructurePage = () => {
 
     setNewRoom({ 
       roomNo: room.roomNo, startNumber: '', count: '',
-      type: room.type, 
+      type: room.type || '', 
       capacity: room.cap || '', 
       floor: room.floor || '', 
       block: room.block || '', 
@@ -443,11 +454,9 @@ const InfrastructurePage = () => {
                   )}
                 </div>
 
-                {/* 🚀 FIXED: Dynamic Top Grid for Building, Room Numbers, and Type */}
                 <div className="grid grid-cols-1 md:grid-cols-12 gap-5 mb-5 text-left">
                   {isBulkMode ? (
                     <>
-                      {/* Building Dropdown directly replaced prefix */}
                       <div className="md:col-span-3 flex flex-col gap-1.5 text-left">
                         <label className="text-xs font-bold text-slate-600 text-left">Building <span className="text-red-500">*</span></label>
                         <select 
@@ -471,12 +480,11 @@ const InfrastructurePage = () => {
                         <InputField label="Total Rooms" type="number" placeholder="e.g. 32" value={newRoom.count} onChange={(e) => setNewRoom({...newRoom, count: e.target.value})} required />
                       </div>
                       <div className="md:col-span-3">
-                        <InputField label="Type" placeholder="e.g. Classroom" value={newRoom.type} onChange={(e) => setNewRoom({...newRoom, type: e.target.value})} />
+                        <SelectField label="Type" options={ROOM_TYPES} value={newRoom.type} onChange={(e) => setNewRoom({...newRoom, type: e.target.value})} />
                       </div>
                     </>
                   ) : (
                     <>
-                      {/* Building Dropdown for single form */}
                       <div className="md:col-span-4 flex flex-col gap-1.5 text-left">
                         <label className="text-xs font-bold text-slate-600 text-left">Building <span className="text-red-500">*</span></label>
                         <select 
@@ -497,7 +505,7 @@ const InfrastructurePage = () => {
                         <InputField label="Room Number" value={newRoom.roomNo} onChange={(e) => setNewRoom({...newRoom, roomNo: e.target.value})} required />
                       </div>
                       <div className="md:col-span-4">
-                        <InputField label="Type" placeholder="e.g. Classroom, Lab..." value={newRoom.type} onChange={(e) => setNewRoom({...newRoom, type: e.target.value})} />
+                        <SelectField label="Type" options={ROOM_TYPES} value={newRoom.type} onChange={(e) => setNewRoom({...newRoom, type: e.target.value})} />
                       </div>
                     </>
                   )}
@@ -590,6 +598,7 @@ const SelectField = ({ label, options, required, value, onChange }) => (
   <div className="flex flex-col gap-1.5 w-full text-left">
     <label className="text-xs font-bold text-slate-600 text-left">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
     <select value={value} onChange={onChange} className="px-3 py-2.5 rounded-lg border border-slate-200 outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400 bg-white text-sm text-left transition-all shadow-sm">
+      <option value="" disabled>Select {label}...</option>
       {options.map(o => <option key={o} value={o}>{o}</option>)}
     </select>
   </div>
