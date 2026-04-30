@@ -106,7 +106,10 @@ export const AcademicProgram = () => {
         .map(b => b.name)                            
         .filter(Boolean);                            
 
-      setBuildings(buildingNames);
+      // 🚀 FIX: Use a Set to remove duplicate building names (e.g. two "Chandragupta" buildings)
+      const uniqueBuildings = [...new Set(buildingNames)];
+
+      setBuildings(uniqueBuildings);
     } catch (err) {
       console.error('[Buildings] fetch error:', err?.response?.status, err?.message);
       setBuildings([]);

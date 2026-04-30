@@ -185,7 +185,6 @@ export const Department = () => {
       const [deptsRes, empRes, bldgRes] = await Promise.allSettled([
         api.get('/admin/departments'),
         api.get('/admin/employees/list'),
-        // ✅ FIX: Correct URL — buildings is under the departments router
         api.get('/admin/departments/buildings'),
       ]);
 
@@ -548,16 +547,32 @@ export const Department = () => {
                               {dept.category || 'General'}
                             </span>
                           </div>
+                          
+                          {/* ── 🚀 ROOMS COLUMN UPDATED WITH BEAUTIFUL TAGS ── */}
                           <div className="col-span-2 flex flex-col">
                             <span className="text-xs font-bold text-slate-800">
-                              {dept.calculated_room_count ?? dept.noOfRooms ?? dept.roomNumber ?? 0} Rooms
+                              {dept.calculated_room_count || 0} Rooms Assigned
                             </span>
-                            {dept.assigned_rooms && (
-                              <span className="text-[10px] font-bold text-slate-400 mt-0.5 truncate" title={dept.assigned_rooms}>
-                                {dept.assigned_rooms}
+                            
+                            {dept.assigned_rooms ? (
+                              <div className="flex flex-wrap gap-1 mt-1.5">
+                                {/* Split the comma-separated string and map it into badges */}
+                                {dept.assigned_rooms.split(',').map((roomNumber, idx) => (
+                                  <span 
+                                    key={idx} 
+                                    className="px-1.5 py-0.5 bg-blue-50 text-blue-700 border border-blue-200 rounded animate-fade-in text-[9px] font-black uppercase"
+                                  >
+                                    {roomNumber.trim()}
+                                  </span>
+                                ))}
+                              </div>
+                            ) : (
+                              <span className="text-[10px] font-semibold text-slate-400 mt-1 italic">
+                                No rooms allocated
                               </span>
                             )}
                           </div>
+                          
                           <div className="col-span-1 flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                             <button
                               onClick={() => handleEditClick(dept)}

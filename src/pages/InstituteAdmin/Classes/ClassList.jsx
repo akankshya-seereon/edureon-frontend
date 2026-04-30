@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import axios from 'axios';
 import {
   BookOpen, Plus, Search, X, ChevronDown, Users,
@@ -11,15 +11,15 @@ import apiBaseUrl from "../../../config/baseurl";
 
 const EMPTY_FORM = {
   className: '',
-  course: '', // Renamed from program
-  specialization: '', // Added field
+  course: '', // Mapped to 'program' in the backend payload
+  specialization: '', 
   department: '',
   subject: '',
   facultyAssigned: '',
   academicYear: '',
   batchId: '', 
   section: '',
-  semester: '', // Now depends on batch
+  semester: '', 
   maxStudents: '',
   schedule: [{ 
     day: '', startTime: '', endTime: '', 
@@ -30,7 +30,7 @@ const EMPTY_FORM = {
 
 // ─── Toast ────────────────────────────────────────────────────────────────────
 const Toast = ({ msg, type, onClose }) => (
-  <div className={`fixed top-6 right-6 z-9999 flex items-center gap-3 px-5 py-4 rounded-xl shadow-2xl text-white text-sm font-semibold text-left transition-all
+  <div className={`fixed top-6 right-6 z-[9999] flex items-center gap-3 px-5 py-4 rounded-xl shadow-2xl text-white text-sm font-semibold text-left transition-all
     ${type === 'success' ? 'bg-blue-600' : 'bg-red-500'}`}>
     {type === 'success' ? <CheckCircle size={18} /> : <AlertCircle size={18} />}
     {msg}
@@ -47,7 +47,7 @@ const Select = ({ label, name, value, onChange, options = [], required, placehol
     <div className="relative">
       <select
         name={name}
-        value={value}
+        value={value || ''} // 🚀 FIX: Prevents React "value should not be null" warning
         onChange={onChange}
         required={required}
         disabled={disabled || options.length === 0}
@@ -76,7 +76,7 @@ const Input = ({ label, name, value, onChange, type = 'text', required, placehol
       <input
         type={type}
         name={name}
-        value={value}
+        value={value || ''} // 🚀 FIX: Ensure text inputs never receive null
         onChange={onChange}
         required={required}
         placeholder={placeholder}
@@ -124,7 +124,6 @@ const CreateClassModal = ({ onClose, onSave, editData, dropdownData }) => {
   // 1. Course -> Specialization
   useEffect(() => {
     if (form.course) {
-      // Adjust property matching your DB (e.g. course_id or course_name)
       setAvailableSpecializations(specializations?.filter(s => s.course === form.course) || specializations);
     } else {
       setAvailableSpecializations([]);
@@ -300,11 +299,11 @@ const CreateClassModal = ({ onClose, onSave, editData, dropdownData }) => {
                     <Select label="Day" name="day" value={slot.day} onChange={e => handleScheduleChange(idx, 'day', e.target.value)} options={days} placeholder="Select Day" />
                     <div className="flex flex-col gap-1.5">
                       <label className="text-sm font-semibold text-gray-700">Start Time</label>
-                      <input type="time" value={slot.startTime} onChange={e => handleScheduleChange(idx, 'startTime', e.target.value)} className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                      <input type="time" value={slot.startTime || ''} onChange={e => handleScheduleChange(idx, 'startTime', e.target.value)} className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500" />
                     </div>
                     <div className="flex flex-col gap-1.5">
                       <label className="text-sm font-semibold text-gray-700">End Time</label>
-                      <input type="time" value={slot.endTime} onChange={e => handleScheduleChange(idx, 'endTime', e.target.value)} className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                      <input type="time" value={slot.endTime || ''} onChange={e => handleScheduleChange(idx, 'endTime', e.target.value)} className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500" />
                     </div>
                   </div>
 
@@ -372,7 +371,7 @@ export const ClassList = () => {
   const [search, setSearch] = useState('');
   const [toast, setToast] = useState(null);
 
-  // 🚀 Added new dropdown states to handle specializations, locations, and courses
+  // Dropdown states
   const [dropdownData, setDropdownData] = useState({
     courses: [],     
     specializations: [],
@@ -441,6 +440,7 @@ export const ClassList = () => {
 
       const payload = { 
         ...data, 
+        program: data.course, // 🚀 FIX: Maps the frontend 'course' field to the backend 'program' key!
         departmentId: data.department,
         facultyId: selectedFaculty ? selectedFaculty.id : null,
       };
@@ -470,7 +470,13 @@ export const ClassList = () => {
   };
 
   const openEdit = (cls) => {
-    setEditData(cls);
+    // 🚀 FIX: Ensure schedule exists and handles nulls gracefully before editing
+    const safeSchedule = cls.schedule?.length > 0 ? cls.schedule : [{ day: '', startTime: '', endTime: '', campus: '', building: '', block: '', floor: '', roomDepartment: '', room: '' }];
+    
+    setEditData({
+      ...cls,
+      schedule: safeSchedule
+    });
     setShowModal(true);
   };
 
