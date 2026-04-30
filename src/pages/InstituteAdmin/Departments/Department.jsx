@@ -21,7 +21,6 @@ api.interceptors.request.use((config) => {
 // ─── CONSTANTS ────────────────────────────────────────────────────────────────
 const CATEGORIES = ['Engineering', 'General', 'Management', 'Finance', 'Staff', 'Medical', 'Security', 'IT Support'];
 
-// Fallback hardcoded buildings — replaced by API data if /admin/buildings exists
 const FALLBACK_BUILDINGS = [
   { id: 'east',  name: 'East Block'  },
   { id: 'west',  name: 'West Block'  },
@@ -30,8 +29,8 @@ const FALLBACK_BUILDINGS = [
   { id: 'main',  name: 'Main Block'  },
 ];
 
-const BLOCKS  = ['A', 'B', 'C', 'D', 'E'];
-const FLOORS  = [
+const BLOCKS = ['A', 'B', 'C', 'D', 'E'];
+const FLOORS = [
   { value: 'Ground', label: 'Ground Floor' },
   { value: '1',      label: '1st Floor'    },
   { value: '2',      label: '2nd Floor'    },
@@ -41,7 +40,7 @@ const FLOORS  = [
 
 // ─── SEARCHABLE HOD DROPDOWN ──────────────────────────────────────────────────
 function HodDropdown({ faculty, value, onChange }) {
-  const [open, setOpen]   = useState(false);
+  const [open, setOpen]     = useState(false);
   const [search, setSearch] = useState('');
   const ref = useRef(null);
 
@@ -153,15 +152,15 @@ function EmptyState({ tab }) {
 
 // ─── MAIN COMPONENT ───────────────────────────────────────────────────────────
 export const Department = () => {
-  const [departments, setDepartments] = useState([]);
-  const [faculty,     setFaculty]     = useState([]);
-  const [buildings,   setBuildings]   = useState(FALLBACK_BUILDINGS); // start with fallback
-  const [activeTab,   setActiveTab]   = useState('Academic');
-  const [loading,     setLoading]     = useState(false);
+  const [departments,  setDepartments]  = useState([]);
+  const [faculty,      setFaculty]      = useState([]);
+  const [buildings,    setBuildings]    = useState(FALLBACK_BUILDINGS);
+  const [activeTab,    setActiveTab]    = useState('Academic');
+  const [loading,      setLoading]      = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [listSearch,  setListSearch]  = useState('');
-  const [toast,       setToast]       = useState(null);
-  const [editingId,   setEditingId]   = useState(null);
+  const [listSearch,   setListSearch]   = useState('');
+  const [toast,        setToast]        = useState(null);
+  const [editingId,    setEditingId]    = useState(null);
   const [editFormData, setEditFormData] = useState({});
 
   const [formData, setFormData] = useState({
@@ -186,9 +185,11 @@ export const Department = () => {
       const [deptsRes, empRes, bldgRes] = await Promise.allSettled([
         api.get('/admin/departments'),
         api.get('/admin/employees/list'),
-        api.get('/admin/buildings'),   // optional — may 404
+        // ✅ FIX: Correct URL — buildings is under the departments router
+        api.get('/admin/departments/buildings'),
       ]);
 
+      // Departments
       if (deptsRes.status === 'fulfilled') {
         const data = deptsRes.value.data?.data;
         setDepartments(Array.isArray(data) ? data : []);
@@ -197,6 +198,7 @@ export const Department = () => {
         showToast('error', 'Could not load departments.');
       }
 
+      // Employees / Faculty
       if (empRes.status === 'fulfilled') {
         const data = empRes.value.data?.data;
         setFaculty(Array.isArray(data) ? data : []);
@@ -204,16 +206,14 @@ export const Department = () => {
         console.warn('Employees fetch failed:', empRes.reason?.message);
       }
 
-      // Buildings: use API data if available, otherwise keep FALLBACK_BUILDINGS
+      // Buildings — use real data if available, else keep fallback
       if (bldgRes.status === 'fulfilled') {
         const data = bldgRes.value.data?.data;
         if (Array.isArray(data) && data.length > 0) {
           setBuildings(data);
         }
-        // else keep the fallback already set in state
       } else {
-        // 404 expected if route not created yet — silently use fallback
-        console.info('ℹ️ /admin/buildings not found — using hardcoded fallback buildings.');
+        console.info('ℹ️ Buildings endpoint failed — using fallback buildings.');
       }
 
     } catch (err) {
@@ -229,8 +229,8 @@ export const Department = () => {
   // ── Add department ──
   const handleAddDepartment = async (e) => {
     e.preventDefault();
-    if (!formData.name.trim())     return showToast('error', 'Department name is required.');
-    if (!formData.category)        return showToast('error', 'Please select a category.');
+    if (!formData.name.trim()) return showToast('error', 'Department name is required.');
+    if (!formData.category)    return showToast('error', 'Please select a category.');
 
     try {
       setIsSubmitting(true);
@@ -277,7 +277,7 @@ export const Department = () => {
       setIsSubmitting(true);
       const payload = {
         ...editFormData,
-        hodId:     editFormData.hodId || null,
+        hodId:      editFormData.hodId || null,
         roomNumber: editFormData.noOfRooms || null,
       };
       const res = await api.put(`/admin/departments/${id}`, payload);
@@ -319,13 +319,13 @@ export const Department = () => {
 
     try {
       setIsSubmitting(true);
-      // Send only the fields the backend expects
       const payload = {
         departmentId: Number(assignForm.departmentId),
-        building:     assignForm.building  || null,
-        block:        assignForm.block     || null,
-        floor:        assignForm.floor     || null,
+        building:     assignForm.building || null,
+        block:        assignForm.block    || null,
+        floor:        assignForm.floor    || null,
         room:         assignForm.room.trim(),
+        type:         assignForm.type     || 'Classroom',
       };
       const res = await api.post('/admin/departments/assign-room', payload);
       if (res.data.success) {
@@ -379,11 +379,12 @@ export const Department = () => {
 
       {/* ── Floating Toast ── */}
       {toast && (
-        <div className={`fixed top-6 right-6 z-50 flex items-center gap-3 px-5 py-4 rounded-xl shadow-2xl text-sm font-bold border
-          ${toast.type === 'success'
-            ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
-            : 'bg-red-50 border-red-200 text-red-800'
-          }`}
+        <div
+          className={`fixed top-6 right-6 z-50 flex items-center gap-3 px-5 py-4 rounded-xl shadow-2xl text-sm font-bold border
+            ${toast.type === 'success'
+              ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+              : 'bg-red-50 border-red-200 text-red-800'
+            }`}
           style={{ zIndex: 9999 }}
         >
           {toast.type === 'success' ? <CheckCircle2 size={20}/> : <AlertCircle size={20}/>}
@@ -552,7 +553,7 @@ export const Department = () => {
                               {dept.calculated_room_count ?? dept.noOfRooms ?? dept.roomNumber ?? 0} Rooms
                             </span>
                             {dept.assigned_rooms && (
-                              <span className="text-[10px] font-bold text-slate-400 mt-0.5 truncate">
+                              <span className="text-[10px] font-bold text-slate-400 mt-0.5 truncate" title={dept.assigned_rooms}>
                                 {dept.assigned_rooms}
                               </span>
                             )}
@@ -683,7 +684,7 @@ export const Department = () => {
                 </select>
               </div>
 
-              {/* Building — dynamic from API or fallback hardcoded */}
+              {/* Building — real data from API or fallback */}
               <div>
                 <label className="block text-[10px] font-black text-slate-400 mb-1 uppercase">Building</label>
                 <select
@@ -727,7 +728,7 @@ export const Department = () => {
                 </select>
               </div>
 
-              {/* Room Type — required by DB (NOT NULL, no default) */}
+              {/* Room Type */}
               <div>
                 <label className="block text-[10px] font-black text-slate-400 mb-1 uppercase">Room Type</label>
                 <select
