@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ChevronLeft, Plus, Trash2, Upload } from "lucide-react";
-import apiBaseUrl from "../../../config/baseurl";
+import api from "../../../services/api"; // ✅ Fixed: import api, not apiBaseUrl
+
 const STEPS = [
   { id: 0, title: "Organisation", subtitle: "Basic Details" },
   { id: 1, title: "Partners/Directors", subtitle: "Director Details" },
@@ -24,68 +25,51 @@ export default function InstituteForm() {
   const navigate = useNavigate();
   const [step, setStep] = useState(0);
   const [errors, setErrors] = useState({});
+  const [submitting, setSubmitting] = useState(false);
 
   const [form, setForm] = useState({
     organisation: {
-      name: "",
-      phone: "",
-      altPhone: "",
-      email: "",
-      secondaryEmail: "",
-      address1: "",
-      address2: "",
-      city: "",
-      state: "",
-      pin: "",
-      headOffice: "",
-      type: "",
+      name: "", phone: "", altPhone: "", email: "", secondaryEmail: "",
+      address1: "", address2: "", city: "", state: "", pin: "",
+      headOffice: "", type: "",
     },
     directors: [
       {
         id: 1,
-        name: "",
-        email: "",
-        secondaryEmail: "",
-        contact: "",
-        mobile: "",
-        whatsapp: "",
-        gender: "",
-        dob: "",
-        interest: "",
-        father: "",
-        spouse: "",
-        children: "",
+        name: "", email: "", secondaryEmail: "", contact: "", mobile: "",
+        whatsapp: "", gender: "", dob: "", interest: "", father: "",
+        spouse: "", children: "",
         currentAddress: { line1: "", line2: "", city: "", state: "", pin: "" },
         permanentAddress: { line1: "", line2: "", city: "", state: "", pin: "" },
-        documents: { panNo: "", panDoc: "", aadhaarNo: "", aadhaarDoc: "" },
+        // ✅ panDoc and aadhaarDoc will hold actual File objects, not strings
+        documents: { panNo: "", panDoc: null, aadhaarNo: "", aadhaarDoc: null },
         bank: { bankName: "", accountNumber: "", ifscCode: "" },
-        associateCompany: { bankName: "", accountNumber: "", ifscCode: "" },
       },
     ],
     legal: {
-      propertyDeed: "", propertyDeedDoc: "",
-      buildingApproval: "", buildingApprovalDoc: "",
-      completionCertificate: "", completionCertificateDoc: "",
-      fireNOC: "", fireNOCDoc: "",
-      policeNOC: "", policeNOCDoc: "",
-      municipalityNOC: "", municipalityNOCDoc: "",
-      educationDeptNOC: "", educationDeptNOCDoc: "",
-      pollutionNOC: "", pollutionNOCDoc: "",
-      waterConnection: "", waterConnectionDoc: "",
-      electricityConnection: "", electricityConnectionDoc: "",
-      safetyAudit: "", safetyAuditDoc: "",
-      drainageSystem: "", drainageSystemDoc: "",
-      panNo: "", panDoc: "",
-      gstinNo: "", gstinDoc: "",
-      bankAccount: "", bankAccountDoc: "",
-      trustDeed: "", trustDeedDoc: "",
-      diseCode: "", disecodeDoc: "",
-      provisionalRecognition: "", provisionalRecognitionDoc: "",
-      affiliation: "", affiliationDoc: "",
-      childProtectionPolicy: "", childProtectionPolicyDoc: "",
-      harassmentPolicy: "", harassmentPolicyDoc: "",
-      admissionPolicy: "", admissionPolicyDoc: "",
-      feeStructure: "", feeStructureDoc: "",
+      propertyDeed: "", propertyDeedDoc: null,
+      buildingApproval: "", buildingApprovalDoc: null,
+      completionCertificate: "", completionCertificateDoc: null,
+      fireNOC: "", fireNOCDoc: null,
+      policeNOC: "", policeNOCDoc: null,
+      municipalityNOC: "", municipalityNOCDoc: null,
+      educationDeptNOC: "", educationDeptNOCDoc: null,
+      pollutionNOC: "", pollutionNOCDoc: null,
+      waterConnection: "", waterConnectionDoc: null,
+      electricityConnection: "", electricityConnectionDoc: null,
+      safetyAudit: "", safetyAuditDoc: null,
+      drainageSystem: "", drainageSystemDoc: null,
+      panNo: "", panDoc: null,
+      gstinNo: "", gstinNoDoc: null,
+      bankAccount: "", bankAccountDoc: null,
+      trustDeed: "", trustDeedDoc: null,
+      diseCode: "", diseCodeDoc: null,
+      provisionalRecognition: "", provisionalRecognitionDoc: null,
+      affiliation: "", affiliationDoc: null,
+      childProtectionPolicy: "", childProtectionPolicyDoc: null,
+      harassmentPolicy: "", harassmentPolicyDoc: null,
+      admissionPolicy: "", admissionPolicyDoc: null,
+      feeStructure: "", feeStructureDoc: null,
     },
     branches: [
       {
@@ -96,6 +80,8 @@ export default function InstituteForm() {
       },
     ],
   });
+
+  // ── Update helpers ───────────────────────────────────────────────────────────
 
   const updateOrg = (field, value) => {
     setForm({ ...form, organisation: { ...form.organisation, [field]: value } });
@@ -117,13 +103,13 @@ export default function InstituteForm() {
   const addDirector = () => {
     const newDirector = {
       id: form.directors.length + 1,
-      name: "", email: "", secondaryEmail: "", contact: "", mobile: "", whatsapp: "",
-      gender: "", dob: "", interest: "", father: "", spouse: "", children: "",
+      name: "", email: "", secondaryEmail: "", contact: "", mobile: "",
+      whatsapp: "", gender: "", dob: "", interest: "", father: "",
+      spouse: "", children: "",
       currentAddress: { line1: "", line2: "", city: "", state: "", pin: "" },
       permanentAddress: { line1: "", line2: "", city: "", state: "", pin: "" },
-      documents: { panNo: "", panDoc: "", aadhaarNo: "", aadhaarDoc: "" },
+      documents: { panNo: "", panDoc: null, aadhaarNo: "", aadhaarDoc: null },
       bank: { bankName: "", accountNumber: "", ifscCode: "" },
-      associateCompany: { bankName: "", accountNumber: "", ifscCode: "" },
     };
     setForm({ ...form, directors: [...form.directors, newDirector] });
   };
@@ -158,6 +144,8 @@ export default function InstituteForm() {
       setForm({ ...form, branches: form.branches.filter((_, i) => i !== idx) });
   };
 
+  // ── Validation ───────────────────────────────────────────────────────────────
+
   const validateStep = () => {
     const newErrors = {};
     if (step === 0) {
@@ -179,58 +167,93 @@ export default function InstituteForm() {
   };
   const goPrev = () => { setStep(step - 1); window.scrollTo(0, 0); };
 
- const submit = async () => {
-    const formData = new FormData();
+  // ── Submit ───────────────────────────────────────────────────────────────────
 
-    // 1. Append all text data as stringified JSON
-    formData.append("organisation", JSON.stringify(form.organisation));
-    formData.append("branches", JSON.stringify(form.branches));
-
-    // 2. Separate physical files from the Legal object
-    const legalData = { ...form.legal };
-    Object.keys(legalData).forEach(key => {
-      if (legalData[key] instanceof File) {
-        formData.append(`legal_${key}`, legalData[key]); // Attach file to FormData
-        legalData[key] = ""; // Clear from JSON (backend will fill this in)
-      }
-    });
-    formData.append("legal", JSON.stringify(legalData));
-
-    // 3. Separate physical files from the Directors object
-    const directorsData = JSON.parse(JSON.stringify(form.directors));
-    form.directors.forEach((dir, idx) => {
-      if (form.directors[idx].documents.panDoc instanceof File) {
-        formData.append(`director_${idx}_panDoc`, form.directors[idx].documents.panDoc);
-        directorsData[idx].documents.panDoc = "";
-      }
-      if (form.directors[idx].documents.aadhaarDoc instanceof File) {
-        formData.append(`director_${idx}_aadhaarDoc`, form.directors[idx].documents.aadhaarDoc);
-        directorsData[idx].documents.aadhaarDoc = "";
-      }
-    });
-    formData.append("directors", JSON.stringify(directorsData));
-
+  const submit = async () => {
+    setSubmitting(true);
     try {
-      // 🚀 FIXED: Actually calling the backend API!
-      const response = await api.post("/admin/institutes", formData, {
-        headers: { "Content-Type": "multipart/form-data" },
+      const formData = new FormData();
+
+      // 1. Organisation & Branches — plain JSON (no files here)
+      formData.append("organisation", JSON.stringify(form.organisation));
+      formData.append("branches", JSON.stringify(form.branches));
+
+      // 2. Legal — strip File objects out, append them separately
+      const legalData = {};
+      Object.entries(form.legal).forEach(([key, value]) => {
+        if (value instanceof File) {
+          // ✅ Append actual File with the field name backend expects: legal_<key>
+          formData.append(`legal_${key}`, value);
+          legalData[key] = ""; // placeholder; backend will fill with saved path
+        } else {
+          legalData[key] = value ?? "";
+        }
       });
-      
+      formData.append("legal", JSON.stringify(legalData));
+
+      // 3. Directors — strip File objects out, append them separately
+      const directorsData = form.directors.map((dir) => ({
+        ...dir,
+        documents: {
+          ...dir.documents,
+          panDoc: "",     // will be filled by backend after file save
+          aadhaarDoc: "", // same
+        },
+      }));
+
+      form.directors.forEach((dir, idx) => {
+        // ✅ dir.documents.panDoc is now a real File object (not a filename string)
+        if (dir.documents.panDoc instanceof File) {
+          formData.append(`director_${idx}_panDoc`, dir.documents.panDoc);
+        }
+        if (dir.documents.aadhaarDoc instanceof File) {
+          formData.append(`director_${idx}_aadhaarDoc`, dir.documents.aadhaarDoc);
+        }
+      });
+
+      formData.append("directors", JSON.stringify(directorsData));
+
+      // 4. POST — do NOT set Content-Type manually; browser sets multipart boundary
+      const response = await api.post("/admin/institutes", formData);
+
       if (response.data.success) {
         navigate("/admin/institute");
+      } else {
+        alert(response.data.message || "Failed to create institute.");
       }
     } catch (error) {
-      console.error("Failed to create institute", error);
-      alert("Error creating institute. Check console.");
+      console.error("Failed to create institute:", error);
+      alert(error.response?.data?.message || "Error creating institute. Check console.");
+    } finally {
+      setSubmitting(false);
     }
   };
+
   const inputCls = (hasError) =>
     `w-full px-3 sm:px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-400 focus:border-transparent text-sm ${hasError ? "border-red-500" : "border-gray-300"}`;
+
+  // ── File input helper — shows selected filename next to input ────────────────
+  const FileInput = ({ value, onChange, label }) => (
+    <div className="flex items-center gap-2">
+      <input
+        type="file"
+        accept=".pdf,.jpg,.jpeg,.png"
+        onChange={onChange}
+        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+      />
+      {value instanceof File && (
+        <span className="text-xs text-green-600 font-medium whitespace-nowrap">
+          ✓ {value.name.length > 15 ? value.name.substring(0, 15) + "…" : value.name}
+        </span>
+      )}
+    </div>
+  );
 
   return (
     <div className="w-full min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
       <div className="w-full px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
         <div className="mx-auto w-full max-w-8xl">
+
           {/* Header */}
           <div className="mb-8">
             <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-blue-600 mb-2">Add Organisation</h1>
@@ -281,7 +304,7 @@ export default function InstituteForm() {
                     <input type="text" value={form.organisation.city} onChange={(e) => updateOrg("city", e.target.value)} placeholder="Enter city" className={inputCls(errors.city)} />
                   </Field>
                   <div className="sm:col-span-2">
-                    <Field label="Address Line 1" required>
+                    <Field label="Address Line 1">
                       <input type="text" value={form.organisation.address1} onChange={(e) => updateOrg("address1", e.target.value)} placeholder="Enter address line 1" className={inputCls(false)} />
                     </Field>
                   </div>
@@ -325,8 +348,8 @@ export default function InstituteForm() {
                       )}
                     </div>
 
-                    {/* Personal Details */}
                     <div className="space-y-6">
+                      {/* Personal Details */}
                       <div>
                         <h4 className="font-semibold text-sm text-gray-800 mb-4">Personal Details</h4>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -403,7 +426,17 @@ export default function InstituteForm() {
                       {/* Permanent Address */}
                       <div>
                         <label className="flex items-center mb-4 cursor-pointer">
-                          <input type="checkbox" className="mr-2" />
+                          <input
+                            type="checkbox"
+                            className="mr-2"
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                const updatedDirectors = [...form.directors];
+                                updatedDirectors[dirIdx].permanentAddress = { ...updatedDirectors[dirIdx].currentAddress };
+                                setForm({ ...form, directors: updatedDirectors });
+                              }
+                            }}
+                          />
                           <span className="text-sm text-gray-700">Same as Current Address</span>
                         </label>
                         <h4 className="font-semibold text-sm text-gray-700 mb-4">Permanent Address</h4>
@@ -430,7 +463,7 @@ export default function InstituteForm() {
                         </div>
                       </div>
 
-                      {/* Documents */}
+                      {/* Documents — ✅ FIXED: store File object, not filename string */}
                       <div>
                         <h4 className="font-semibold text-sm text-gray-700 mb-4">Documents</h4>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -438,13 +471,25 @@ export default function InstituteForm() {
                             <input type="text" placeholder="Enter PAN number" value={director.documents.panNo} onChange={(e) => updateDirectorNested(dirIdx, "documents", "panNo", e.target.value)} className={inputCls(false)} />
                           </Field>
                           <Field label="Upload PAN Document">
-                            <input type="file" onChange={(e) => updateDirectorNested(dirIdx, "documents", "panDoc", e.target.files?.[0]?.name)} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" />
+                            <FileInput
+                              value={director.documents.panDoc}
+                              onChange={(e) =>
+                                // ✅ Store the actual File object
+                                updateDirectorNested(dirIdx, "documents", "panDoc", e.target.files?.[0] || null)
+                              }
+                            />
                           </Field>
                           <Field label="Aadhaar Number">
                             <input type="text" placeholder="Enter Aadhaar number" value={director.documents.aadhaarNo} onChange={(e) => updateDirectorNested(dirIdx, "documents", "aadhaarNo", e.target.value)} className={inputCls(false)} />
                           </Field>
                           <Field label="Upload Aadhaar Document">
-                            <input type="file" onChange={(e) => updateDirectorNested(dirIdx, "documents", "aadhaarDoc", e.target.files?.[0]?.name)} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" />
+                            <FileInput
+                              value={director.documents.aadhaarDoc}
+                              onChange={(e) =>
+                                // ✅ Store the actual File object
+                                updateDirectorNested(dirIdx, "documents", "aadhaarDoc", e.target.files?.[0] || null)
+                              }
+                            />
                           </Field>
                         </div>
                       </div>
@@ -477,60 +522,58 @@ export default function InstituteForm() {
             {step === 2 && (
               <div className="space-y-8">
                 <h2 className="text-lg sm:text-xl lg:text-2xl font-semibold text-gray-800">Legal Details & Documents</h2>
-
-                {/* Helper component for legal doc cards */}
                 {[
                   {
                     sectionTitle: "Land & Building Documents",
                     fields: [
-                      { label: "Property Deed", numField: "propertyDeed", docField: "propertyDeedDoc", placeholder: "Deed reference/number" },
-                      { label: "Building Approval", numField: "buildingApproval", docField: "buildingApprovalDoc", placeholder: "Approval number" },
-                      { label: "Building Completion Certificate", numField: "completionCertificate", docField: "completionCertificateDoc", placeholder: "Certificate number" },
+                      { label: "Property Deed",                     numField: "propertyDeed",          docField: "propertyDeedDoc",          placeholder: "Deed reference/number" },
+                      { label: "Building Approval",                  numField: "buildingApproval",       docField: "buildingApprovalDoc",       placeholder: "Approval number" },
+                      { label: "Building Completion Certificate",    numField: "completionCertificate",  docField: "completionCertificateDoc",  placeholder: "Certificate number" },
                     ]
                   },
                   {
                     sectionTitle: "No Objection Certificates (NOCs)",
                     fields: [
-                      { label: "Fire Department NOC", numField: "fireNOC", docField: "fireNOCDoc", placeholder: "NOC number" },
-                      { label: "Police NOC", numField: "policeNOC", docField: "policeNOCDoc", placeholder: "NOC number" },
-                      { label: "Municipality NOC", numField: "municipalityNOC", docField: "municipalityNOCDoc", placeholder: "NOC number" },
-                      { label: "Education Department NOC", numField: "educationDeptNOC", docField: "educationDeptNOCDoc", placeholder: "NOC number" },
-                      { label: "Pollution Control Board NOC", numField: "pollutionNOC", docField: "pollutionNOCDoc", placeholder: "NOC number" },
+                      { label: "Fire Department NOC",          numField: "fireNOC",          docField: "fireNOCDoc",          placeholder: "NOC number" },
+                      { label: "Police NOC",                   numField: "policeNOC",        docField: "policeNOCDoc",        placeholder: "NOC number" },
+                      { label: "Municipality NOC",             numField: "municipalityNOC",  docField: "municipalityNOCDoc",  placeholder: "NOC number" },
+                      { label: "Education Department NOC",     numField: "educationDeptNOC", docField: "educationDeptNOCDoc", placeholder: "NOC number" },
+                      { label: "Pollution Control Board NOC",  numField: "pollutionNOC",     docField: "pollutionNOCDoc",     placeholder: "NOC number" },
                     ]
                   },
                   {
                     sectionTitle: "Infrastructure & Safety Documents",
                     fields: [
-                      { label: "Water Connection Certificate", numField: "waterConnection", docField: "waterConnectionDoc", placeholder: "Reference number" },
+                      { label: "Water Connection Certificate",    numField: "waterConnection",       docField: "waterConnectionDoc",       placeholder: "Reference number" },
                       { label: "Electricity Connection Certificate", numField: "electricityConnection", docField: "electricityConnectionDoc", placeholder: "Consumer number" },
-                      { label: "Safety Audit Report", numField: "safetyAudit", docField: "safetyAuditDoc", placeholder: "Audit reference" },
-                      { label: "Drainage System Certification", numField: "drainageSystem", docField: "drainageSystemDoc", placeholder: "Certificate number" },
+                      { label: "Safety Audit Report",             numField: "safetyAudit",           docField: "safetyAuditDoc",           placeholder: "Audit reference" },
+                      { label: "Drainage System Certification",   numField: "drainageSystem",        docField: "drainageSystemDoc",        placeholder: "Certificate number" },
                     ]
                   },
                   {
                     sectionTitle: "Financial & Administrative Documents",
                     fields: [
-                      { label: "PAN Number", numField: "panNo", docField: "panDoc", placeholder: "Enter PAN number" },
-                      { label: "GSTIN Number", numField: "gstinNo", docField: "gstinDoc", placeholder: "Enter GSTIN" },
-                      { label: "Bank Account Certificate", numField: "bankAccount", docField: "bankAccountDoc", placeholder: "Account number" },
-                      { label: "Trust Deed / Society Registration", numField: "trustDeed", docField: "trustDeedDoc", placeholder: "Document number" },
+                      { label: "PAN Number",                      numField: "panNo",       docField: "panDoc",       placeholder: "Enter PAN number" },
+                      { label: "GSTIN Number",                    numField: "gstinNo",     docField: "gstinNoDoc",   placeholder: "Enter GSTIN" },
+                      { label: "Bank Account Certificate",        numField: "bankAccount", docField: "bankAccountDoc", placeholder: "Account number" },
+                      { label: "Trust Deed / Society Registration", numField: "trustDeed",  docField: "trustDeedDoc", placeholder: "Document number" },
                     ]
                   },
                   {
                     sectionTitle: "Education Registration & Affiliation",
                     fields: [
-                      { label: "DISE Code", numField: "diseCode", docField: "disecodeDoc", placeholder: "Enter DISE code" },
+                      { label: "DISE Code",                          numField: "diseCode",               docField: "diseCodeDoc",               placeholder: "Enter DISE code" },
                       { label: "Provisional Recognition Certificate", numField: "provisionalRecognition", docField: "provisionalRecognitionDoc", placeholder: "Certificate number" },
-                      { label: "Board Affiliation Certificate", numField: "affiliation", docField: "affiliationDoc", placeholder: "Affiliation number" },
+                      { label: "Board Affiliation Certificate",       numField: "affiliation",            docField: "affiliationDoc",            placeholder: "Affiliation number" },
                     ]
                   },
                   {
                     sectionTitle: "Mandatory Policies",
                     fields: [
-                      { label: "Child Protection Policy", numField: "childProtectionPolicy", docField: "childProtectionPolicyDoc", placeholder: "Policy reference" },
-                      { label: "Harassment Prevention Policy", numField: "harassmentPolicy", docField: "harassmentPolicyDoc", placeholder: "Policy reference" },
-                      { label: "Admission Policy", numField: "admissionPolicy", docField: "admissionPolicyDoc", placeholder: "Policy reference" },
-                      { label: "Fee Structure Document", numField: "feeStructure", docField: "feeStructureDoc", placeholder: "Document reference" },
+                      { label: "Child Protection Policy",    numField: "childProtectionPolicy", docField: "childProtectionPolicyDoc", placeholder: "Policy reference" },
+                      { label: "Harassment Prevention Policy", numField: "harassmentPolicy",    docField: "harassmentPolicyDoc",      placeholder: "Policy reference" },
+                      { label: "Admission Policy",           numField: "admissionPolicy",       docField: "admissionPolicyDoc",       placeholder: "Policy reference" },
+                      { label: "Fee Structure Document",     numField: "feeStructure",          docField: "feeStructureDoc",          placeholder: "Document reference" },
                     ]
                   },
                 ].map((section) => (
@@ -549,10 +592,10 @@ export default function InstituteForm() {
                             />
                           </Field>
                           <Field label={`Upload ${f.label}`}>
-                            <input
-                              type="file"
-                              onChange={(e) => updateLegal(f.docField, e.target.files?.[0]?.name)}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                            {/* ✅ FIXED: Store actual File object, not filename string */}
+                            <FileInput
+                              value={form.legal[f.docField]}
+                              onChange={(e) => updateLegal(f.docField, e.target.files?.[0] || null)}
                             />
                           </Field>
                         </div>
@@ -567,22 +610,6 @@ export default function InstituteForm() {
             {step === 3 && (
               <div className="space-y-6">
                 <h2 className="text-lg sm:text-xl lg:text-2xl font-semibold text-gray-800 mb-6">Branch Locations</h2>
-
-                <div className="border-2 border-gray-300 rounded-lg p-4 bg-blue-50">
-                  <label className="flex items-center text-gray-700 font-medium text-sm">
-                    <input type="radio" name="branch-option" className="mr-3" defaultChecked />
-                    Is institute associated with branch?
-                  </label>
-                  <div className="flex gap-4 sm:gap-6 mt-3 ml-6 text-sm">
-                    <label className="flex items-center text-gray-700">
-                      <input type="radio" name="branch-assoc" defaultChecked className="mr-2" /> Yes
-                    </label>
-                    <label className="flex items-center text-gray-700">
-                      <input type="radio" name="branch-assoc" className="mr-2" /> No
-                    </label>
-                  </div>
-                </div>
-
                 {form.branches.map((branch, branchIdx) => (
                   <div key={branchIdx} className="border-2 border-gray-200 rounded-lg p-4 sm:p-6 bg-blue-50">
                     <div className="flex justify-between items-center mb-6">
@@ -591,7 +618,6 @@ export default function InstituteForm() {
                         <button onClick={() => removeBranch(branchIdx)} className="text-red-500 hover:text-red-700"><Trash2 size={20} /></button>
                       )}
                     </div>
-
                     <div className="space-y-4">
                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
                         <Field label="Short Name (2 chars)">
@@ -610,7 +636,6 @@ export default function InstituteForm() {
                           <input type="text" value={branch.pin} onChange={(e) => updateBranch(branchIdx, "pin", e.target.value)} placeholder="Enter PIN" className={inputCls(false)} />
                         </Field>
                       </div>
-
                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                         <div className="sm:col-span-2">
                           <Field label="Address Line 1">
@@ -623,7 +648,6 @@ export default function InstituteForm() {
                           </Field>
                         </div>
                       </div>
-
                       <div className="border-t-2 border-gray-300 pt-4 mt-4">
                         <h4 className="font-semibold text-sm text-gray-700 mb-4">Institute Contact Details</h4>
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -641,7 +665,6 @@ export default function InstituteForm() {
                     </div>
                   </div>
                 ))}
-
                 <button onClick={addBranch} className="flex items-center gap-2 text-blue-600 font-semibold hover:text-blue-700 mt-4 text-sm">
                   <Plus size={20} /> Add Branch
                 </button>
@@ -651,33 +674,22 @@ export default function InstituteForm() {
             {/* STEP 5 – FINALIZE */}
             {step === 4 && (
               <div className="space-y-6 text-left">
-                <h2 className="text-lg sm:text-xl lg:text-2xl font-semibold text-gray-800 mb-6 text-left">Review & Finalize</h2>
-
-                <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-4 sm:p-6 space-y-4 text-left">
+                <h2 className="text-lg sm:text-xl lg:text-2xl font-semibold text-gray-800 mb-6">Review & Finalize</h2>
+                <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-4 sm:p-6 space-y-4">
                   {[
                     { title: "Organisation Details", desc: `${form.organisation.name} - ${form.organisation.type} in ${form.organisation.city}, ${form.organisation.state}` },
                     { title: "Directors Added", desc: `${form.directors.length} director(s) added with contact details` },
                     { title: "Legal Documents", desc: "All legal documents and certifications uploaded" },
                     { title: "Branches Configured", desc: `${form.branches.length} branch location(s) configured` },
                   ].map((item) => (
-                    <div key={item.title} className="flex items-start gap-3 text-left">
+                    <div key={item.title} className="flex items-start gap-3">
                       <span className="text-xl sm:text-2xl text-green-600 flex-shrink-0">✓</span>
-                      <div className="text-left">
-                        <h3 className="font-semibold text-sm text-gray-800 text-left">{item.title}</h3>
-                        <p className="text-sm text-gray-700 text-left">{item.desc}</p>
+                      <div>
+                        <h3 className="font-semibold text-sm text-gray-800">{item.title}</h3>
+                        <p className="text-sm text-gray-700">{item.desc}</p>
                       </div>
                     </div>
                   ))}
-                </div>
-
-                <div className="bg-yellow-50 border-2 border-yellow-200 rounded-lg p-4 sm:p-6 text-left">
-                  <h3 className="font-semibold text-sm text-gray-800 mb-3 text-left">Next Steps</h3>
-                  <ul className="space-y-2 text-sm text-gray-700 text-left">
-                    <li>✓ Modules & permissions setup (next phase)</li>
-                    <li>✓ Team member assignments</li>
-                    <li>✓ System configuration</li>
-                    <li>✓ Go live with your organisation</li>
-                  </ul>
                 </div>
               </div>
             )}
@@ -703,9 +715,10 @@ export default function InstituteForm() {
             ) : (
               <button
                 onClick={submit}
-                className="flex items-center justify-center gap-2 px-4 sm:px-6 py-2 sm:py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold text-sm transition w-full sm:w-auto"
+                disabled={submitting}
+                className="flex items-center justify-center gap-2 px-4 sm:px-6 py-2 sm:py-3 bg-green-600 hover:bg-green-700 disabled:opacity-60 disabled:cursor-not-allowed text-white rounded-lg font-semibold text-sm transition w-full sm:w-auto"
               >
-                <Upload size={20} /> Create Organisation
+                <Upload size={20} /> {submitting ? "Creating..." : "Create Organisation"}
               </button>
             )}
           </div>

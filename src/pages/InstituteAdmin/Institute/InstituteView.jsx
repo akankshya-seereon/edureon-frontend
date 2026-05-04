@@ -1,7 +1,7 @@
 // import { useEffect, useState } from "react";
 // import {
 //   Building2, Users, FileText, GitBranch,
-//   MapPin, Landmark, ShieldCheck, Zap,
+//   MapPin, Phone, Mail, Landmark, ShieldCheck, Zap,
 //   CreditCard, BookOpen, ScrollText, BadgeCheck, Calendar,
 // } from "lucide-react";
 // import apiBaseUrl from "../../../config/baseurl";
@@ -73,8 +73,8 @@
 // // ─── Tab Menu ─────────────────────────────────────────────────────────────────
 
 // const MENU = [
-//   { id: "organisation", label: "Organisation",    icon: Building2 },
-//   { id: "directors",    label: "Directors",       icon: Users     },
+//   { id: "organisation", label: "Organisation",   icon: Building2 },
+//   { id: "directors",    label: "Directors",      icon: Users     },
 //   { id: "legal",        label: "Legal Documents", icon: FileText  },
 //   { id: "branches",     label: "Branches",        icon: GitBranch },
 // ];
@@ -190,7 +190,7 @@
 //                   <LegalCat icon={MapPin} label="Address Information" />
 //                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-8 gap-y-4">
 //                     {d.currentAddress?.line1 && (
-//                       <InfoRow label="Current Address" value={[d.currentAddress.line1, d.currentAddress.line2, fmt(d.currentAddress.city), fmt(d.currentAddress.state), d.currentAddress.pin].filter(Boolean).join(", ")} />
+//                       <InfoRow label="Current Address"   value={[d.currentAddress.line1, d.currentAddress.line2, fmt(d.currentAddress.city), fmt(d.currentAddress.state), d.currentAddress.pin].filter(Boolean).join(", ")} />
 //                     )}
 //                     {d.permanentAddress?.line1 && (
 //                       <InfoRow label="Permanent Address" value={[d.permanentAddress.line1, d.permanentAddress.line2, fmt(d.permanentAddress.city), fmt(d.permanentAddress.state), d.permanentAddress.pin].filter(Boolean).join(", ")} />
@@ -314,79 +314,63 @@
 //     const fetchInstitute = async () => {
 //       try {
 //         const token = localStorage.getItem("token");
-//         const user  = JSON.parse(localStorage.getItem("user") || "{}");
+//         const user = JSON.parse(localStorage.getItem("user") || "{}");
+     
+// const instituteId = user?.institute_code || user?.instituteCode || user?.code || user?.id;
 
-//         // ── DEBUG: remove these two lines once data is showing ──
-//         console.log("🔍 USER from localStorage:", user);
-//         console.log("🔍 Available keys:", Object.keys(user));
-
-//         // ── Resolve institute ID from whichever field the login saves ──
-//         const instituteId =
-//           user?.institute_code ||
-//           user?.instituteCode  ||
-//           user?.code           ||
-//           user?.institute_id   ||
-//           user?.instituteId    ||
-//           user?.id;
-
-//         console.log("🔍 Resolved instituteId:", instituteId);
-
-//         // ── Guard: no ID found ──
 //         if (!instituteId) {
-//           setError(
-//             `No institute ID found. Keys in user object: [${Object.keys(user).join(", ")}]. Please re-login.`
-//           );
+//           setError("No institute ID found. Please re-login.");
 //           setLoading(false);
 //           return;
 //         }
 
-//         // ── Guard: no token ──
 //         if (!token) {
 //           setError("Session expired. Please re-login.");
 //           setLoading(false);
 //           return;
 //         }
 
-//         const url = `${apiBaseUrl}/admin/institutes/${instituteId}/full-details`;
-//         console.log("🔍 Fetching URL:", url);
-
-//         const res = await fetch(url, {
-//           headers: {
-//             Authorization: `Bearer ${token}`,
-//             "Content-Type": "application/json",
-//           },
-//         });
-
-//         console.log("🔍 Response status:", res.status);
+//         const res = await fetch(
+//           `${apiBaseUrl}/admin/institutes/${instituteId}/full-details`,
+//           {
+//             headers: {
+//               Authorization: `Bearer ${token}`,
+//               "Content-Type": "application/json",
+//             },
+//           }
+//         );
 
 //         if (!res.ok) {
+//           // If 401 Unauthorized, we give a clear message
 //           if (res.status === 401) throw new Error("Unauthorized. Please re-login.");
-//           if (res.status === 404) throw new Error(`Institute not found for ID: ${instituteId}`);
 //           throw new Error(`Server error: ${res.status}`);
 //         }
 
 //         const json = await res.json();
-//         console.log("🔍 Response JSON:", json);
 
 //         if (!json.success) {
 //           throw new Error(json.message || "Failed to fetch institute data.");
 //         }
 
 //         const data = json.data;
-//         const org  = safeParseJSON(data.organisation) || {};
+//         const org = safeParseJSON(data.organisation) || {};
 
 //         setInstitute({
-//           id:        data.institute_code || data.id,
-//           status:    data.status         || "Active",
-//           plan:      data.plan           || "Premium",
-//           createdAt: data.created_at
-//             ? new Date(data.created_at).toLocaleDateString("en-IN")
-//             : "—",
+//           id:           data.institute_code || data.id,
+//           status:       data.status   || "Active",
+//           plan:         data.plan     || "Premium",
+          
+//           // 🚀 SAFE DATE FIX: Ensures we don't map 'null' to an Invalid Date
+//           createdAt:    data.created_at 
+//                           ? new Date(data.created_at).toLocaleDateString("en-IN")
+//                           : "—",
 
 //           organisation: org,
+          
+//           // 🚀 SAFE MAPPING FIX: Guarantees these are arrays/objects before rendering
 //           directors:    Array.isArray(safeParseJSON(data.directors)) ? safeParseJSON(data.directors) : [],
 //           legal:        safeParseJSON(data.legal) || {},
-//           branches:     Array.isArray(safeParseJSON(data.branches))  ? safeParseJSON(data.branches)  : [],
+//           branches:     Array.isArray(safeParseJSON(data.branches)) ? safeParseJSON(data.branches) : [],
 
 //           totalStudents: data.totalStudents || 0,
 //           totalFaculty:  data.totalFaculty  || 0,
@@ -394,7 +378,7 @@
 //         });
 
 //       } catch (err) {
-//         console.error("❌ Institute fetch error:", err);
+//         console.error("Institute fetch error:", err);
 //         setError(err.message || "Something went wrong.");
 //       } finally {
 //         setLoading(false);
@@ -417,10 +401,10 @@
 //   // ── Error state ──
 //   if (error) return (
 //     <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-//       <div className="text-center max-w-md px-4">
-//         <Building2 size={48} className="mx-auto mb-4 opacity-30 text-gray-400" />
+//       <div className="text-center text-gray-400 max-w-sm">
+//         <Building2 size={48} className="mx-auto mb-4 opacity-30" />
 //         <p className="text-lg font-semibold text-red-500 mb-2">Failed to load</p>
-//         <p className="text-sm text-gray-500 bg-gray-100 rounded-lg p-3 text-left break-words">{error}</p>
+//         <p className="text-sm text-gray-400">{error}</p>
 //       </div>
 //     </div>
 //   );
@@ -482,10 +466,10 @@
 //         {/* ── QUICK STATS ── */}
 //         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
 //           {[
-//             { label: "Directors", value: directors.length,             icon: Users     },
-//             { label: "Branches",  value: branches.length,              icon: GitBranch },
-//             { label: "Students",  value: institute.totalStudents || 0, icon: Users     },
-//             { label: "Faculty",   value: institute.totalFaculty  || 0, icon: Calendar  },
+//             { label: "Directors",     value: directors.length,            icon: Users     },
+//             { label: "Branches",      value: branches.length,             icon: GitBranch },
+//             { label: "Students",      value: institute.totalStudents || 0, icon: Users     },
+//             { label: "Faculty",       value: institute.totalFaculty  || 0, icon: Calendar  },
 //           ].map((stat) => (
 //             <div key={stat.label} className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 flex items-center gap-3">
 //               <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center shrink-0">

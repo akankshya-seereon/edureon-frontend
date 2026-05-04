@@ -5,7 +5,6 @@ import {
   CreditCard, BookOpen, ScrollText, BadgeCheck, Calendar,
 } from "lucide-react";
 import api from "../../../services/api";
-import apiBaseUrl from "../../../config/baseurl";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -24,7 +23,6 @@ const statusStyles = {
   Trial:     "bg-blue-100 text-blue-700 border border-blue-300",
 };
 
-// Backend base URL for serving uploaded files
 const BACKEND_URL = "http://localhost:5000";
 
 // ─── Reusable Components ───────────────────────────────────────────────────────
@@ -38,10 +36,8 @@ const InfoRow = ({ label, value }) => (
   </div>
 );
 
-// ── DocRow: shows "View Doc" link if file was uploaded, "NO FILE" otherwise ──
+// DocRow: shows "View Doc" link if a valid file path was saved, "NO FILE" otherwise
 const DocRow = ({ label, value, doc }) => {
-  // A valid doc is a non-empty string path like "/uploads/institutes/123-abc.pdf"
-  // Invalid docs: null, undefined, "", {}, or any empty object
   const isValidDoc =
     doc &&
     typeof doc === "string" &&
@@ -55,7 +51,6 @@ const DocRow = ({ label, value, doc }) => {
         <span className="text-sm text-gray-800 font-medium">
           {value || <span className="text-gray-400 italic font-normal">Not provided</span>}
         </span>
-
         {isValidDoc ? (
           <a
             href={`${BACKEND_URL}${doc}`}
@@ -152,6 +147,7 @@ const OrganisationPanel = ({ org, institute }) => (
   </div>
 );
 
+// ── DirectorsPanel — FIXED: no reference to `legal`, uses d.documents only ──
 const DirectorsPanel = ({ directors }) => {
   if (!directors || directors.length === 0) return (
     <div>
@@ -162,124 +158,178 @@ const DirectorsPanel = ({ directors }) => {
       </div>
     </div>
   );
+
   return (
     <div>
-      <SectionTitle title={`Directors / Partners (${directors.length})`} subtitle="People associated with this institute" />
+      <SectionTitle
+        title={`Directors / Partners (${directors.length})`}
+        subtitle="People associated with this institute"
+      />
       <div className="space-y-8">
-        {directors.map((d, idx) => (
-          <div key={idx} className={idx > 0 ? "pt-8 border-t border-gray-100" : ""}>
-            <div className="flex items-center gap-3 mb-6">
-              <div className="w-12 h-12 rounded-xl bg-blue-600 flex items-center justify-center text-white font-bold text-lg shrink-0 shadow-sm">
-                {d.name?.[0]?.toUpperCase() || (idx + 1)}
+        {directors.map((d, idx) => {
+          // ✅ FIX: resolve doc values safely from d.documents — never from outer `legal`
+          const docs        = d.documents || {};
+          const panNo       = docs.panNo     || "";
+          const aadhaarNo   = docs.aadhaarNo || "";
+          const panDoc      = docs.panDoc    || null;   // saved path string or null
+          const aadhaarDoc  = docs.aadhaarDoc || null;
+
+          const hasDocSection = panNo || aadhaarNo || panDoc || aadhaarDoc;
+
+          const bank = d.bank || {};
+          const hasBankSection = bank.bankName || bank.accountNumber || bank.ifscCode;
+
+          const cur = d.currentAddress  || {};
+          const per = d.permanentAddress || {};
+          const hasAddressSection = cur.line1 || per.line1;
+
+          return (
+            <div key={idx} className={idx > 0 ? "pt-8 border-t border-gray-100" : ""}>
+              {/* Director header */}
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-12 h-12 rounded-xl bg-blue-600 flex items-center justify-center text-white font-bold text-lg shrink-0 shadow-sm">
+                  {d.name?.[0]?.toUpperCase() || (idx + 1)}
+                </div>
+                <div>
+                  <p className="font-bold text-gray-900 text-lg">
+                    {d.name ? fmt(d.name) : `Director ${idx + 1}`}
+                  </p>
+                  {d.email && <p className="text-sm text-gray-500">{d.email}</p>}
+                </div>
               </div>
-              <div>
-                <p className="font-bold text-gray-900 text-lg">{d.name ? fmt(d.name) : `Director ${idx + 1}`}</p>
-                {d.email && <p className="text-sm text-gray-500">{d.email}</p>}
+
+              <div className="bg-gray-50/50 p-6 rounded-xl border border-gray-50">
+
+                {/* Personal Details */}
+                <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-4 border-b border-gray-100 pb-3">
+                  Personal Details
+                </p>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-5">
+                  <InfoRow label="Email"           value={d.email} />
+                  <InfoRow label="Secondary Email" value={d.secondaryEmail} />
+                  <InfoRow label="Contact"         value={d.contact} />
+                  <InfoRow label="Mobile"          value={d.mobile} />
+                  <InfoRow label="WhatsApp"        value={d.whatsapp} />
+                  <InfoRow label="Gender"          value={d.gender} />
+                  <InfoRow label="Date of Birth"   value={d.dob} />
+                  <InfoRow label="% of Interest"   value={d.interest ? `${d.interest}%` : null} />
+                  <InfoRow label="Father's Name"   value={fmt(d.father)} />
+                  <InfoRow label="Spouse Name"     value={fmt(d.spouse)} />
+                  <InfoRow label="No. of Children" value={d.children} />
+                </div>
+
+                {/* Bank Details */}
+                {hasBankSection && (
+                  <>
+                    <LegalCat icon={CreditCard} label="Bank Details" />
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-4">
+                      <InfoRow label="Bank Name"      value={bank.bankName} />
+                      <InfoRow label="Account Number" value={bank.accountNumber} />
+                      <InfoRow label="IFSC Code"      value={bank.ifscCode} />
+                    </div>
+                  </>
+                )}
+
+                {/* Address */}
+                {hasAddressSection && (
+                  <>
+                    <LegalCat icon={MapPin} label="Address Information" />
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-8 gap-y-4">
+                      {cur.line1 && (
+                        <InfoRow
+                          label="Current Address"
+                          value={[cur.line1, cur.line2, fmt(cur.city), fmt(cur.state), cur.pin]
+                            .filter(Boolean).join(", ")}
+                        />
+                      )}
+                      {per.line1 && (
+                        <InfoRow
+                          label="Permanent Address"
+                          value={[per.line1, per.line2, fmt(per.city), fmt(per.state), per.pin]
+                            .filter(Boolean).join(", ")}
+                        />
+                      )}
+                    </div>
+                  </>
+                )}
+
+                {/* Identity Documents — ✅ uses d.documents values, NOT `legal` */}
+                {hasDocSection && (
+                  <>
+                    <LegalCat icon={FileText} label="Identity Documents" />
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-4">
+                      {/* ✅ DocRow receives the director's own panDoc / aadhaarDoc */}
+                      <DocRow label="PAN Card"     value={panNo}     doc={panDoc} />
+                      <DocRow label="Aadhaar Card" value={aadhaarNo} doc={aadhaarDoc} />
+                    </div>
+                  </>
+                )}
+
               </div>
             </div>
-
-            <div className="bg-gray-50/50 p-6 rounded-xl border border-gray-50">
-              <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-4 border-b border-gray-100 pb-3">Personal Details</p>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-5">
-                <InfoRow label="Email"           value={d.email} />
-                <InfoRow label="Contact"         value={d.contact} />
-                <InfoRow label="Mobile"          value={d.mobile} />
-                <InfoRow label="WhatsApp"        value={d.whatsapp} />
-                <InfoRow label="Gender"          value={d.gender} />
-                <InfoRow label="Date of Birth"   value={d.dob} />
-                <InfoRow label="% of Interest"   value={d.interest ? `${d.interest}%` : null} />
-                <InfoRow label="Father's Name"   value={fmt(d.father)} />
-                <InfoRow label="Spouse Name"     value={fmt(d.spouse)} />
-                <InfoRow label="No. of Children" value={d.children} />
-              </div>
-
-              {(d.bank?.bankName || d.bank?.accountNumber) && (
-                <>
-                  <LegalCat icon={CreditCard} label="Bank Details" />
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-4">
-                    <InfoRow label="Bank Name"      value={d.bank?.bankName} />
-                    <InfoRow label="Account Number" value={d.bank?.accountNumber} />
-                    <InfoRow label="IFSC Code"      value={d.bank?.ifscCode} />
-                  </div>
-                </>
-              )}
-
-              {(d.currentAddress?.line1 || d.permanentAddress?.line1) && (
-                <>
-                  <LegalCat icon={MapPin} label="Address Information" />
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-8 gap-y-4">
-                    {d.currentAddress?.line1 && (
-                      <InfoRow label="Current Address"
-                        value={[d.currentAddress.line1, d.currentAddress.line2, fmt(d.currentAddress.city), fmt(d.currentAddress.state), d.currentAddress.pin].filter(Boolean).join(", ")} />
-                    )}
-                    {d.permanentAddress?.line1 && (
-                      <InfoRow label="Permanent Address"
-                        value={[d.permanentAddress.line1, d.permanentAddress.line2, fmt(d.permanentAddress.city), fmt(d.permanentAddress.state), d.permanentAddress.pin].filter(Boolean).join(", ")} />
-                    )}
-                  </div>
-                </>
-              )}
-
-              {/* Director Documents — show as clickable links */}
-              {(d.documents?.panNo || d.documents?.aadhaarNo || d.documents?.panDoc || d.documents?.aadhaarDoc) && (
-                <>
-                  <LegalCat icon={FileText} label="Identity Documents" />
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-4">
-                    <DocRow label="PAN Card"    value={d.documents?.panNo}     doc={d.documents?.panDoc} />
-                    <DocRow label="Aadhaar Card" value={d.documents?.aadhaarNo} doc={d.documents?.aadhaarDoc} />
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
 };
 
-const LegalPanel = ({ legal }) => (
-  <div>
-    <SectionTitle title="Legal Documents" subtitle="Certificates, NOCs and compliance documents" />
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-4 bg-gray-50/50 p-6 rounded-xl border border-gray-50">
-
-      <LegalCat icon={Landmark}    label="Land & Building" />
-      <DocRow label="Property Deed"                   value={legal?.propertyDeed}         doc={legal?.propertyDeedDoc} />
-      <DocRow label="Building Approval"               value={legal?.buildingApproval}      doc={legal?.buildingApprovalDoc} />
-      <DocRow label="Building Completion Certificate" value={legal?.completionCertificate} doc={legal?.completionCertificateDoc} />
-
-      <LegalCat icon={ShieldCheck} label="No Objection Certificates" />
-      <DocRow label="Fire Department NOC"      value={legal?.fireNOC}          doc={legal?.fireNOCDoc} />
-      <DocRow label="Police NOC"               value={legal?.policeNOC}        doc={legal?.policeNOCDoc} />
-      <DocRow label="Municipality NOC"         value={legal?.municipalityNOC}  doc={legal?.municipalityNOCDoc} />
-      <DocRow label="Education Department NOC" value={legal?.educationDeptNOC} doc={legal?.educationDeptNOCDoc} />
-      <DocRow label="Pollution Control NOC"    value={legal?.pollutionNOC}     doc={legal?.pollutionNOCDoc} />
-
-      <LegalCat icon={Zap}         label="Infrastructure & Safety" />
-      <DocRow label="Water Connection"       value={legal?.waterConnection}       doc={legal?.waterConnectionDoc} />
-      <DocRow label="Electricity Connection" value={legal?.electricityConnection} doc={legal?.electricityConnectionDoc} />
-      <DocRow label="Safety Audit Report"    value={legal?.safetyAudit}           doc={legal?.safetyAuditDoc} />
-      <DocRow label="Drainage System"        value={legal?.drainageSystem}        doc={legal?.drainageSystemDoc} />
-
-      <LegalCat icon={CreditCard}  label="Financial & Administrative" />
-      <DocRow label="PAN Number"                value={legal?.panNo}       doc={legal?.panNoDoc} />
-      <DocRow label="GSTIN"                     value={legal?.gstinNo}     doc={legal?.gstinNoDoc} />
-      <DocRow label="Bank Account"              value={legal?.bankAccount} doc={legal?.bankAccountDoc} />
-      <DocRow label="Trust Deed / Society Reg." value={legal?.trustDeed}   doc={legal?.trustDeedDoc} />
-
-      <LegalCat icon={BookOpen}    label="Education Registration & Affiliation" />
-      <DocRow label="DISE Code"                     value={legal?.diseCode}               doc={legal?.diseCodeDoc} />
-      <DocRow label="Provisional Recognition"       value={legal?.provisionalRecognition} doc={legal?.provisionalRecognitionDoc} />
-      <DocRow label="Board Affiliation Certificate" value={legal?.affiliation}            doc={legal?.affiliationDoc} />
-
-      <LegalCat icon={ScrollText}  label="Mandatory Policies" />
-      <DocRow label="Child Protection Policy" value={legal?.childProtectionPolicy} doc={legal?.childProtectionPolicyDoc} />
-      <DocRow label="Harassment Prevention"   value={legal?.harassmentPolicy}      doc={legal?.harassmentPolicyDoc} />
-      <DocRow label="Admission Policy"        value={legal?.admissionPolicy}       doc={legal?.admissionPolicyDoc} />
-      <DocRow label="Fee Structure Document"  value={legal?.feeStructure}          doc={legal?.feeStructureDoc} />
+// ── LegalPanel — FIXED: panNoDoc → panDoc ────────────────────────────────────
+const LegalPanel = ({ legal }) => {
+  if (!legal) return (
+    <div>
+      <SectionTitle title="Legal Documents" subtitle="Certificates, NOCs and compliance documents" />
+      <div className="text-center py-16 bg-gray-50 rounded-xl border border-dashed border-gray-200">
+        <FileText size={40} className="mx-auto mb-3 text-gray-300" />
+        <p className="text-gray-500 font-medium">No legal documents found.</p>
+      </div>
     </div>
-  </div>
-);
+  );
+
+  return (
+    <div>
+      <SectionTitle title="Legal Documents" subtitle="Certificates, NOCs and compliance documents" />
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-4 bg-gray-50/50 p-6 rounded-xl border border-gray-50">
+
+        <LegalCat icon={Landmark} label="Land & Building" />
+        <DocRow label="Property Deed"                   value={legal?.propertyDeed}         doc={legal?.propertyDeedDoc} />
+        <DocRow label="Building Approval"               value={legal?.buildingApproval}      doc={legal?.buildingApprovalDoc} />
+        <DocRow label="Building Completion Certificate" value={legal?.completionCertificate} doc={legal?.completionCertificateDoc} />
+
+        <LegalCat icon={ShieldCheck} label="No Objection Certificates" />
+        <DocRow label="Fire Department NOC"      value={legal?.fireNOC}          doc={legal?.fireNOCDoc} />
+        <DocRow label="Police NOC"               value={legal?.policeNOC}        doc={legal?.policeNOCDoc} />
+        <DocRow label="Municipality NOC"         value={legal?.municipalityNOC}  doc={legal?.municipalityNOCDoc} />
+        <DocRow label="Education Department NOC" value={legal?.educationDeptNOC} doc={legal?.educationDeptNOCDoc} />
+        <DocRow label="Pollution Control NOC"    value={legal?.pollutionNOC}     doc={legal?.pollutionNOCDoc} />
+
+        <LegalCat icon={Zap} label="Infrastructure & Safety" />
+        <DocRow label="Water Connection"         value={legal?.waterConnection}       doc={legal?.waterConnectionDoc} />
+        <DocRow label="Electricity Connection"   value={legal?.electricityConnection} doc={legal?.electricityConnectionDoc} />
+        <DocRow label="Safety Audit Report"      value={legal?.safetyAudit}           doc={legal?.safetyAuditDoc} />
+        <DocRow label="Drainage System"          value={legal?.drainageSystem}        doc={legal?.drainageSystemDoc} />
+
+        <LegalCat icon={CreditCard} label="Financial & Administrative" />
+        {/* ✅ FIXED: was panNoDoc — correct field name is panDoc */}
+        <DocRow label="PAN Number"                value={legal?.panNo}       doc={legal?.panDoc} />
+        <DocRow label="GSTIN"                     value={legal?.gstinNo}     doc={legal?.gstinNoDoc} />
+        <DocRow label="Bank Account"              value={legal?.bankAccount} doc={legal?.bankAccountDoc} />
+        <DocRow label="Trust Deed / Society Reg." value={legal?.trustDeed}   doc={legal?.trustDeedDoc} />
+
+        <LegalCat icon={BookOpen} label="Education Registration & Affiliation" />
+        <DocRow label="DISE Code"                     value={legal?.diseCode}               doc={legal?.diseCodeDoc} />
+        <DocRow label="Provisional Recognition"       value={legal?.provisionalRecognition} doc={legal?.provisionalRecognitionDoc} />
+        <DocRow label="Board Affiliation Certificate" value={legal?.affiliation}            doc={legal?.affiliationDoc} />
+
+        <LegalCat icon={ScrollText} label="Mandatory Policies" />
+        <DocRow label="Child Protection Policy" value={legal?.childProtectionPolicy} doc={legal?.childProtectionPolicyDoc} />
+        <DocRow label="Harassment Prevention"   value={legal?.harassmentPolicy}      doc={legal?.harassmentPolicyDoc} />
+        <DocRow label="Admission Policy"        value={legal?.admissionPolicy}       doc={legal?.admissionPolicyDoc} />
+        <DocRow label="Fee Structure Document"  value={legal?.feeStructure}          doc={legal?.feeStructureDoc} />
+      </div>
+    </div>
+  );
+};
 
 const BranchesPanel = ({ branches }) => {
   if (!branches || branches.length === 0) return (
@@ -291,14 +341,20 @@ const BranchesPanel = ({ branches }) => {
       </div>
     </div>
   );
+
   return (
     <div>
-      <SectionTitle title={`Branch Locations (${branches.length})`} subtitle="All registered branch offices" />
+      <SectionTitle
+        title={`Branch Locations (${branches.length})`}
+        subtitle="All registered branch offices"
+      />
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {branches.map((b, idx) => (
           <div key={idx} className="border border-gray-100 rounded-xl overflow-hidden hover:shadow-md transition-shadow bg-white">
             <div className="flex items-center justify-between px-6 py-4 bg-gray-50/80 border-b border-gray-100">
-              <p className="font-bold text-gray-900 text-base">{b.name ? fmt(b.name) : `Branch ${idx + 1}`}</p>
+              <p className="font-bold text-gray-900 text-base">
+                {b.name ? fmt(b.name) : `Branch ${idx + 1}`}
+              </p>
               {b.shortName && (
                 <span className="text-xs font-black bg-blue-600 text-white px-3 py-1 rounded-lg tracking-wider">
                   {b.shortName.toUpperCase()}
@@ -311,8 +367,11 @@ const BranchesPanel = ({ branches }) => {
               <InfoRow label="Email"          value={b.email} />
               <InfoRow label="GSTIN"          value={b.gstin} />
               <div className="sm:col-span-2">
-                <InfoRow label="Address"
-                  value={[b.address1, b.address2, fmt(b.city), fmt(b.state), b.pin].filter(Boolean).join(", ")} />
+                <InfoRow
+                  label="Address"
+                  value={[b.address1, b.address2, fmt(b.city), fmt(b.state), b.pin]
+                    .filter(Boolean).join(", ")}
+                />
               </div>
             </div>
           </div>
@@ -337,7 +396,6 @@ export default function Institute() {
       try {
         const user = JSON.parse(localStorage.getItem("user") || "{}");
 
-        // Resolve institute code — backend login saves it as 'code'
         const instituteId =
           user?.code           ||
           user?.institute_code ||
@@ -352,7 +410,6 @@ export default function Institute() {
           return;
         }
 
-        // Use the shared api instance — handles auth cookies automatically
         const res  = await api.get(`/admin/institutes/${instituteId}/full-details`);
         const json = res.data;
 
@@ -368,13 +425,12 @@ export default function Institute() {
           createdAt: data.created_at
             ? new Date(data.created_at).toLocaleDateString("en-IN")
             : "—",
-
-          // All data entered by SuperAdmin during institute creation
           organisation: org,
-          directors:    Array.isArray(safeParseJSON(data.directors)) ? safeParseJSON(data.directors) : [],
+          directors:    Array.isArray(safeParseJSON(data.directors))
+            ? safeParseJSON(data.directors) : [],
           legal:        safeParseJSON(data.legal)   || {},
-          branches:     Array.isArray(safeParseJSON(data.branches))  ? safeParseJSON(data.branches)  : [],
-
+          branches:     Array.isArray(safeParseJSON(data.branches))
+            ? safeParseJSON(data.branches)  : [],
           totalStudents: data.totalStudents || 0,
           totalFaculty:  data.totalFaculty  || 0,
           totalBatches:  data.totalBatches  || 0,
@@ -382,14 +438,11 @@ export default function Institute() {
 
       } catch (err) {
         console.error("❌ Institute fetch error:", err);
-
-        // If the token is rejected, wipe session and redirect
         if (err.response?.status === 401) {
           localStorage.clear();
           window.location.href = "/login";
           return;
         }
-
         setError(err.response?.data?.message || err.message || "Something went wrong.");
       } finally {
         setLoading(false);
@@ -399,7 +452,6 @@ export default function Institute() {
     fetchInstitute();
   }, []);
 
-  // ── Loading ──
   if (loading) return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center">
       <div className="text-center text-gray-400">
@@ -409,7 +461,6 @@ export default function Institute() {
     </div>
   );
 
-  // ── Error ──
   if (error) return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center">
       <div className="text-center max-w-md px-4">
@@ -420,7 +471,6 @@ export default function Institute() {
     </div>
   );
 
-  // ── Empty ──
   if (!institute) return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center">
       <div className="text-center text-gray-400 max-w-sm">
@@ -431,10 +481,7 @@ export default function Institute() {
     </div>
   );
 
-  const org       = institute.organisation;
-  const directors = institute.directors;
-  const legal     = institute.legal;
-  const branches  = institute.branches;
+  const { organisation: org, directors, legal, branches } = institute;
 
   const counts = {
     organisation: 0,
@@ -476,10 +523,10 @@ export default function Institute() {
         {/* ── QUICK STATS ── */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {[
-            { label: "Directors", value: directors.length,             icon: Users     },
-            { label: "Branches",  value: branches.length,              icon: GitBranch },
-            { label: "Students",  value: institute.totalStudents || 0, icon: Users     },
-            { label: "Faculty",   value: institute.totalFaculty  || 0, icon: Calendar  },
+            { label: "Directors", value: directors.length,              icon: Users     },
+            { label: "Branches",  value: branches.length,               icon: GitBranch },
+            { label: "Students",  value: institute.totalStudents || 0,  icon: Users     },
+            { label: "Faculty",   value: institute.totalFaculty  || 0,  icon: Calendar  },
           ].map((stat) => (
             <div key={stat.label} className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center shrink-0">
