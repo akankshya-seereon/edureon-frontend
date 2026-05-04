@@ -10,20 +10,33 @@ export const adminService = {
     return response.data;
   },
 
-  // 👇 NEW: Added this to fetch the full profile data 👇
   getInstituteById: async (id) => {
     const response = await api.get(`/superadmin/institutes/${id}`);
     return response.data;
   },
 
   createInstitute: async (instituteData) => {
-    // This sends the full JSON form data to your backend
-    const response = await api.post('/superadmin/institutes', instituteData);
+    // 🚀 CRITICAL FIXES FOR 401 & FILE UPLOADS:
+    // 1. Check if you are storing the token in local storage
+    const token = localStorage.getItem('token'); 
+
+    const config = {
+      headers: {
+        // Tell the backend to expect physical files
+        'Content-Type': 'multipart/form-data',
+        // If you use LocalStorage, send it here:
+        ...(token && { 'Authorization': `Bearer ${token}` }) 
+      },
+      // If you use HTTP-Only Cookies (which your backend supports), force Axios to send them:
+      withCredentials: true 
+    };
+
+    // Pass the config object as the third argument
+    const response = await api.post('/superadmin/institutes', instituteData, config);
     return response.data;
   },
 
   updateInstituteStatus: async (id, isActive) => {
-    // FIXED: Changed { status } to { is_active: isActive } to match backend controller!
     const response = await api.patch(`/superadmin/institutes/${id}/status`, { 
       is_active: isActive 
     });

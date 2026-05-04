@@ -2,7 +2,6 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ChevronLeft, Plus, Trash2, Upload, AlertCircle, CheckCircle2 } from "lucide-react";
 import { adminService } from "../../../services/adminService";
-// import apiBaseUrl from "../../../config/baseurl"; // Uncomment if needed in submission logic
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -132,6 +131,7 @@ export default function InstituteForm() {
   const [form, setForm] = useState({
     organisation: {
       name: "", phone: "", altPhone: "", email: "", secondaryEmail: "",
+      password: "", // 🚀 ADDED PASSWORD STATE
       address1: "", address2: "", city: "", state: "", pin: "",
       headOffice: "", type: "",
     },
@@ -195,7 +195,7 @@ export default function InstituteForm() {
       // Update the specific nested field
       d[idx] = { ...d[idx], [section]: { ...d[idx][section], [field]: value } };
       
-      // FIX: Keep permanent address synced if the user modifies current address while checkbox is active
+      // Keep permanent address synced if the user modifies current address while checkbox is active
       if (section === "currentAddress" && d[idx].sameAddress) {
         d[idx].permanentAddress = { ...d[idx].currentAddress };
       }
@@ -271,6 +271,11 @@ export default function InstituteForm() {
       if (!o.email.trim())              newErrors.org_email      = "Email address is required";
       else if (!isValidEmail(o.email))  newErrors.org_email      = "Enter a valid email address";
       if (o.secondaryEmail && !isValidEmail(o.secondaryEmail)) newErrors.org_secondaryEmail = "Enter a valid email address";
+      
+      // 🚀 ADDED PASSWORD VALIDATION
+      if (!o.password.trim())           newErrors.org_password   = "Admin Login Password is required";
+      else if (o.password.length < 6)   newErrors.org_password   = "Password must be at least 6 characters";
+
       if (!o.address1.trim())           newErrors.org_address1   = "Address line 1 is required";
       if (!o.city.trim())               newErrors.org_city       = "City is required";
       if (!o.state)                     newErrors.org_state      = "State is required";
@@ -325,7 +330,7 @@ export default function InstituteForm() {
       const l = form.legal;
       if (!l.panNo.trim())              newErrors.legal_panNo      = "PAN number is required";
       else if (!isValidPAN(l.panNo))    newErrors.legal_panNo      = "Invalid PAN format";
-      if (!l.panNoDoc)                  newErrors.legal_panNoDoc   = "PAN document is required";
+      if (!l.panDoc)                    newErrors.legal_panDoc     = "PAN document is required"; // FIXED: panDoc
       
       if (l.gstinNo && !isValidGSTIN(l.gstinNo)) newErrors.legal_gstinNo = "Invalid GSTIN format";
       
@@ -384,18 +389,32 @@ export default function InstituteForm() {
   const submit = async () => {
     setIsSubmitting(true);
     try {
-      const payload = {
-        name: form.organisation.name,
-        email: form.organisation.email,
-        phone: form.organisation.phone,
-        code: form.organisation.name.substring(0, 3).toUpperCase() + (form.organisation.pin || "000"), 
-        organisation: form.organisation,
-        directors: form.directors,
-        legal: form.legal,
-        branches: hasBranch ? form.branches : []
-      };
+      // 🚀 CRITICAL FIX: Use FormData for physical file uploads
+      const formData = new FormData();
 
-      const response = await adminService.createInstitute(payload);
+      // Append Legal Files
+      for (const [key, value] of Object.entries(form.legal)) {
+        if (value instanceof File) {
+          formData.append(`legal_${key}`, value);
+        }
+      }
+
+      // Append Director Files
+      form.directors.forEach((director, idx) => {
+        for (const [key, value] of Object.entries(director.documents)) {
+          if (value instanceof File) {
+            formData.append(`director_${idx}_${key}`, value);
+          }
+        }
+      });
+
+      // Append JSON strings (will safely ignore the actual File objects inside them)
+      formData.append("organisation", JSON.stringify(form.organisation));
+      formData.append("directors", JSON.stringify(form.directors));
+      formData.append("legal", JSON.stringify(form.legal));
+      formData.append("branches", JSON.stringify(hasBranch ? form.branches : []));
+
+      const response = await adminService.createInstitute(formData);
 
       if (response && response.success) {
         setSubmitSuccess(true);
@@ -514,6 +533,14 @@ export default function InstituteForm() {
                   <Input type="email" value={form.organisation.secondaryEmail} onChange={e => updateOrg("secondaryEmail", e.target.value)}
                     placeholder="admin@sunshine.edu.in" error={displayErrors.org_secondaryEmail} />
                   <FieldError msg={displayErrors.org_secondaryEmail} />
+                </div>
+
+                {/* 🚀 PASSWORD FIELD ADDED HERE */}
+                <div>
+                  <RequiredLabel hint="min 6 chars">Admin Login Password</RequiredLabel>
+                  <Input type="text" value={form.organisation.password} onChange={e => updateOrg("password", e.target.value)}
+                    placeholder="Set initial password" error={displayErrors.org_password} />
+                  <FieldError msg={displayErrors.org_password} />
                 </div>
 
                 <div>
@@ -906,10 +933,9 @@ export default function InstituteForm() {
                 <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wide border-l-4 border-gray-400 pl-3">Financial & Administrative</h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <DocumentCard label="PAN Number" required numberLabel="PAN" numberHint="e.g. ABCDE1234F" numberValue={form.legal.panNo}
-                    onNumberChange={e => updateLegal("panNo", e.target.value.toUpperCase())} onFileChange={e => updateLegal("panNoDoc", e.target.files?.[0] || null)}
-                    numberPlaceholder="ABCDE1234F" error={displayErrors.legal_panNo} fileError={displayErrors.legal_panNoDoc} />
+                    onNumberChange={e => updateLegal("panNo", e.target.value.toUpperCase())} onFileChange={e => updateLegal("panDoc", e.target.files?.[0] || null)}
+                    numberPlaceholder="ABCDE1234F" error={displayErrors.legal_panNo} fileError={displayErrors.legal_panDoc} />
                   
-                  {/* FIXED: gstinDoc mapped correctly to gstinNoDoc */}
                   <div className="border border-gray-200 rounded-xl p-4 bg-white">
                     <label className="block text-sm font-semibold text-gray-700 mb-3">
                       GSTIN Number <span className="text-xs text-gray-400 font-normal">(optional)</span>
@@ -918,7 +944,7 @@ export default function InstituteForm() {
                       placeholder="22ABCDE1234F1Z5" error={displayErrors.legal_gstinNo} />
                     <FieldError msg={displayErrors.legal_gstinNo} />
                     <p className="text-xs text-gray-500 mt-2 mb-1">Upload Document</p>
-                    <input type="file" accept=".pdf,.jpg,.jpeg,.png" onChange={e => updateLegal("gstinNoDoc", e.target.files?.[0] || null)}
+                    <input type="file" accept=".pdf,.jpg,.jpeg,.png" onChange={e => updateLegal("gstinDoc", e.target.files?.[0] || null)}
                       className="w-full text-xs file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 border border-gray-300 rounded-lg p-1.5" />
                   </div>
 
@@ -935,7 +961,7 @@ export default function InstituteForm() {
                 <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wide border-l-4 border-blue-500 pl-3">Education Registration & Affiliation</h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <DocumentCard label="DISE Code" numberLabel="DISE Code" numberValue={form.legal.diseCode}
-                    onNumberChange={e => updateLegal("diseCode", e.target.value)} onFileChange={e => updateLegal("diseCodeDoc", e.target.files?.[0] || null)}
+                    onNumberChange={e => updateLegal("diseCode", e.target.value)} onFileChange={e => updateLegal("disecodeDoc", e.target.files?.[0] || null)}
                     numberPlaceholder="DISE code" />
                   <DocumentCard label="Provisional Recognition Certificate" numberLabel="Certificate Number" numberValue={form.legal.provisionalRecognition}
                     onNumberChange={e => updateLegal("provisionalRecognition", e.target.value)} onFileChange={e => updateLegal("provisionalRecognitionDoc", e.target.files?.[0] || null)}
@@ -1025,7 +1051,7 @@ export default function InstituteForm() {
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                         <div>
                           <RequiredLabel>State</RequiredLabel>
                           <Select value={branch.state} onChange={e => updateBranch(branchIdx, "state", e.target.value)} error={displayErrors[`br${branchIdx}_state`]}>
@@ -1040,13 +1066,13 @@ export default function InstituteForm() {
                             placeholder="22ABCDE1234F1Z5" error={displayErrors[`br${branchIdx}_gstin`]} />
                           <FieldError msg={displayErrors[`br${branchIdx}_gstin`]} />
                         </div>
-                        <div className="sm:col-span-2">
+                        <div className="sm:col-span-2 lg:col-span-1">
                           <RequiredLabel>Address Line 1</RequiredLabel>
                           <Input value={branch.address1} onChange={e => updateBranch(branchIdx, "address1", e.target.value)}
                             placeholder="Building / Street" error={displayErrors[`br${branchIdx}_address1`]} />
                           <FieldError msg={displayErrors[`br${branchIdx}_address1`]} />
                         </div>
-                        <div className="sm:col-span-2">
+                        <div className="sm:col-span-2 lg:col-span-3">
                           <OptionalLabel>Address Line 2</OptionalLabel>
                           <Input value={branch.address2} onChange={e => updateBranch(branchIdx, "address2", e.target.value)}
                             placeholder="Area / Landmark" />

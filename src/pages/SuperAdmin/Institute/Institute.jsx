@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom"; // 🚀 1. IMPORTED useNavigate
 import {
   Building2, Users, FileText, GitBranch,
   MapPin, Landmark, ShieldCheck, Zap,
@@ -300,6 +301,7 @@ const BranchesPanel = ({ branches }) => {
 // ══════════════════════════════════════════════════════════════════════════════
 
 export default function Institute() {
+  const navigate = useNavigate(); // 🚀 2. INITIALIZED useNavigate
   const [institute, setInstitute] = useState(null);
   
   // States for SuperAdmin flows
@@ -463,7 +465,8 @@ export default function Institute() {
                 <input type="text" placeholder="Search institutes..." className="pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none w-64" />
               </div>
               <button 
-                onClick={() => alert("Route to Add Institute flow")} 
+                // 🚀 3. FIXED onClick to navigate to the form's route
+                onClick={() => navigate("/super-admin/institutes/create")} 
                 className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-blue-700 transition shadow-md shadow-blue-200"
               >
                 <Plus size={16} /> Add New Institute
