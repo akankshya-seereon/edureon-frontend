@@ -2,8 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ChevronLeft, Plus, Trash2, Upload, AlertCircle, CheckCircle2 } from "lucide-react";
 import { adminService } from "../../../services/adminService";
-import apiBaseUrl from "../../../config/baseurl";
-
+// import apiBaseUrl from "../../../config/baseurl"; // Uncomment if needed in submission logic
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -193,7 +192,14 @@ export default function InstituteForm() {
   const updateDirectorNested = (idx, section, field, value) => {
     setForm(f => {
       const d = [...f.directors];
+      // Update the specific nested field
       d[idx] = { ...d[idx], [section]: { ...d[idx][section], [field]: value } };
+      
+      // FIX: Keep permanent address synced if the user modifies current address while checkbox is active
+      if (section === "currentAddress" && d[idx].sameAddress) {
+        d[idx].permanentAddress = { ...d[idx].currentAddress };
+      }
+      
       return { ...f, directors: d };
     });
     setErrors(e => ({ ...e, [`dir${idx}_${section}_${field}`]: "" }));
@@ -285,11 +291,13 @@ export default function InstituteForm() {
         if (d.whatsapp && !isValidPhone(d.whatsapp)) newErrors[`dir${i}_whatsapp`] = "Enter a valid 10-digit number";
         if (!d.gender)                     newErrors[`dir${i}_gender`]  = "Gender is required";
         if (!d.dob)                        newErrors[`dir${i}_dob`]     = "Date of birth is required";
+        
         if (!d.currentAddress.line1.trim()) newErrors[`dir${i}_currentAddress_line1`] = "Address is required";
         if (!d.currentAddress.city.trim())  newErrors[`dir${i}_currentAddress_city`]  = "City is required";
         if (!d.currentAddress.state)        newErrors[`dir${i}_currentAddress_state`] = "State is required";
         if (!d.currentAddress.pin.trim())   newErrors[`dir${i}_currentAddress_pin`]   = "PIN is required";
         else if (!isValidPIN(d.currentAddress.pin)) newErrors[`dir${i}_currentAddress_pin`] = "PIN must be 6 digits";
+        
         if (!d.sameAddress) {
           if (!d.permanentAddress.line1.trim()) newErrors[`dir${i}_permanentAddress_line1`] = "Address is required";
           if (!d.permanentAddress.city.trim())  newErrors[`dir${i}_permanentAddress_city`]  = "City is required";
@@ -297,12 +305,15 @@ export default function InstituteForm() {
           if (!d.permanentAddress.pin.trim())   newErrors[`dir${i}_permanentAddress_pin`]   = "PIN is required";
           else if (!isValidPIN(d.permanentAddress.pin)) newErrors[`dir${i}_permanentAddress_pin`] = "PIN must be 6 digits";
         }
+        
         if (!d.documents.panNo.trim())               newErrors[`dir${i}_documents_panNo`]     = "PAN number is required";
         else if (!isValidPAN(d.documents.panNo))     newErrors[`dir${i}_documents_panNo`]     = "Invalid PAN format (e.g. ABCDE1234F)";
         if (!d.documents.panDoc)                     newErrors[`dir${i}_documents_panDoc`]    = "PAN document is required";
+        
         if (!d.documents.aadhaarNo.trim())           newErrors[`dir${i}_documents_aadhaarNo`] = "Aadhaar number is required";
         else if (!isValidAadhaar(d.documents.aadhaarNo)) newErrors[`dir${i}_documents_aadhaarNo`] = "Aadhaar must be 12 digits";
         if (!d.documents.aadhaarDoc)                 newErrors[`dir${i}_documents_aadhaarDoc`] = "Aadhaar document is required";
+        
         if (!d.bank.bankName.trim())        newErrors[`dir${i}_bank_bankName`]      = "Bank name is required";
         if (!d.bank.accountNumber.trim())   newErrors[`dir${i}_bank_accountNumber`] = "Account number is required";
         if (!d.bank.ifscCode.trim())        newErrors[`dir${i}_bank_ifscCode`]      = "IFSC code is required";
@@ -315,11 +326,15 @@ export default function InstituteForm() {
       if (!l.panNo.trim())              newErrors.legal_panNo      = "PAN number is required";
       else if (!isValidPAN(l.panNo))    newErrors.legal_panNo      = "Invalid PAN format";
       if (!l.panNoDoc)                  newErrors.legal_panNoDoc   = "PAN document is required";
+      
       if (l.gstinNo && !isValidGSTIN(l.gstinNo)) newErrors.legal_gstinNo = "Invalid GSTIN format";
+      
       if (!l.bankAccount.trim())        newErrors.legal_bankAccount    = "Bank account number is required";
       if (!l.bankAccountDoc)            newErrors.legal_bankAccountDoc = "Bank account document is required";
+      
       if (!l.trustDeed.trim())          newErrors.legal_trustDeed      = "Trust Deed / Society registration number is required";
       if (!l.trustDeedDoc)              newErrors.legal_trustDeedDoc   = "Trust Deed document is required";
+      
       if (!l.fireNOC.trim())            newErrors.legal_fireNOC        = "Fire NOC number is required";
       if (!l.fireNOCDoc)                newErrors.legal_fireNOCDoc     = "Fire NOC document is required";
     }
@@ -369,31 +384,21 @@ export default function InstituteForm() {
   const submit = async () => {
     setIsSubmitting(true);
     try {
-      // 1. Prepare the payload to match what your backend controller expects
       const payload = {
         name: form.organisation.name,
         email: form.organisation.email,
         phone: form.organisation.phone,
-        // Generate a quick code (e.g. first 3 letters + PIN) like 'SUN751030'
         code: form.organisation.name.substring(0, 3).toUpperCase() + (form.organisation.pin || "000"), 
-        
-        // Pass the full objects so your backend can save them into the JSON columns
-        // (Note: File objects within these structures will generally be stripped or ignored 
-        // by standard JSON serialization. For true file uploads, a FormData approach is needed).
         organisation: form.organisation,
         directors: form.directors,
         legal: form.legal,
         branches: hasBranch ? form.branches : []
       };
 
-      // 2. Make the actual API call to your Node.js backend
       const response = await adminService.createInstitute(payload);
 
       if (response && response.success) {
         setSubmitSuccess(true);
-        console.log("✅ Institute saved to database!");
-
-        // Navigate back to the master list after showing the success banner
         setTimeout(() => {
           navigate("/super-admin/institutes");
         }, 1500);
@@ -476,7 +481,6 @@ export default function InstituteForm() {
               <h2 className="text-xl font-semibold text-gray-800 pb-3 border-b border-gray-100">Basic Details</h2>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-
                 <div>
                   <RequiredLabel>Registered Name</RequiredLabel>
                   <Input value={form.organisation.name} onChange={e => updateOrg("name", e.target.value)}
@@ -486,14 +490,14 @@ export default function InstituteForm() {
 
                 <div>
                   <RequiredLabel hint="10-digit mobile">Phone Number</RequiredLabel>
-                  <Input type="tel" value={form.organisation.phone} onChange={e => updateOrg("phone", e.target.value)}
+                  <Input type="tel" value={form.organisation.phone} onChange={e => updateOrg("phone", e.target.value.replace(/\D/g, ""))}
                     placeholder="9876543210" maxLength={10} error={displayErrors.org_phone} />
                   <FieldError msg={displayErrors.org_phone} />
                 </div>
 
                 <div>
                   <RequiredLabel hint="10-digit mobile">Alternate Phone</RequiredLabel>
-                  <Input type="tel" value={form.organisation.altPhone} onChange={e => updateOrg("altPhone", e.target.value)}
+                  <Input type="tel" value={form.organisation.altPhone} onChange={e => updateOrg("altPhone", e.target.value.replace(/\D/g, ""))}
                     placeholder="9876543210" maxLength={10} error={displayErrors.org_altPhone} />
                   <FieldError msg={displayErrors.org_altPhone} />
                 </div>
@@ -555,7 +559,7 @@ export default function InstituteForm() {
 
                 <div>
                   <RequiredLabel hint="6 digits">PIN Code</RequiredLabel>
-                  <Input value={form.organisation.pin} onChange={e => updateOrg("pin", e.target.value)}
+                  <Input value={form.organisation.pin} onChange={e => updateOrg("pin", e.target.value.replace(/\D/g, ""))}
                     placeholder="751001" maxLength={6} error={displayErrors.org_pin} />
                   <FieldError msg={displayErrors.org_pin} />
                 </div>
@@ -609,19 +613,19 @@ export default function InstituteForm() {
                       </div>
                       <div>
                         <RequiredLabel hint="10-digit">Contact Number</RequiredLabel>
-                        <Input type="tel" value={director.contact} onChange={e => updateDirector(dirIdx, "contact", e.target.value)}
+                        <Input type="tel" value={director.contact} onChange={e => updateDirector(dirIdx, "contact", e.target.value.replace(/\D/g, ""))}
                           placeholder="9876543210" maxLength={10} error={displayErrors[`dir${dirIdx}_contact`]} />
                         <FieldError msg={displayErrors[`dir${dirIdx}_contact`]} />
                       </div>
                       <div>
                         <OptionalLabel>Mobile Number</OptionalLabel>
-                        <Input type="tel" value={director.mobile} onChange={e => updateDirector(dirIdx, "mobile", e.target.value)}
+                        <Input type="tel" value={director.mobile} onChange={e => updateDirector(dirIdx, "mobile", e.target.value.replace(/\D/g, ""))}
                           placeholder="9876543210" maxLength={10} error={displayErrors[`dir${dirIdx}_mobile`]} />
                         <FieldError msg={displayErrors[`dir${dirIdx}_mobile`]} />
                       </div>
                       <div>
                         <OptionalLabel>WhatsApp Number</OptionalLabel>
-                        <Input type="tel" value={director.whatsapp} onChange={e => updateDirector(dirIdx, "whatsapp", e.target.value)}
+                        <Input type="tel" value={director.whatsapp} onChange={e => updateDirector(dirIdx, "whatsapp", e.target.value.replace(/\D/g, ""))}
                           placeholder="9876543210" maxLength={10} error={displayErrors[`dir${dirIdx}_whatsapp`]} />
                         <FieldError msg={displayErrors[`dir${dirIdx}_whatsapp`]} />
                       </div>
@@ -699,7 +703,7 @@ export default function InstituteForm() {
                       <div>
                         <RequiredLabel hint="6 digits">PIN Code</RequiredLabel>
                         <Input value={director.currentAddress.pin}
-                          onChange={e => updateDirectorNested(dirIdx, "currentAddress", "pin", e.target.value)}
+                          onChange={e => updateDirectorNested(dirIdx, "currentAddress", "pin", e.target.value.replace(/\D/g, ""))}
                           placeholder="751001" maxLength={6} error={displayErrors[`dir${dirIdx}_currentAddress_pin`]} />
                         <FieldError msg={displayErrors[`dir${dirIdx}_currentAddress_pin`]} />
                       </div>
@@ -752,7 +756,7 @@ export default function InstituteForm() {
                         <div>
                           <RequiredLabel hint="6 digits">PIN Code</RequiredLabel>
                           <Input value={director.permanentAddress.pin}
-                            onChange={e => updateDirectorNested(dirIdx, "permanentAddress", "pin", e.target.value)}
+                            onChange={e => updateDirectorNested(dirIdx, "permanentAddress", "pin", e.target.value.replace(/\D/g, ""))}
                             placeholder="751001" maxLength={6} error={displayErrors[`dir${dirIdx}_permanentAddress_pin`]} />
                           <FieldError msg={displayErrors[`dir${dirIdx}_permanentAddress_pin`]} />
                         </div>
@@ -816,7 +820,7 @@ export default function InstituteForm() {
                       <div>
                         <RequiredLabel>Account Number</RequiredLabel>
                         <Input value={director.bank.accountNumber}
-                          onChange={e => updateDirectorNested(dirIdx, "bank", "accountNumber", e.target.value)}
+                          onChange={e => updateDirectorNested(dirIdx, "bank", "accountNumber", e.target.value.replace(/\D/g, ""))}
                           placeholder="123456789012" error={displayErrors[`dir${dirIdx}_bank_accountNumber`]} />
                         <FieldError msg={displayErrors[`dir${dirIdx}_bank_accountNumber`]} />
                       </div>
@@ -904,6 +908,8 @@ export default function InstituteForm() {
                   <DocumentCard label="PAN Number" required numberLabel="PAN" numberHint="e.g. ABCDE1234F" numberValue={form.legal.panNo}
                     onNumberChange={e => updateLegal("panNo", e.target.value.toUpperCase())} onFileChange={e => updateLegal("panNoDoc", e.target.files?.[0] || null)}
                     numberPlaceholder="ABCDE1234F" error={displayErrors.legal_panNo} fileError={displayErrors.legal_panNoDoc} />
+                  
+                  {/* FIXED: gstinDoc mapped correctly to gstinNoDoc */}
                   <div className="border border-gray-200 rounded-xl p-4 bg-white">
                     <label className="block text-sm font-semibold text-gray-700 mb-3">
                       GSTIN Number <span className="text-xs text-gray-400 font-normal">(optional)</span>
@@ -912,11 +918,12 @@ export default function InstituteForm() {
                       placeholder="22ABCDE1234F1Z5" error={displayErrors.legal_gstinNo} />
                     <FieldError msg={displayErrors.legal_gstinNo} />
                     <p className="text-xs text-gray-500 mt-2 mb-1">Upload Document</p>
-                    <input type="file" accept=".pdf,.jpg,.jpeg,.png" onChange={e => updateLegal("gstinDoc", e.target.files?.[0] || null)}
+                    <input type="file" accept=".pdf,.jpg,.jpeg,.png" onChange={e => updateLegal("gstinNoDoc", e.target.files?.[0] || null)}
                       className="w-full text-xs file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 border border-gray-300 rounded-lg p-1.5" />
                   </div>
+
                   <DocumentCard label="Bank Account Certificate" required numberLabel="Account Number" numberValue={form.legal.bankAccount}
-                    onNumberChange={e => updateLegal("bankAccount", e.target.value)} onFileChange={e => updateLegal("bankAccountDoc", e.target.files?.[0] || null)}
+                    onNumberChange={e => updateLegal("bankAccount", e.target.value.replace(/\D/g, ""))} onFileChange={e => updateLegal("bankAccountDoc", e.target.files?.[0] || null)}
                     numberPlaceholder="Account number" error={displayErrors.legal_bankAccount} fileError={displayErrors.legal_bankAccountDoc} />
                   <DocumentCard label="Trust Deed / Society Registration" required numberLabel="Document Number" numberValue={form.legal.trustDeed}
                     onNumberChange={e => updateLegal("trustDeed", e.target.value)} onFileChange={e => updateLegal("trustDeedDoc", e.target.files?.[0] || null)}
@@ -1057,7 +1064,7 @@ export default function InstituteForm() {
                           </div>
                           <div>
                             <RequiredLabel hint="10-digit">Contact Number</RequiredLabel>
-                            <Input type="tel" value={branch.contactNo} onChange={e => updateBranch(branchIdx, "contactNo", e.target.value)}
+                            <Input type="tel" value={branch.contactNo} onChange={e => updateBranch(branchIdx, "contactNo", e.target.value.replace(/\D/g, ""))}
                               placeholder="9876543210" maxLength={10} error={displayErrors[`br${branchIdx}_contactNo`]} />
                             <FieldError msg={displayErrors[`br${branchIdx}_contactNo`]} />
                           </div>
