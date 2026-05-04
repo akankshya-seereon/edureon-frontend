@@ -1,15 +1,22 @@
 import { useEffect, useState } from "react";
-import api from "../../../services/api"; 
 import {
   Building2, Users, FileText, GitBranch,
-  MapPin, Phone, Mail, Landmark, ShieldCheck, Zap,
+  MapPin, Landmark, ShieldCheck, Zap,
   CreditCard, BookOpen, ScrollText, BadgeCheck, Calendar,
-  ChevronRight
 } from "lucide-react";
+import api from "../../../services/api";
 import apiBaseUrl from "../../../config/baseurl";
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const fmt = (text = "") =>
   text?.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase()) || "";
+
+const safeParseJSON = (data) => {
+  if (!data) return null;
+  if (typeof data === "object") return data;
+  try { return JSON.parse(data); } catch { return null; }
+};
 
 const statusStyles = {
   Active:    "bg-green-100 text-green-700 border border-green-300",
@@ -17,32 +24,56 @@ const statusStyles = {
   Trial:     "bg-blue-100 text-blue-700 border border-blue-300",
 };
 
-// ─── Reusable Grid Components ─────────────────────────────────────────────────
+// Backend base URL for serving uploaded files
+const BACKEND_URL = "http://localhost:5000";
 
-// UPDATED: Now stacks label above value to fit beautifully in 2 or 3 column grids
+// ─── Reusable Components ───────────────────────────────────────────────────────
+
 const InfoRow = ({ label, value }) => (
   <div className="flex flex-col py-2 border-b border-gray-50 md:border-none">
     <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1">{label}</span>
-    <span className="text-sm text-gray-800 font-medium break-words leading-tight">{value || "—"}</span>
+    <span className="text-sm text-gray-800 font-medium break-words leading-tight">
+      {value || <span className="text-gray-400 italic font-normal">Not provided</span>}
+    </span>
   </div>
 );
 
-// UPDATED: Compact layout for documents in grids
-const DocRow = ({ label, value, doc }) => (
-  <div className="flex flex-col py-2 border-b border-gray-50 md:border-none">
-    <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1">{label}</span>
-    <div className="flex items-center gap-2 flex-wrap">
-      {value && <span className="text-sm text-gray-800 font-medium">{value}</span>}
-      {doc ? (
-        <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest bg-green-100 text-green-700 px-2 py-0.5 rounded-md">
-          <BadgeCheck size={12} /> Uploaded
+// ── DocRow: shows "View Doc" link if file was uploaded, "NO FILE" otherwise ──
+const DocRow = ({ label, value, doc }) => {
+  // A valid doc is a non-empty string path like "/uploads/institutes/123-abc.pdf"
+  // Invalid docs: null, undefined, "", {}, or any empty object
+  const isValidDoc =
+    doc &&
+    typeof doc === "string" &&
+    doc.trim() !== "" &&
+    doc.startsWith("/uploads");
+
+  return (
+    <div className="flex flex-col py-2 border-b border-gray-50 md:border-none">
+      <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1">{label}</span>
+      <div className="flex items-center gap-2 flex-wrap">
+        <span className="text-sm text-gray-800 font-medium">
+          {value || <span className="text-gray-400 italic font-normal">Not provided</span>}
         </span>
-      ) : (
-        <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400 bg-gray-100 px-2 py-0.5 rounded-md">No file</span>
-      )}
+
+        {isValidDoc ? (
+          <a
+            href={`${BACKEND_URL}${doc}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest bg-green-100 text-green-700 px-2 py-0.5 rounded-md hover:bg-green-200 transition cursor-pointer"
+          >
+            <BadgeCheck size={12} /> View Doc
+          </a>
+        ) : (
+          <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400 bg-gray-100 px-2 py-0.5 rounded-md">
+            NO FILE
+          </span>
+        )}
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 const LegalCat = ({ icon: Icon, label }) => (
   <div className="flex items-center gap-2 pt-6 pb-4 col-span-full">
@@ -59,37 +90,32 @@ const SectionTitle = ({ title, subtitle }) => (
   </div>
 );
 
-// ─── MENU ITEMS ───────────────────────────────────────────────────────────────
+// ─── Tab Menu ─────────────────────────────────────────────────────────────────
 
 const MENU = [
-  { id: "organisation", label: "Organisation",   icon: Building2, subtitle: "Basic details"          },
-  { id: "directors",    label: "Directors",       icon: Users,     subtitle: "Partners & directors"   },
-  { id: "legal",        label: "Legal Documents", icon: FileText,  subtitle: "Certificates & docs"    },
-  { id: "branches",     label: "Branches",        icon: GitBranch, subtitle: "Branch locations"       },
+  { id: "organisation", label: "Organisation",    icon: Building2 },
+  { id: "directors",    label: "Directors",       icon: Users     },
+  { id: "legal",        label: "Legal Documents", icon: FileText  },
+  { id: "branches",     label: "Branches",        icon: GitBranch },
 ];
 
-// ─── HORIZONTAL HEADER TABS ───────────────────────────────────────────────────
-
-const HeaderSections = ({ activeMenu, setActiveMenu, counts }) => (
-  // 🚀 FIXED: Added pt-5 mt-5 to give it breathing room, and removed pb-1 so parent padding takes over
-  <div className="flex items-center gap-2 overflow-x-auto no-scrollbar border-t border-gray-100 mt-5 pt-5">
-    {MENU.map((item) => {
-      const Icon = item.icon;
-      const isActive = activeMenu === item.id;
-      const count = counts[item.id];
-      
+const HeaderTabs = ({ activeMenu, setActiveMenu, counts }) => (
+  <div className="flex items-center gap-2 overflow-x-auto no-scrollbar border-t border-gray-100 mt-6 pt-4 pb-1">
+    {MENU.map(({ id, label, icon: Icon }) => {
+      const isActive = activeMenu === id;
+      const count    = counts[id];
       return (
         <button
-          key={item.id}
-          onClick={() => setActiveMenu(item.id)}
+          key={id}
+          onClick={() => setActiveMenu(id)}
           className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-bold transition-all whitespace-nowrap ${
-            isActive 
-              ? "bg-blue-600 text-white shadow-md shadow-blue-200" 
+            isActive
+              ? "bg-blue-600 text-white shadow-md shadow-blue-200"
               : "text-gray-500 hover:bg-gray-100 hover:text-gray-900"
           }`}
         >
           <Icon size={16} />
-          {item.label}
+          {label}
           {count > 0 && (
             <span className={`ml-1 px-1.5 py-0.5 rounded-md text-[10px] ${
               isActive ? "bg-white/20 text-white" : "bg-gray-200 text-gray-600"
@@ -103,12 +129,11 @@ const HeaderSections = ({ activeMenu, setActiveMenu, counts }) => (
   </div>
 );
 
-// ─── PANELS (NOW USING GRIDS) ─────────────────────────────────────────────────
+// ─── Panels ───────────────────────────────────────────────────────────────────
 
 const OrganisationPanel = ({ org, institute }) => (
   <div>
     <SectionTitle title="Organisation Details" subtitle="Registered information and contact details" />
-    
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-5 bg-gray-50/50 p-6 rounded-xl border border-gray-50">
       <InfoRow label="Registered Name"   value={fmt(org.name)} />
       <InfoRow label="Organisation Type" value={org.type} />
@@ -122,13 +147,13 @@ const OrganisationPanel = ({ org, institute }) => (
       <InfoRow label="State"             value={fmt(org.state)} />
       <InfoRow label="PIN Code"          value={org.pin} />
       <InfoRow label="Head Office"       value={fmt(org.headOffice)} />
-      <InfoRow label="Member Since"      value={institute.createdAt || "—"} />
+      <InfoRow label="Member Since"      value={institute.createdAt} />
     </div>
   </div>
 );
 
 const DirectorsPanel = ({ directors }) => {
-  if (!directors || !directors.length) return (
+  if (!directors || directors.length === 0) return (
     <div>
       <SectionTitle title="Directors / Partners" subtitle="People associated with this institute" />
       <div className="text-center py-16 bg-gray-50 rounded-xl border border-dashed border-gray-200">
@@ -148,16 +173,13 @@ const DirectorsPanel = ({ directors }) => {
                 {d.name?.[0]?.toUpperCase() || (idx + 1)}
               </div>
               <div>
-                <p className="font-bold text-gray-900 text-lg">
-                  {d.name ? fmt(d.name) : `Director ${idx + 1}`}
-                </p>
+                <p className="font-bold text-gray-900 text-lg">{d.name ? fmt(d.name) : `Director ${idx + 1}`}</p>
                 {d.email && <p className="text-sm text-gray-500">{d.email}</p>}
               </div>
             </div>
 
             <div className="bg-gray-50/50 p-6 rounded-xl border border-gray-50">
               <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-4 border-b border-gray-100 pb-3">Personal Details</p>
-              
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-5">
                 <InfoRow label="Email"           value={d.email} />
                 <InfoRow label="Contact"         value={d.contact} />
@@ -187,21 +209,24 @@ const DirectorsPanel = ({ directors }) => {
                   <LegalCat icon={MapPin} label="Address Information" />
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-8 gap-y-4">
                     {d.currentAddress?.line1 && (
-                      <InfoRow label="Current Address" value={[d.currentAddress.line1, d.currentAddress.line2, fmt(d.currentAddress.city), fmt(d.currentAddress.state), d.currentAddress.pin].filter(Boolean).join(", ")} />
+                      <InfoRow label="Current Address"
+                        value={[d.currentAddress.line1, d.currentAddress.line2, fmt(d.currentAddress.city), fmt(d.currentAddress.state), d.currentAddress.pin].filter(Boolean).join(", ")} />
                     )}
                     {d.permanentAddress?.line1 && (
-                      <InfoRow label="Permanent Address" value={[d.permanentAddress.line1, d.permanentAddress.line2, fmt(d.permanentAddress.city), fmt(d.permanentAddress.state), d.permanentAddress.pin].filter(Boolean).join(", ")} />
+                      <InfoRow label="Permanent Address"
+                        value={[d.permanentAddress.line1, d.permanentAddress.line2, fmt(d.permanentAddress.city), fmt(d.permanentAddress.state), d.permanentAddress.pin].filter(Boolean).join(", ")} />
                     )}
                   </div>
                 </>
               )}
 
-              {(d.documents?.panNo || d.documents?.aadhaarNo) && (
+              {/* Director Documents — show as clickable links */}
+              {(d.documents?.panNo || d.documents?.aadhaarNo || d.documents?.panDoc || d.documents?.aadhaarDoc) && (
                 <>
                   <LegalCat icon={FileText} label="Identity Documents" />
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-4">
-                    {d.documents?.panNo     && <InfoRow label="PAN Number"     value={d.documents.panNo} />}
-                    {d.documents?.aadhaarNo && <InfoRow label="Aadhaar Number" value={d.documents.aadhaarNo} />}
+                    <DocRow label="PAN Card"    value={d.documents?.panNo}     doc={d.documents?.panDoc} />
+                    <DocRow label="Aadhaar Card" value={d.documents?.aadhaarNo} doc={d.documents?.aadhaarDoc} />
                   </div>
                 </>
               )}
@@ -216,9 +241,8 @@ const DirectorsPanel = ({ directors }) => {
 const LegalPanel = ({ legal }) => (
   <div>
     <SectionTitle title="Legal Documents" subtitle="Certificates, NOCs and compliance documents" />
-
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-4 bg-gray-50/50 p-6 rounded-xl border border-gray-50">
-      
+
       <LegalCat icon={Landmark}    label="Land & Building" />
       <DocRow label="Property Deed"                   value={legal?.propertyDeed}         doc={legal?.propertyDeedDoc} />
       <DocRow label="Building Approval"               value={legal?.buildingApproval}      doc={legal?.buildingApprovalDoc} />
@@ -238,13 +262,13 @@ const LegalPanel = ({ legal }) => (
       <DocRow label="Drainage System"        value={legal?.drainageSystem}        doc={legal?.drainageSystemDoc} />
 
       <LegalCat icon={CreditCard}  label="Financial & Administrative" />
-      <DocRow label="PAN Number"                value={legal?.panNo}       doc={legal?.panDoc} />
-      <DocRow label="GSTIN"                     value={legal?.gstinNo}     doc={legal?.gstinDoc} />
+      <DocRow label="PAN Number"                value={legal?.panNo}       doc={legal?.panNoDoc} />
+      <DocRow label="GSTIN"                     value={legal?.gstinNo}     doc={legal?.gstinNoDoc} />
       <DocRow label="Bank Account"              value={legal?.bankAccount} doc={legal?.bankAccountDoc} />
       <DocRow label="Trust Deed / Society Reg." value={legal?.trustDeed}   doc={legal?.trustDeedDoc} />
 
       <LegalCat icon={BookOpen}    label="Education Registration & Affiliation" />
-      <DocRow label="DISE Code"                     value={legal?.diseCode}               doc={legal?.disecodeDoc} />
+      <DocRow label="DISE Code"                     value={legal?.diseCode}               doc={legal?.diseCodeDoc} />
       <DocRow label="Provisional Recognition"       value={legal?.provisionalRecognition} doc={legal?.provisionalRecognitionDoc} />
       <DocRow label="Board Affiliation Certificate" value={legal?.affiliation}            doc={legal?.affiliationDoc} />
 
@@ -253,13 +277,12 @@ const LegalPanel = ({ legal }) => (
       <DocRow label="Harassment Prevention"   value={legal?.harassmentPolicy}      doc={legal?.harassmentPolicyDoc} />
       <DocRow label="Admission Policy"        value={legal?.admissionPolicy}       doc={legal?.admissionPolicyDoc} />
       <DocRow label="Fee Structure Document"  value={legal?.feeStructure}          doc={legal?.feeStructureDoc} />
-
     </div>
   </div>
 );
 
 const BranchesPanel = ({ branches }) => {
-  if (!branches || !branches.length) return (
+  if (!branches || branches.length === 0) return (
     <div>
       <SectionTitle title="Branch Locations" subtitle="All registered branch offices" />
       <div className="text-center py-16 bg-gray-50 rounded-xl border border-dashed border-gray-200">
@@ -271,35 +294,25 @@ const BranchesPanel = ({ branches }) => {
   return (
     <div>
       <SectionTitle title={`Branch Locations (${branches.length})`} subtitle="All registered branch offices" />
-      
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {branches.map((b, idx) => (
           <div key={idx} className="border border-gray-100 rounded-xl overflow-hidden hover:shadow-md transition-shadow bg-white">
             <div className="flex items-center justify-between px-6 py-4 bg-gray-50/80 border-b border-gray-100">
-              <p className="font-bold text-gray-900 text-base">
-                {b.name ? fmt(b.name) : `Branch ${idx + 1}`}
-              </p>
+              <p className="font-bold text-gray-900 text-base">{b.name ? fmt(b.name) : `Branch ${idx + 1}`}</p>
               {b.shortName && (
                 <span className="text-xs font-black bg-blue-600 text-white px-3 py-1 rounded-lg tracking-wider">
                   {b.shortName.toUpperCase()}
                 </span>
               )}
             </div>
-            
-            {/* Branch Data Grid */}
             <div className="p-6 grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-4">
               <InfoRow label="Contact Person" value={b.contactPerson} />
               <InfoRow label="Contact No"     value={b.contactNo} />
               <InfoRow label="Email"          value={b.email} />
               <InfoRow label="GSTIN"          value={b.gstin} />
-              
               <div className="sm:col-span-2">
-                <InfoRow 
-                  label="Address" 
-                  value={[
-                    b.address1, b.address2, fmt(b.city), fmt(b.state), b.pin
-                  ].filter(Boolean).join(", ")} 
-                />
+                <InfoRow label="Address"
+                  value={[b.address1, b.address2, fmt(b.city), fmt(b.state), b.pin].filter(Boolean).join(", ")} />
               </div>
             </div>
           </div>
@@ -314,64 +327,114 @@ const BranchesPanel = ({ branches }) => {
 // ══════════════════════════════════════════════════════════════════════════════
 
 export default function Institute() {
-  const [institute, setInstitute]   = useState(null);
+  const [institute, setInstitute] = useState(null);
   const [activeMenu, setActiveMenu] = useState("organisation");
-  const [loading, setLoading]       = useState(true);
+  const [loading, setLoading]     = useState(true);
+  const [error, setError]         = useState(null);
 
   useEffect(() => {
-    // Read the logged-in user from storage
-    const loggedInUser = JSON.parse(localStorage.getItem("user"));
+    const fetchInstitute = async () => {
+      try {
+        const user = JSON.parse(localStorage.getItem("user") || "{}");
 
-    if (loggedInUser) {
-      // Map user data to Institute layout
-      const activeInstitute = {
-        id: loggedInUser.code,
-        status: "Active",
-        plan: "Premium",
-        createdAt: new Date().toLocaleDateString(),
-        organisation: {
-          name: loggedInUser.name,
-          type: "Institute",
-          email: loggedInUser.email || "", 
-          phone: "",
-          city: "",
-          state: ""
-        },
-        directors: [],
-        legal: {},
-        branches: []
-      };
-      setInstitute(activeInstitute);
-    }
-    
-    setLoading(false);
+        // Resolve institute code — backend login saves it as 'code'
+        const instituteId =
+          user?.code           ||
+          user?.institute_code ||
+          user?.instituteCode  ||
+          user?.id;
+
+        if (!instituteId) {
+          setError(
+            `Could not find your institute. (User keys: [${Object.keys(user).join(", ")}]) — Please re-login.`
+          );
+          setLoading(false);
+          return;
+        }
+
+        // Use the shared api instance — handles auth cookies automatically
+        const res  = await api.get(`/admin/institutes/${instituteId}/full-details`);
+        const json = res.data;
+
+        if (!json.success) throw new Error(json.message || "Failed to fetch institute data.");
+
+        const data = json.data;
+        const org  = safeParseJSON(data.organisation) || {};
+
+        setInstitute({
+          id:        data.institute_code || data.id,
+          status:    data.status  || "Active",
+          plan:      data.plan    || "Premium",
+          createdAt: data.created_at
+            ? new Date(data.created_at).toLocaleDateString("en-IN")
+            : "—",
+
+          // All data entered by SuperAdmin during institute creation
+          organisation: org,
+          directors:    Array.isArray(safeParseJSON(data.directors)) ? safeParseJSON(data.directors) : [],
+          legal:        safeParseJSON(data.legal)   || {},
+          branches:     Array.isArray(safeParseJSON(data.branches))  ? safeParseJSON(data.branches)  : [],
+
+          totalStudents: data.totalStudents || 0,
+          totalFaculty:  data.totalFaculty  || 0,
+          totalBatches:  data.totalBatches  || 0,
+        });
+
+      } catch (err) {
+        console.error("❌ Institute fetch error:", err);
+
+        // If the token is rejected, wipe session and redirect
+        if (err.response?.status === 401) {
+          localStorage.clear();
+          window.location.href = "/login";
+          return;
+        }
+
+        setError(err.response?.data?.message || err.message || "Something went wrong.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchInstitute();
   }, []);
 
-  /* ── Loading ── */
+  // ── Loading ──
   if (loading) return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center">
       <div className="text-center text-gray-400">
         <div className="w-10 h-10 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mx-auto mb-3" />
-        <p className="text-sm font-medium">Loading details...</p>
+        <p className="text-sm font-medium">Loading institute details...</p>
       </div>
     </div>
   );
 
-  /* ── Empty state ── */
+  // ── Error ──
+  if (error) return (
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="text-center max-w-md px-4">
+        <Building2 size={48} className="mx-auto mb-4 opacity-30 text-gray-400" />
+        <p className="text-lg font-semibold text-red-500 mb-2">Failed to load</p>
+        <p className="text-sm text-gray-500 bg-gray-100 rounded-lg p-3 text-left break-words">{error}</p>
+      </div>
+    </div>
+  );
+
+  // ── Empty ──
   if (!institute) return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center">
       <div className="text-center text-gray-400 max-w-sm">
         <Building2 size={48} className="mx-auto mb-4 opacity-30" />
         <p className="text-lg font-semibold text-gray-500 mb-2">No institute details found.</p>
-        <p className="text-sm text-gray-400">Please re-login or contact Support.</p>
+        <p className="text-sm text-gray-400">Please re-login or contact support.</p>
       </div>
     </div>
   );
 
-  const org       = institute.organisation || {};
-  const legal     = institute.legal        || {};
-  const directors = institute.directors    || [];
-  const branches  = institute.branches     || [];
+  const org       = institute.organisation;
+  const directors = institute.directors;
+  const legal     = institute.legal;
+  const branches  = institute.branches;
 
   const counts = {
     organisation: 0,
@@ -384,11 +447,9 @@ export default function Institute() {
     <div className="min-h-screen bg-gray-50 p-4 md:p-8 text-left">
       <div className="mx-auto w-full max-w-8xl space-y-6">
 
-        {/* ── HEADER CARD WITH HORIZONTAL MENU ── */}
+        {/* ── HEADER CARD ── */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-          {/* 🚀 FIXED: Changed p-6 pb-0 to simply p-6 to provide perfect, uniform padding on all sides including the bottom! */}
-          <div className="p-6">
-            
+          <div className="p-6 pb-0">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div className="flex items-center gap-4">
                 <div className="w-16 h-16 rounded-2xl bg-blue-600 flex items-center justify-center text-white shrink-0 shadow-lg font-bold text-2xl">
@@ -399,26 +460,40 @@ export default function Institute() {
                     {fmt(org.name) || "—"}
                   </h1>
                   <p className="text-sm text-gray-500 mt-1 font-medium">
-                    {org.type} Dashboard &nbsp;·&nbsp; Code: <span className="text-blue-600 font-bold">{institute.id}</span>
+                    {org.type || "Institute"} Dashboard &nbsp;·&nbsp;
+                    Code: <span className="text-blue-600 font-bold">{institute.id}</span>
                   </p>
                 </div>
               </div>
-              <div className="flex items-center gap-3">
-                <span className={`px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest ${statusStyles[institute.status] || "bg-gray-100 text-gray-600"}`}>
-                  {institute.status || "Unknown"}
-                </span>
-              </div>
+              <span className={`px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest ${statusStyles[institute.status] || "bg-gray-100 text-gray-600"}`}>
+                {institute.status || "Unknown"}
+              </span>
             </div>
-
-            {/* INTEGRATED HORIZONTAL TABS */}
-            <HeaderSections activeMenu={activeMenu} setActiveMenu={setActiveMenu} counts={counts} />
-
+            <HeaderTabs activeMenu={activeMenu} setActiveMenu={setActiveMenu} counts={counts} />
           </div>
         </div>
 
-        {/* 🚀 FIXED: Quick stats removed! Component flows perfectly from the tabs straight into the data panel */}
+        {/* ── QUICK STATS ── */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {[
+            { label: "Directors", value: directors.length,             icon: Users     },
+            { label: "Branches",  value: branches.length,              icon: GitBranch },
+            { label: "Students",  value: institute.totalStudents || 0, icon: Users     },
+            { label: "Faculty",   value: institute.totalFaculty  || 0, icon: Calendar  },
+          ].map((stat) => (
+            <div key={stat.label} className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center shrink-0">
+                <stat.icon size={18} className="text-blue-600" />
+              </div>
+              <div>
+                <p className="text-lg font-black text-gray-800 leading-tight">{stat.value}</p>
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mt-0.5">{stat.label}</p>
+              </div>
+            </div>
+          ))}
+        </div>
 
-        {/* ── MAIN CONTENT PANEL (FULL WIDTH) ── */}
+        {/* ── MAIN CONTENT PANEL ── */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 md:p-8">
           {activeMenu === "organisation" && <OrganisationPanel org={org} institute={institute} />}
           {activeMenu === "directors"    && <DirectorsPanel    directors={directors} />}

@@ -32,23 +32,30 @@ export const AuthProvider = ({ children }) => {
     try {
       const response = await authService.login({ email, password, instituteCode, roleType });
       
-      // 🚀 FIXED: Handle nested data correctly based on your authService
+      // Get user data from response — backend returns it under 'user'
       const userData = response.user || response.data || response.admin || {};
       
-      // 🚀 CRITICAL: Force the role to lowercase here so the whole app is in sync
-      const normalizedRole = String(userData.role || userData.designation || roleType).toLowerCase().trim();
+      // Normalize role to lowercase
+      const normalizedRole = String(
+        userData.role || userData.designation || roleType
+      ).toLowerCase().trim();
 
-      const normalizedUser = { 
-        ...userData, 
-        role: normalizedRole 
+      // ── CRITICAL FIX: Preserve ALL fields from backend, especially 'code' ──
+      // The backend sends: { id, name, email, code: 'LIT751030', role }
+      // We must not drop 'code' when building normalizedUser
+      const normalizedUser = {
+        ...userData,                          // spread everything backend sent
+        role:           normalizedRole,
+        // Ensure code is available under both naming conventions
+        code:           userData.code           || userData.institute_code || instituteCode || "",
+        institute_code: userData.institute_code || userData.code           || instituteCode || "",
       };
 
-      // Update State & Storage
+      // Save to localStorage and state
       localStorage.setItem('user', JSON.stringify(normalizedUser));
       localStorage.setItem('role', normalizedRole);
       setUser(normalizedUser);
 
-      // 🚀 FIXED: Return the FULL response so LoginForm can see response.success
       return response; 
       
     } catch (error) {

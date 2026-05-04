@@ -179,14 +179,51 @@ export default function InstituteForm() {
   };
   const goPrev = () => { setStep(step - 1); window.scrollTo(0, 0); };
 
-  const submit = () => {
-    const existing = JSON.parse(localStorage.getItem("institutes")) || [];
-    const newOrganisation = { ...form, id: Date.now(), status: "Active", createdAt: new Date().toLocaleString(), plan: "Premium" };
-    existing.push(newOrganisation);
-    localStorage.setItem("institutes", JSON.stringify(existing));
-    navigate("/admin/institute");
-  };
+ const submit = async () => {
+    const formData = new FormData();
 
+    // 1. Append all text data as stringified JSON
+    formData.append("organisation", JSON.stringify(form.organisation));
+    formData.append("branches", JSON.stringify(form.branches));
+
+    // 2. Separate physical files from the Legal object
+    const legalData = { ...form.legal };
+    Object.keys(legalData).forEach(key => {
+      if (legalData[key] instanceof File) {
+        formData.append(`legal_${key}`, legalData[key]); // Attach file to FormData
+        legalData[key] = ""; // Clear from JSON (backend will fill this in)
+      }
+    });
+    formData.append("legal", JSON.stringify(legalData));
+
+    // 3. Separate physical files from the Directors object
+    const directorsData = JSON.parse(JSON.stringify(form.directors));
+    form.directors.forEach((dir, idx) => {
+      if (form.directors[idx].documents.panDoc instanceof File) {
+        formData.append(`director_${idx}_panDoc`, form.directors[idx].documents.panDoc);
+        directorsData[idx].documents.panDoc = "";
+      }
+      if (form.directors[idx].documents.aadhaarDoc instanceof File) {
+        formData.append(`director_${idx}_aadhaarDoc`, form.directors[idx].documents.aadhaarDoc);
+        directorsData[idx].documents.aadhaarDoc = "";
+      }
+    });
+    formData.append("directors", JSON.stringify(directorsData));
+
+    try {
+      // 🚀 FIXED: Actually calling the backend API!
+      const response = await api.post("/admin/institutes", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      
+      if (response.data.success) {
+        navigate("/admin/institute");
+      }
+    } catch (error) {
+      console.error("Failed to create institute", error);
+      alert("Error creating institute. Check console.");
+    }
+  };
   const inputCls = (hasError) =>
     `w-full px-3 sm:px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-400 focus:border-transparent text-sm ${hasError ? "border-red-500" : "border-gray-300"}`;
 
