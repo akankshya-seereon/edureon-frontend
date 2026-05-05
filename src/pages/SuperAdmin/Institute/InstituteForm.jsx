@@ -1026,7 +1026,7 @@ export default function InstituteForm() {
 
                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
                         <div>
-                          <RequiredLabel hint="max 2 chars">Short Name</RequiredLabel>
+                          <RequiredLabel>Short Name</RequiredLabel>
                           <Input value={branch.shortName} onChange={e => updateBranch(branchIdx, "shortName", e.target.value.toUpperCase())}
                             placeholder="BB" maxLength={2} error={displayErrors[`br${branchIdx}_shortName`]} />
                           <FieldError msg={displayErrors[`br${branchIdx}_shortName`]} />
