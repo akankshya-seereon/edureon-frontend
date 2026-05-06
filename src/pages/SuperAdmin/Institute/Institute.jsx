@@ -4,19 +4,87 @@ import {
   Building2, Users, FileText, GitBranch,
   MapPin, Landmark, ShieldCheck, Zap,
   CreditCard, BookOpen, ScrollText, BadgeCheck, Calendar,
-  Eye, Trash2, Plus, ArrowLeft, Search, Settings
+  Eye, Trash2, Plus, ArrowLeft, Search, Edit, AlertCircle
 } from "lucide-react";
-import apiBaseUrl from "../../../config/baseurl";
+import api from "../../../services/api"; // 🚀 FIXED: Reverted to your API wrapper to fix URL/JSON routing
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-const fmt = (text = "") =>
-  text?.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase()) || "";
+const fmt = (text) => {
+  if (!text || typeof text !== 'string') return "";
+  return text.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
+};
 
-const safeParseJSON = (data) => {
+// Aggressively unpacks deeply nested or double-stringified JSON
+const aggressiveParse = (data) => {
+  if (!data) return {};
+  if (typeof data === 'object') return data;
+  let parsed = data;
+  let iterations = 0;
+  while (typeof parsed === 'string' && iterations < 5) {
+    try {
+      const next = JSON.parse(parsed);
+      if (typeof next === 'string' && next === parsed) break;
+      parsed = next;
+      iterations++;
+    } catch { break; }
+  }
+  return typeof parsed === 'object' && parsed !== null ? parsed : {};
+};
+
+// Centralized data extractor that hunts for alternative field names
+const processInstituteData = (data) => {
   if (!data) return null;
-  if (typeof data === "object") return data;
-  try { return JSON.parse(data); } catch { return null; }
+
+  const rawOrg = aggressiveParse(data.organisation);
+  const innerOrg = rawOrg.organisation || rawOrg; 
+
+  const getVal = (...keys) => {
+    for (const key of keys) {
+      if (innerOrg[key]) return String(innerOrg[key]);
+      if (rawOrg[key]) return String(rawOrg[key]);
+      if (data[key]) return String(data[key]);
+    }
+    return "";
+  };
+
+  const org = {
+    name:           getVal("name", "instituteName", "registeredName"),
+    type:           getVal("type", "organisationType", "instituteType"),
+    phone:          getVal("phone", "contact", "mobile", "contactNo"),
+    altPhone:       getVal("altPhone", "alternatePhone", "secondaryPhone"),
+    email:          getVal("email", "emailId", "primaryEmail"),
+    secondaryEmail: getVal("secondaryEmail", "altEmail"),
+    address1:       getVal("address1", "addressLine1", "address", "street"),
+    address2:       getVal("address2", "addressLine2", "landmark"),
+    city:           getVal("city", "district"),
+    state:          getVal("state", "province"),
+    pin:            getVal("pin", "pinCode", "zipCode", "pincode"),
+    headOffice:     getVal("headOffice", "headOfficeLocation"),
+  };
+
+  const parsedDirectors = aggressiveParse(data.directors);
+  const directors = Array.isArray(parsedDirectors) ? parsedDirectors : (parsedDirectors.directors || []);
+  
+  const legal = aggressiveParse(data.legal);
+  
+  const parsedBranches = aggressiveParse(data.branches);
+  const branches = Array.isArray(parsedBranches) ? parsedBranches : (parsedBranches.branches || []);
+
+  return {
+    id:            data.institute_code || data.id,
+    dbId:          data.id, 
+    status:        data.status  || "Active",
+    plan:          data.plan    || "Premium",
+    createdAt:     data.created_at ? new Date(data.created_at).toLocaleDateString("en-IN") : (data.joined || "—"),
+    organisation:  org,
+    directors,
+    legal,
+    branches,
+    totalStudents: data.totalStudents || 0,
+    totalFaculty:  data.totalFaculty  || 0,
+    totalBatches:  data.totalBatches  || 0,
+  };
 };
 
 const statusStyles = {
@@ -163,7 +231,6 @@ const DirectorsPanel = ({ directors }) => {
             </div>
             
             <div className="space-y-4">
-              {/* Personal Details */}
               <div className="bg-gray-50/50 p-6 rounded-xl border border-gray-50">
                 <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-4 border-b border-gray-100 pb-3">Personal Details</p>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-5">
@@ -181,7 +248,6 @@ const DirectorsPanel = ({ directors }) => {
                 </div>
               </div>
 
-              {/* Address Details */}
               <div className="bg-gray-50/50 p-6 rounded-xl border border-gray-50">
                 <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-4 border-b border-gray-100 pb-3">Address Information</p>
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-8 gap-y-6">
@@ -200,7 +266,6 @@ const DirectorsPanel = ({ directors }) => {
                 </div>
               </div>
 
-              {/* Identity & Bank Details */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 <div className="bg-gray-50/50 p-6 rounded-xl border border-gray-50">
                   <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-4 border-b border-gray-100 pb-3">Identity Documents</p>
@@ -227,49 +292,59 @@ const DirectorsPanel = ({ directors }) => {
   );
 };
 
-const LegalPanel = ({ legal }) => (
-  <div>
-    <SectionTitle title="Legal Documents" subtitle="Certificates, NOCs and compliance documents" />
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-4 bg-gray-50/50 p-6 rounded-xl border border-gray-50">
-      
-      <LegalCat icon={Landmark} label="Land & Building" />
-      <DocRow label="Property Deed" value={legal?.propertyDeed} doc={legal?.propertyDeedDoc} />
-      <DocRow label="Building Approval" value={legal?.buildingApproval} doc={legal?.buildingApprovalDoc} />
-      <DocRow label="Completion Certificate" value={legal?.completionCertificate} doc={legal?.completionCertificateDoc} />
-      
-      <LegalCat icon={ShieldCheck} label="No Objection Certificates (NOCs)" />
-      <DocRow label="Fire Department NOC" value={legal?.fireNOC} doc={legal?.fireNOCDoc} />
-      <DocRow label="Police NOC" value={legal?.policeNOC} doc={legal?.policeNOCDoc} />
-      <DocRow label="Municipality NOC" value={legal?.municipalityNOC} doc={legal?.municipalityNOCDoc} />
-      <DocRow label="Education Dept NOC" value={legal?.educationDeptNOC} doc={legal?.educationDeptNOCDoc} />
-      <DocRow label="Pollution Control NOC" value={legal?.pollutionNOC} doc={legal?.pollutionNOCDoc} />
-      
-      <LegalCat icon={Zap} label="Infrastructure & Safety" />
-      <DocRow label="Water Connection" value={legal?.waterConnection} doc={legal?.waterConnectionDoc} />
-      <DocRow label="Electricity Connection" value={legal?.electricityConnection} doc={legal?.electricityConnectionDoc} />
-      <DocRow label="Safety Audit Report" value={legal?.safetyAudit} doc={legal?.safetyAuditDoc} />
-      <DocRow label="Drainage System" value={legal?.drainageSystem} doc={legal?.drainageSystemDoc} />
-
-      <LegalCat icon={CreditCard} label="Financial & Administrative" />
-      <DocRow label="PAN Number" value={legal?.panNo} doc={legal?.panDoc} />
-      <DocRow label="GSTIN Number" value={legal?.gstinNo} doc={legal?.gstinDoc} />
-      <DocRow label="Bank Account" value={legal?.bankAccount} doc={legal?.bankAccountDoc} />
-      <DocRow label="Trust Deed / Society Reg" value={legal?.trustDeed} doc={legal?.trustDeedDoc} />
-
-      <LegalCat icon={BookOpen} label="Education Registration & Affiliation" />
-      <DocRow label="DISE Code" value={legal?.diseCode} doc={legal?.disecodeDoc} />
-      <DocRow label="Provisional Recognition" value={legal?.provisionalRecognition} doc={legal?.provisionalRecognitionDoc} />
-      <DocRow label="Board Affiliation" value={legal?.affiliation} doc={legal?.affiliationDoc} />
-
-      <LegalCat icon={ScrollText} label="Mandatory Policies" />
-      <DocRow label="Child Protection Policy" value={legal?.childProtectionPolicy} doc={legal?.childProtectionPolicyDoc} />
-      <DocRow label="Harassment Prevention" value={legal?.harassmentPolicy} doc={legal?.harassmentPolicyDoc} />
-      <DocRow label="Admission Policy" value={legal?.admissionPolicy} doc={legal?.admissionPolicyDoc} />
-      <DocRow label="Fee Structure" value={legal?.feeStructure} doc={legal?.feeStructureDoc} />
-
+const LegalPanel = ({ legal }) => {
+  if (!legal) return (
+    <div>
+      <SectionTitle title="Legal Documents" subtitle="Certificates, NOCs and compliance documents" />
+      <div className="text-center py-16 bg-gray-50 rounded-xl border border-dashed border-gray-200">
+        <FileText size={40} className="mx-auto mb-3 text-gray-300" />
+        <p className="text-gray-500 font-medium">No legal documents found.</p>
+      </div>
     </div>
-  </div>
-);
+  );
+  
+  return (
+    <div>
+      <SectionTitle title="Legal Documents" subtitle="Certificates, NOCs and compliance documents" />
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-4 bg-gray-50/50 p-6 rounded-xl border border-gray-50">
+        <LegalCat icon={Landmark} label="Land & Building" />
+        <DocRow label="Property Deed" value={legal?.propertyDeed} doc={legal?.propertyDeedDoc} />
+        <DocRow label="Building Approval" value={legal?.buildingApproval} doc={legal?.buildingApprovalDoc} />
+        <DocRow label="Completion Certificate" value={legal?.completionCertificate} doc={legal?.completionCertificateDoc} />
+        
+        <LegalCat icon={ShieldCheck} label="No Objection Certificates (NOCs)" />
+        <DocRow label="Fire Department NOC" value={legal?.fireNOC} doc={legal?.fireNOCDoc} />
+        <DocRow label="Police NOC" value={legal?.policeNOC} doc={legal?.policeNOCDoc} />
+        <DocRow label="Municipality NOC" value={legal?.municipalityNOC} doc={legal?.municipalityNOCDoc} />
+        <DocRow label="Education Dept NOC" value={legal?.educationDeptNOC} doc={legal?.educationDeptNOCDoc} />
+        <DocRow label="Pollution Control NOC" value={legal?.pollutionNOC} doc={legal?.pollutionNOCDoc} />
+        
+        <LegalCat icon={Zap} label="Infrastructure & Safety" />
+        <DocRow label="Water Connection" value={legal?.waterConnection} doc={legal?.waterConnectionDoc} />
+        <DocRow label="Electricity Connection" value={legal?.electricityConnection} doc={legal?.electricityConnectionDoc} />
+        <DocRow label="Safety Audit Report" value={legal?.safetyAudit} doc={legal?.safetyAuditDoc} />
+        <DocRow label="Drainage System" value={legal?.drainageSystem} doc={legal?.drainageSystemDoc} />
+
+        <LegalCat icon={CreditCard} label="Financial & Administrative" />
+        <DocRow label="PAN Number" value={legal?.panNo} doc={legal?.panDoc} />
+        <DocRow label="GSTIN Number" value={legal?.gstinNo} doc={legal?.gstinDoc} />
+        <DocRow label="Bank Account" value={legal?.bankAccount} doc={legal?.bankAccountDoc} />
+        <DocRow label="Trust Deed / Society Reg" value={legal?.trustDeed} doc={legal?.trustDeedDoc} />
+
+        <LegalCat icon={BookOpen} label="Education Registration & Affiliation" />
+        <DocRow label="DISE Code" value={legal?.diseCode} doc={legal?.disecodeDoc} />
+        <DocRow label="Provisional Recognition" value={legal?.provisionalRecognition} doc={legal?.provisionalRecognitionDoc} />
+        <DocRow label="Board Affiliation" value={legal?.affiliation} doc={legal?.affiliationDoc} />
+
+        <LegalCat icon={ScrollText} label="Mandatory Policies" />
+        <DocRow label="Child Protection Policy" value={legal?.childProtectionPolicy} doc={legal?.childProtectionPolicyDoc} />
+        <DocRow label="Harassment Prevention" value={legal?.harassmentPolicy} doc={legal?.harassmentPolicyDoc} />
+        <DocRow label="Admission Policy" value={legal?.admissionPolicy} doc={legal?.admissionPolicyDoc} />
+        <DocRow label="Fee Structure" value={legal?.feeStructure} doc={legal?.feeStructureDoc} />
+      </div>
+    </div>
+  );
+};
 
 const BranchesPanel = ({ branches }) => {
   if (!branches || branches.length === 0) return (
@@ -319,8 +394,7 @@ export default function Institute() {
   const navigate = useNavigate();
   const [institute, setInstitute] = useState(null);
   
-  // States for SuperAdmin flows
-  const [viewMode, setViewMode] = useState("list"); // Default to list for Super Admin
+  const [viewMode, setViewMode] = useState("list"); 
   const [institutesList, setInstitutesList] = useState([]);
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   
@@ -328,71 +402,46 @@ export default function Institute() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Filters State
   const [searchTerm, setSearchTerm] = useState("");
   const [filterType, setFilterType] = useState("");
   const [filterState, setFilterState] = useState("");
   const [filterPlan, setFilterPlan] = useState("");
 
-  const fetchAllInstitutes = async (token) => {
+  const fetchAllInstitutes = async () => {
     try {
       setLoading(true);
-      const res = await fetch(`${apiBaseUrl}/superadmin/institutes`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      if (!res.ok) throw new Error("Failed to fetch institutes list.");
-      const json = await res.json();
-      setInstitutesList(json.data || []);
+      // 🚀 FIXED: Using api wrapper
+      const res = await api.get('/superadmin/institutes');
+      setInstitutesList(res.data?.data || []);
       setViewMode("list");
     } catch (err) {
-      setError(err.message);
+      setError(err.response?.data?.message || err.message);
     } finally {
       setLoading(false);
     }
   };
 
-  const fetchSingleInstitute = async (id, token, asSuperAdmin) => {
+  const fetchSingleInstitute = async (id, asSuperAdmin) => {
+    localStorage.setItem('managed_institute_id', id);
+
     try {
       setLoading(true);
       setError(null);
       
       const endpoint = asSuperAdmin 
-        ? `${apiBaseUrl}/superadmin/institutes/${id}` 
-        : `${apiBaseUrl}/admin/institutes/${id}/full-details`;
+        ? `/superadmin/institutes/${id}/full-details` 
+        : `/admin/institutes/${id}/full-details`;
 
-      const res = await fetch(endpoint, {
-        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }
-      });
-
-      if (!res.ok) {
-        if (res.status === 401) throw new Error("Unauthorized. Please re-login.");
-        if (res.status === 404) throw new Error(`Institute not found (${id}).`);
-        throw new Error(`Server error: ${res.status}`);
-      }
-
-      const json = await res.json();
-      if (!json.success) throw new Error(json.message || "Failed to fetch institute data.");
-
-      const data = json.data;
+      // 🚀 FIXED: Using api wrapper
+      const res = await api.get(endpoint);
+      const data = res.data?.data || res.data;
+      if (!data) throw new Error("No data returned from the server.");
       
-      const org = safeParseJSON(data.organisation) || { name: data.name, email: data.email, phone: data.phone, type: data.type, city: data.city, state: data.state };
-
-      setInstitute({
-        id: data.institute_code || data.id,
-        status: data.status || "Active",
-        plan: data.plan || "Premium",
-        createdAt: data.created_at ? new Date(data.created_at).toLocaleDateString("en-IN") : (data.joined || "—"),
-        organisation: org,
-        directors: Array.isArray(safeParseJSON(data.directors)) ? safeParseJSON(data.directors) : [],
-        legal: safeParseJSON(data.legal) || {},
-        branches: Array.isArray(safeParseJSON(data.branches)) ? safeParseJSON(data.branches) : [],
-        totalStudents: data.students || data.totalStudents || 0,
-        totalFaculty: data.teachers || data.totalFaculty || 0,
-        totalBatches: data.totalBatches || 0,
-      });
+      setInstitute(processInstituteData(data));
       setViewMode("details");
     } catch (err) {
-      setError(err.message);
+      setError(err.response?.data?.message || err.message);
+      setViewMode("list"); 
     } finally {
       setLoading(false);
     }
@@ -409,17 +458,33 @@ export default function Institute() {
         return;
       }
 
-      if (user.role === "superadmin" || user.role === "super_admin") {
+      const normalizedRole = String(user.role || "").toLowerCase().replace(/[^a-z]/g, '');
+      const isSuperAdminCheck = normalizedRole === "superadmin";
+
+      if (isSuperAdminCheck) {
         setIsSuperAdmin(true);
-        await fetchAllInstitutes(token);
+        const impersonatedId = localStorage.getItem('managed_institute_id');
+        if (impersonatedId && viewMode === "details") {
+          await fetchSingleInstitute(impersonatedId, true);
+        } else {
+          await fetchAllInstitutes();
+        }
       } else {
-        const instituteId = user?.code || user?.institute_code || user?.instituteCode || user?.id;
+        const impersonatedId = localStorage.getItem("managed_institute_id");
+        const instituteId =
+          impersonatedId?.toString().trim()       ||
+          user?.code?.toString().trim()           ||
+          user?.institute_code?.toString().trim() ||
+          user?.instituteCode?.toString().trim()  ||
+          user?.id?.toString().trim()             ||
+          null;
+
         if (!instituteId) {
-          setError("Could not find your assigned institute. Please re-login.");
+          setError(`Institute ID is missing or empty. Please re-login or contact support.`);
           setLoading(false);
           return;
         }
-        await fetchSingleInstitute(instituteId, token, false);
+        await fetchSingleInstitute(instituteId, false);
       }
     };
     init();
@@ -427,25 +492,17 @@ export default function Institute() {
 
   const handleDeleteInstitute = async (id, name) => {
     if (!window.confirm(`Are you sure you want to completely remove ${name || "this institute"}? This action is permanent.`)) return;
-    
     try {
-      const token = localStorage.getItem("token");
-      const res = await fetch(`${apiBaseUrl}/superadmin/institutes/${id}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      
-      if (!res.ok) throw new Error("Failed to delete institute");
+      await api.delete(`/superadmin/institutes/${id}`);
       setInstitutesList(prev => prev.filter(inst => inst.id !== id && inst.institute_code !== id));
       alert("Institute successfully removed.");
     } catch (err) {
-      alert("Error removing institute: " + err.message);
+      alert("Error removing institute: " + (err.response?.data?.message || err.message));
     }
   };
 
   const { filteredInstitutes, stats } = useMemo(() => {
     let total = 0, active = 0, suspended = 0, trial = 0;
-    
     institutesList.forEach(inst => {
       const status = inst.status || "Active";
       total++;
@@ -456,7 +513,6 @@ export default function Institute() {
 
     const filtered = institutesList.filter(inst => {
       const plan = inst.plan || "Premium";
-      
       const searchLower = searchTerm.toLowerCase();
       const orgName = (inst.name || "").toLowerCase();
       const orgEmail = (inst.email || "").toLowerCase();
@@ -484,13 +540,13 @@ export default function Institute() {
 
   if (error) return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-      <div className="text-center max-w-md px-4">
-        <Building2 size={48} className="mx-auto mb-4 opacity-30 text-gray-400" />
-        <p className="text-lg font-semibold text-red-500 mb-2">Failed to load</p>
-        <p className="text-sm text-gray-500 bg-gray-100 rounded-lg p-3 text-left break-words">{error}</p>
+      <div className="text-center max-w-md px-4 bg-white p-8 rounded-2xl shadow-xl border border-red-100">
+        <AlertCircle size={48} className="mx-auto mb-4 text-red-500" />
+        <p className="text-lg font-semibold text-gray-800 mb-2">Connection Error</p>
+        <p className="text-sm text-gray-500 bg-red-50 rounded-lg p-3 text-left break-words border border-red-100">{error}</p>
         {isSuperAdmin && (
-          <button onClick={() => { setError(null); setViewMode("list"); }} className="mt-4 text-blue-600 font-medium hover:underline">
-            Return to Dashboard
+          <button onClick={() => { setError(null); setViewMode("list"); }} className="mt-6 w-full bg-blue-600 text-white px-4 py-2.5 rounded-lg font-bold hover:bg-blue-700 transition shadow-md shadow-blue-200">
+            Return to Master List
           </button>
         )}
       </div>
@@ -504,16 +560,12 @@ export default function Institute() {
     return (
       <div className="min-h-screen bg-gray-50/50 p-4 md:p-8 text-left">
         <div className="mx-auto w-full max-w-[1400px] space-y-6">
-          
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
               <h1 className="text-2xl font-black text-gray-900 leading-tight">Institute Master List</h1>
               <p className="text-sm text-gray-500 mt-1 font-medium">View and manage all registered institutes</p>
             </div>
-            <button 
-              onClick={() => navigate("/super-admin/institutes/create")} 
-              className="flex items-center gap-2 bg-blue-600 text-white px-5 py-2.5 rounded-xl text-sm font-bold hover:bg-blue-700 transition shadow-md shadow-blue-200"
-            >
+            <button onClick={() => navigate("/super-admin/institutes/create")} className="flex items-center gap-2 bg-blue-600 text-white px-5 py-2.5 rounded-xl text-sm font-bold hover:bg-blue-700 transition shadow-md shadow-blue-200">
               <Plus size={18} /> Add Institute
             </button>
           </div>
@@ -540,13 +592,7 @@ export default function Institute() {
           <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex flex-col md:flex-row gap-4 items-center justify-between">
             <div className="relative w-full md:w-64 shrink-0">
               <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-              <input 
-                type="text" 
-                placeholder="Search institutes..." 
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-9 pr-4 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none" 
-              />
+              <input type="text" placeholder="Search institutes..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full pl-9 pr-4 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none" />
             </div>
             <div className="flex w-full md:w-auto gap-3 items-center">
               <span className="text-sm font-bold text-gray-400 uppercase tracking-wider hidden lg:block">Filters</span>
@@ -582,47 +628,47 @@ export default function Institute() {
                 <tbody className="divide-y divide-gray-50">
                   {filteredInstitutes.length === 0 ? (
                     <tr><td colSpan={7} className="py-12 text-center text-gray-400">No institutes found matching criteria.</td></tr>
-                  ) : filteredInstitutes.map((inst) => {
-                    return (
-                      <tr key={inst.id} className="hover:bg-blue-50/20 transition group">
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-lg bg-gray-100 text-gray-600 flex items-center justify-center font-bold text-sm shrink-0 border border-gray-200">
-                              {inst.name?.[0]?.toUpperCase() || <Building2 size={16} />}
-                            </div>
-                            <div>
-                              <p className="font-bold text-gray-900 text-sm">{fmt(inst.name) || "Unnamed Institute"}</p>
-                              <p className="text-[11px] text-gray-500 font-medium">{inst.email || "No email provided"}</p>
-                            </div>
+                  ) : filteredInstitutes.map((inst) => (
+                    <tr key={inst.id} className="hover:bg-blue-50/20 transition group">
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-lg bg-gray-100 text-gray-600 flex items-center justify-center font-bold text-sm shrink-0 border border-gray-200">
+                            {inst.name?.[0]?.toUpperCase() || <Building2 size={16} />}
                           </div>
-                        </td>
-                        <td className="px-6 py-4 text-sm text-gray-700">{inst.type || "—"}</td>
-                        <td className="px-6 py-4 text-sm text-gray-700">{[fmt(inst.city), fmt(inst.state)].filter(Boolean).join(", ") || "—"}</td>
-                        <td className="px-6 py-4 text-sm text-gray-700">{inst.plan || "Premium"}</td>
-                        <td className="px-6 py-4">
-                          <span className={`px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-widest ${statusStyles[inst.status || "Active"] || "bg-gray-100 text-gray-600"}`}>
-                            {inst.status || "Active"}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 text-sm text-gray-600">{inst.joined || "—"}</td>
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-1.5">
-                            <button onClick={() => fetchSingleInstitute(inst.id, localStorage.getItem("token"), isSuperAdmin)} className="p-1.5 text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-md transition" title="View Details">
-                              <Eye size={15} />
-                            </button>
-                            <button onClick={() => handleDeleteInstitute(inst.id, inst.name)} className="p-1.5 text-red-500 bg-red-50 hover:bg-red-100 rounded-md transition" title="Delete Institute">
-                              <Trash2 size={15} />
-                            </button>
+                          <div>
+                            <p className="font-bold text-gray-900 text-sm">{fmt(inst.name) || "Unnamed Institute"}</p>
+                            <p className="text-[11px] text-gray-500 font-medium">{inst.email || "No email provided"}</p>
                           </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-700">{inst.type || "—"}</td>
+                      <td className="px-6 py-4 text-sm text-gray-700">{[fmt(inst.city), fmt(inst.state)].filter(Boolean).join(", ") || "—"}</td>
+                      <td className="px-6 py-4 text-sm text-gray-700">{inst.plan || "Premium"}</td>
+                      <td className="px-6 py-4">
+                        <span className={`px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-widest ${statusStyles[inst.status || "Active"] || "bg-gray-100 text-gray-600"}`}>
+                          {inst.status || "Active"}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-600">{inst.joined || "—"}</td>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-1.5">
+                          <button onClick={() => fetchSingleInstitute(inst.id, true)} className="p-1.5 text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-md transition" title="View Details">
+                            <Eye size={15} />
+                          </button>
+                          <button onClick={() => navigate(`/super-admin/institutes/edit/${inst.id}`)} className="p-1.5 text-orange-600 bg-orange-50 hover:bg-orange-100 rounded-md transition" title="Edit Institute">
+                            <Edit size={15} />
+                          </button>
+                          <button onClick={() => handleDeleteInstitute(inst.id, inst.name)} className="p-1.5 text-red-500 bg-red-50 hover:bg-red-100 rounded-md transition" title="Delete Institute">
+                            <Trash2 size={15} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>
           </div>
-
         </div>
       </div>
     );
@@ -649,17 +695,30 @@ export default function Institute() {
     <div className="min-h-screen bg-gray-50/50 p-4 md:p-8 text-left relative">
       <div className="mx-auto w-full max-w-[1400px]">
         
-        {isSuperAdmin && (
-          <button 
-            onClick={() => setViewMode("list")}
-            className="mb-6 flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-xl text-sm font-bold text-gray-600 hover:text-blue-600 hover:border-blue-200 hover:bg-blue-50 transition shadow-sm w-max"
-          >
-            <ArrowLeft size={16} /> Back to Master List
-          </button>
-        )}
+        <div className="flex items-center justify-between mb-6">
+          {isSuperAdmin ? (
+            <button 
+              onClick={() => {
+                localStorage.removeItem('managed_institute_id');
+                setViewMode("list");
+              }}
+              className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-xl text-sm font-bold text-gray-600 hover:text-blue-600 hover:border-blue-200 hover:bg-blue-50 transition shadow-sm w-max"
+            >
+              <ArrowLeft size={16} /> Back to Master List
+            </button>
+          ) : <div />}
+
+          {isSuperAdmin && (
+            <button 
+              onClick={() => navigate(`/super-admin/institutes/edit/${institute.dbId || institute.id}`)}
+              className="flex items-center gap-2 px-5 py-2 bg-orange-100 text-orange-700 border border-orange-200 rounded-xl text-sm font-bold hover:bg-orange-200 transition shadow-sm"
+            >
+              <Edit size={16} /> Edit Institute
+            </button>
+          )}
+        </div>
 
         <div className="space-y-6">
-          {/* ── HEADER ── */}
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
             <div className="p-6 pb-0">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -685,27 +744,6 @@ export default function Institute() {
             </div>
           </div>
 
-          {/* ── STATS ── */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {[
-              { label: "Directors", value: directors.length, icon: Users },
-              { label: "Branches", value: branches.length, icon: GitBranch },
-              { label: "Students", value: institute.totalStudents || 0, icon: Users },
-              { label: "Faculty", value: institute.totalFaculty || 0, icon: Calendar },
-            ].map((stat) => (
-              <div key={stat.label} className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center shrink-0">
-                  <stat.icon size={18} className="text-blue-600" />
-                </div>
-                <div>
-                  <p className="text-lg font-black text-gray-800 leading-tight">{stat.value}</p>
-                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mt-0.5">{stat.label}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* ── CONTENT ── */}
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 md:p-8">
             {activeMenu === "organisation" && <OrganisationPanel org={org} institute={institute} />}
             {activeMenu === "directors" && <DirectorsPanel directors={directors} />}

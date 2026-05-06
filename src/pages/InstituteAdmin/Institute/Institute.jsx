@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 import {
   Building2, Users, FileText, GitBranch,
   MapPin, Landmark, ShieldCheck, Zap,
@@ -14,7 +15,16 @@ const fmt = (text = "") =>
 const safeParseJSON = (data) => {
   if (!data) return null;
   if (typeof data === "object") return data;
-  try { return JSON.parse(data); } catch { return null; }
+  try {
+    let parsed = JSON.parse(data);
+    // If the database accidentally double-stringified the JSON, parse it again
+    if (typeof parsed === "string") {
+      parsed = JSON.parse(parsed);
+    }
+    return parsed;
+  } catch {
+    return null;
+  }
 };
 
 const statusStyles = {
@@ -23,9 +33,9 @@ const statusStyles = {
   Trial:     "bg-blue-100 text-blue-700 border border-blue-300",
 };
 
-const BACKEND_URL = "http://localhost:5000";
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
 
-// ─── Reusable Components ───────────────────────────────────────────────────────
+// ─── Reusable Components ──────────────────────────────────────────────────────
 
 const InfoRow = ({ label, value }) => (
   <div className="flex flex-col py-2 border-b border-gray-50 md:border-none">
@@ -136,8 +146,12 @@ const OrganisationPanel = ({ org, institute }) => (
       <InfoRow label="Alternate Phone"   value={org.altPhone} />
       <InfoRow label="Email"             value={org.email} />
       <InfoRow label="Secondary Email"   value={org.secondaryEmail} />
-      <InfoRow label="Address Line 1"    value={fmt(org.address1)} />
-      <InfoRow label="Address Line 2"    value={fmt(org.address2)} />
+      <div className="md:col-span-2 lg:col-span-3">
+        <InfoRow label="Address Line 1"  value={fmt(org.address1)} />
+      </div>
+      <div className="md:col-span-2 lg:col-span-3">
+        <InfoRow label="Address Line 2"  value={fmt(org.address2)} />
+      </div>
       <InfoRow label="City"              value={fmt(org.city)} />
       <InfoRow label="State"             value={fmt(org.state)} />
       <InfoRow label="PIN Code"          value={org.pin} />
@@ -147,7 +161,6 @@ const OrganisationPanel = ({ org, institute }) => (
   </div>
 );
 
-// ── DirectorsPanel — FIXED: no reference to `legal`, uses d.documents only ──
 const DirectorsPanel = ({ directors }) => {
   if (!directors || directors.length === 0) return (
     <div>
@@ -167,20 +180,17 @@ const DirectorsPanel = ({ directors }) => {
       />
       <div className="space-y-8">
         {directors.map((d, idx) => {
-          // ✅ FIX: resolve doc values safely from d.documents — never from outer `legal`
-          const docs        = d.documents || {};
-          const panNo       = docs.panNo     || "";
-          const aadhaarNo   = docs.aadhaarNo || "";
-          const panDoc      = docs.panDoc    || null;   // saved path string or null
-          const aadhaarDoc  = docs.aadhaarDoc || null;
+          const docs       = d.documents || {};
+          const panNo      = docs.panNo      || "";
+          const aadhaarNo  = docs.aadhaarNo  || "";
+          const panDoc     = docs.panDoc     || null;
+          const aadhaarDoc = docs.aadhaarDoc || null;
 
-          const hasDocSection = panNo || aadhaarNo || panDoc || aadhaarDoc;
-
-          const bank = d.bank || {};
-          const hasBankSection = bank.bankName || bank.accountNumber || bank.ifscCode;
-
-          const cur = d.currentAddress  || {};
-          const per = d.permanentAddress || {};
+          const hasDocSection     = panNo || aadhaarNo || panDoc || aadhaarDoc;
+          const bank              = d.bank || {};
+          const hasBankSection    = bank.bankName || bank.accountNumber || bank.ifscCode;
+          const cur               = d.currentAddress   || {};
+          const per               = d.permanentAddress || {};
           const hasAddressSection = cur.line1 || per.line1;
 
           return (
@@ -198,42 +208,52 @@ const DirectorsPanel = ({ directors }) => {
                 </div>
               </div>
 
-              <div className="bg-gray-50/50 p-6 rounded-xl border border-gray-50">
+              <div className="bg-gray-50/50 p-6 rounded-xl border border-gray-50 space-y-6">
 
                 {/* Personal Details */}
-                <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-4 border-b border-gray-100 pb-3">
-                  Personal Details
-                </p>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-5">
-                  <InfoRow label="Email"           value={d.email} />
-                  <InfoRow label="Secondary Email" value={d.secondaryEmail} />
-                  <InfoRow label="Contact"         value={d.contact} />
-                  <InfoRow label="Mobile"          value={d.mobile} />
-                  <InfoRow label="WhatsApp"        value={d.whatsapp} />
-                  <InfoRow label="Gender"          value={d.gender} />
-                  <InfoRow label="Date of Birth"   value={d.dob} />
-                  <InfoRow label="% of Interest"   value={d.interest ? `${d.interest}%` : null} />
-                  <InfoRow label="Father's Name"   value={fmt(d.father)} />
-                  <InfoRow label="Spouse Name"     value={fmt(d.spouse)} />
-                  <InfoRow label="No. of Children" value={d.children} />
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-4 border-b border-gray-100 pb-3">
+                    Personal Details
+                  </p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-5">
+                    <InfoRow label="Email"           value={d.email} />
+                    <InfoRow label="Secondary Email" value={d.secondaryEmail} />
+                    <InfoRow label="Contact"         value={d.contact} />
+                    <InfoRow label="Mobile"          value={d.mobile} />
+                    <InfoRow label="WhatsApp"        value={d.whatsapp} />
+                    <InfoRow label="Gender"          value={d.gender} />
+                    <InfoRow label="Date of Birth"   value={d.dob} />
+                    <InfoRow label="% of Interest"   value={d.interest ? `${d.interest}%` : null} />
+                    <InfoRow label="Father's Name"   value={fmt(d.father)} />
+                    <InfoRow label="Spouse Name"     value={fmt(d.spouse)} />
+                    <InfoRow label="No. of Children" value={d.children} />
+                  </div>
                 </div>
 
                 {/* Bank Details */}
                 {hasBankSection && (
-                  <>
-                    <LegalCat icon={CreditCard} label="Bank Details" />
+                  <div>
+                    <div className="flex items-center gap-2 pb-4">
+                      <CreditCard size={14} className="text-blue-500 shrink-0" />
+                      <span className="text-xs font-bold uppercase tracking-widest text-gray-500">Bank Details</span>
+                      <div className="flex-1 h-px bg-gray-200 ml-1" />
+                    </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-4">
                       <InfoRow label="Bank Name"      value={bank.bankName} />
                       <InfoRow label="Account Number" value={bank.accountNumber} />
                       <InfoRow label="IFSC Code"      value={bank.ifscCode} />
                     </div>
-                  </>
+                  </div>
                 )}
 
                 {/* Address */}
                 {hasAddressSection && (
-                  <>
-                    <LegalCat icon={MapPin} label="Address Information" />
+                  <div>
+                    <div className="flex items-center gap-2 pb-4">
+                      <MapPin size={14} className="text-blue-500 shrink-0" />
+                      <span className="text-xs font-bold uppercase tracking-widest text-gray-500">Address Information</span>
+                      <div className="flex-1 h-px bg-gray-200 ml-1" />
+                    </div>
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-8 gap-y-4">
                       {cur.line1 && (
                         <InfoRow
@@ -250,19 +270,22 @@ const DirectorsPanel = ({ directors }) => {
                         />
                       )}
                     </div>
-                  </>
+                  </div>
                 )}
 
-                {/* Identity Documents — ✅ uses d.documents values, NOT `legal` */}
+                {/* Identity Documents */}
                 {hasDocSection && (
-                  <>
-                    <LegalCat icon={FileText} label="Identity Documents" />
+                  <div>
+                    <div className="flex items-center gap-2 pb-4">
+                      <FileText size={14} className="text-blue-500 shrink-0" />
+                      <span className="text-xs font-bold uppercase tracking-widest text-gray-500">Identity Documents</span>
+                      <div className="flex-1 h-px bg-gray-200 ml-1" />
+                    </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-4">
-                      {/* ✅ DocRow receives the director's own panDoc / aadhaarDoc */}
                       <DocRow label="PAN Card"     value={panNo}     doc={panDoc} />
                       <DocRow label="Aadhaar Card" value={aadhaarNo} doc={aadhaarDoc} />
                     </div>
-                  </>
+                  </div>
                 )}
 
               </div>
@@ -274,7 +297,6 @@ const DirectorsPanel = ({ directors }) => {
   );
 };
 
-// ── LegalPanel — FIXED: panNoDoc → panDoc ────────────────────────────────────
 const LegalPanel = ({ legal }) => {
   if (!legal) return (
     <div>
@@ -304,13 +326,12 @@ const LegalPanel = ({ legal }) => {
         <DocRow label="Pollution Control NOC"    value={legal?.pollutionNOC}     doc={legal?.pollutionNOCDoc} />
 
         <LegalCat icon={Zap} label="Infrastructure & Safety" />
-        <DocRow label="Water Connection"         value={legal?.waterConnection}       doc={legal?.waterConnectionDoc} />
-        <DocRow label="Electricity Connection"   value={legal?.electricityConnection} doc={legal?.electricityConnectionDoc} />
-        <DocRow label="Safety Audit Report"      value={legal?.safetyAudit}           doc={legal?.safetyAuditDoc} />
-        <DocRow label="Drainage System"          value={legal?.drainageSystem}        doc={legal?.drainageSystemDoc} />
+        <DocRow label="Water Connection"       value={legal?.waterConnection}       doc={legal?.waterConnectionDoc} />
+        <DocRow label="Electricity Connection" value={legal?.electricityConnection} doc={legal?.electricityConnectionDoc} />
+        <DocRow label="Safety Audit Report"    value={legal?.safetyAudit}           doc={legal?.safetyAuditDoc} />
+        <DocRow label="Drainage System"        value={legal?.drainageSystem}        doc={legal?.drainageSystemDoc} />
 
         <LegalCat icon={CreditCard} label="Financial & Administrative" />
-        {/* ✅ FIXED: was panNoDoc — correct field name is panDoc */}
         <DocRow label="PAN Number"                value={legal?.panNo}       doc={legal?.panDoc} />
         <DocRow label="GSTIN"                     value={legal?.gstinNo}     doc={legal?.gstinNoDoc} />
         <DocRow label="Bank Account"              value={legal?.bankAccount} doc={legal?.bankAccountDoc} />
@@ -386,51 +407,100 @@ const BranchesPanel = ({ branches }) => {
 // ══════════════════════════════════════════════════════════════════════════════
 
 export default function Institute() {
+  const navigate = useNavigate();
   const [institute, setInstitute] = useState(null);
   const [activeMenu, setActiveMenu] = useState("organisation");
-  const [loading, setLoading]     = useState(true);
-  const [error, setError]         = useState(null);
+  const [loading, setLoading]       = useState(true);
+  const [error, setError]           = useState(null);
 
   useEffect(() => {
     const fetchInstitute = async () => {
       try {
         const user = JSON.parse(localStorage.getItem("user") || "{}");
+        const impersonatedId = localStorage.getItem("managed_institute_id"); 
+        
+        // Check if the current user is a Super Admin
+        const normalizedRole = String(user?.role || "").toLowerCase().replace(/[^a-z]/g, '');
+        const isSuperAdmin = normalizedRole === "superadmin";
 
+        // ── Resolve institute ID ──────────────────────────────────────────────
         const instituteId =
-          user?.code           ||
-          user?.institute_code ||
-          user?.instituteCode  ||
-          user?.id;
+          impersonatedId?.toString().trim()       ||
+          user?.code?.toString().trim()           ||
+          user?.institute_code?.toString().trim() ||
+          user?.instituteCode?.toString().trim()  ||
+          user?.id?.toString().trim()             ||
+          null;
 
         if (!instituteId) {
+          if (isSuperAdmin) {
+            navigate("/super-admin/institutes");
+            return;
+          }
+
           setError(
-            `Could not find your institute. (User keys: [${Object.keys(user).join(", ")}]) — Please re-login.`
+            `Institute ID is missing or empty.\n` +
+            `Raw values — code: "${user?.code}", institute_code: "${user?.institute_code}", ` +
+            `instituteCode: "${user?.instituteCode}", id: "${user?.id}"\n\n` +
+            `All user keys: [${Object.keys(user).join(", ")}]\n\n` +
+            `Please re-login or contact support.`
           );
           setLoading(false);
           return;
         }
 
-        const res  = await api.get(`/admin/institutes/${instituteId}/full-details`);
+        const endpoint = isSuperAdmin 
+          ? `/superadmin/institutes/${instituteId}/full-details` 
+          : `/admin/institutes/${instituteId}/full-details`;
+
+        const res  = await api.get(endpoint);
         const json = res.data;
 
         if (!json.success) throw new Error(json.message || "Failed to fetch institute data.");
 
         const data = json.data;
-        const org  = safeParseJSON(data.organisation) || {};
+
+        const rawOrg = safeParseJSON(data.organisation) || {};
+        const innerOrg = rawOrg.organisation || rawOrg;
+        
+        const org = {
+          name:           innerOrg.name           || data.name           || "",
+          type:           innerOrg.type           || data.type           || "",
+          phone:          innerOrg.phone          || data.phone          || "",
+          altPhone:       innerOrg.altPhone       || data.altPhone       || "",
+          email:          innerOrg.email          || data.email          || "",
+          secondaryEmail: innerOrg.secondaryEmail || data.secondaryEmail || "",
+          address1:       innerOrg.address1       || data.address1       || "",
+          address2:       innerOrg.address2       || data.address2       || "",
+          city:           innerOrg.city           || data.city           || "",
+          state:          innerOrg.state          || data.state          || "",
+          pin:            innerOrg.pin            || data.pin            || "",
+          headOffice:     innerOrg.headOffice     || data.headOffice     || "",
+        };
+
+        const directors = (() => {
+          const parsed = safeParseJSON(data.directors);
+          return Array.isArray(parsed) ? parsed : [];
+        })();
+
+        const legal    = safeParseJSON(data.legal)    || {};
+        
+        const branches = (() => {
+          const parsed = safeParseJSON(data.branches);
+          return Array.isArray(parsed) ? parsed : [];
+        })();
 
         setInstitute({
-          id:        data.institute_code || data.id,
-          status:    data.status  || "Active",
-          plan:      data.plan    || "Premium",
-          createdAt: data.created_at
+          id:           data.institute_code || data.id,
+          status:       data.status  || "Active",
+          plan:         data.plan    || "Premium",
+          createdAt:    data.created_at
             ? new Date(data.created_at).toLocaleDateString("en-IN")
             : "—",
-          organisation: org,
-          directors:    Array.isArray(safeParseJSON(data.directors))
-            ? safeParseJSON(data.directors) : [],
-          legal:        safeParseJSON(data.legal)   || {},
-          branches:     Array.isArray(safeParseJSON(data.branches))
-            ? safeParseJSON(data.branches)  : [],
+          organisation:  org,
+          directors,
+          legal,
+          branches,
           totalStudents: data.totalStudents || 0,
           totalFaculty:  data.totalFaculty  || 0,
           totalBatches:  data.totalBatches  || 0,
@@ -450,8 +520,9 @@ export default function Institute() {
     };
 
     fetchInstitute();
-  }, []);
+  }, [navigate]);
 
+  // ── Loading ───────────────────────────────────────────────────────────────
   if (loading) return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center">
       <div className="text-center text-gray-400">
@@ -461,16 +532,26 @@ export default function Institute() {
     </div>
   );
 
+  // ── Error ─────────────────────────────────────────────────────────────────
   if (error) return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-      <div className="text-center max-w-md px-4">
+      <div className="text-center max-w-lg px-4">
         <Building2 size={48} className="mx-auto mb-4 opacity-30 text-gray-400" />
         <p className="text-lg font-semibold text-red-500 mb-2">Failed to load</p>
-        <p className="text-sm text-gray-500 bg-gray-100 rounded-lg p-3 text-left break-words">{error}</p>
+        <pre className="text-xs text-gray-500 bg-gray-100 rounded-lg p-4 text-left break-words whitespace-pre-wrap">
+          {error}
+        </pre>
+        <button
+          onClick={() => { setError(null); setLoading(true); }}
+          className="mt-4 text-sm text-blue-600 font-semibold hover:underline"
+        >
+          Retry
+        </button>
       </div>
     </div>
   );
 
+  // ── No data ───────────────────────────────────────────────────────────────
   if (!institute) return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center">
       <div className="text-center text-gray-400 max-w-sm">
@@ -512,32 +593,14 @@ export default function Institute() {
                   </p>
                 </div>
               </div>
-              <span className={`px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest ${statusStyles[institute.status] || "bg-gray-100 text-gray-600"}`}>
+              <span className={`px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest ${
+                statusStyles[institute.status] || "bg-gray-100 text-gray-600"
+              }`}>
                 {institute.status || "Unknown"}
               </span>
             </div>
             <HeaderTabs activeMenu={activeMenu} setActiveMenu={setActiveMenu} counts={counts} />
           </div>
-        </div>
-
-        {/* ── QUICK STATS ── */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {[
-            { label: "Directors", value: directors.length,              icon: Users     },
-            { label: "Branches",  value: branches.length,               icon: GitBranch },
-            { label: "Students",  value: institute.totalStudents || 0,  icon: Users     },
-            { label: "Faculty",   value: institute.totalFaculty  || 0,  icon: Calendar  },
-          ].map((stat) => (
-            <div key={stat.label} className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center shrink-0">
-                <stat.icon size={18} className="text-blue-600" />
-              </div>
-              <div>
-                <p className="text-lg font-black text-gray-800 leading-tight">{stat.value}</p>
-                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mt-0.5">{stat.label}</p>
-              </div>
-            </div>
-          ))}
         </div>
 
         {/* ── MAIN CONTENT PANEL ── */}

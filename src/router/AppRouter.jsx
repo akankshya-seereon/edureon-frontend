@@ -11,7 +11,7 @@ import ProtectedRoute from "../components/Auth/ProtectedRoute";
 import { SuperAdminDashboard } from "../pages/SuperAdmin/SuperAdminDashboard";
 import { InstituteProfile } from "../pages/SuperAdmin/InstituteProfile";
 import SuperAdminInstituteList from "../pages/SuperAdmin/Institute/Institute";
-import SuperAdminInstituteForm from "../pages/SuperAdmin/Institute/InstituteForm";
+import SuperAdminInstituteForm from "../pages/SuperAdmin/Institute/InstituteForm"; // 🚀 Added this import back
 
 // Institute Admin
 import AdminDashboard from "../pages/InstituteAdmin/AdminDashboard";
@@ -127,7 +127,11 @@ export const AppRouter = () => (
       <Route path="dashboard"          element={<SuperAdminDashboard />} />
       <Route path="institutes"         element={<SuperAdminInstituteList />} />
       <Route path="institutes/:id/view"   element={<InstituteProfile />} />
-      <Route path="institutes/create" element={<SuperAdminInstituteForm />} />
+      
+      {/* 🚀 CRITICAL FIX: Add both Create and Edit routes here! */}
+      <Route path="institutes/create"  element={<SuperAdminInstituteForm />} />
+      <Route path="institutes/edit/:id" element={<SuperAdminInstituteForm />} />
+      
       <Route path="attendance"         element={<InstituteAttendance role="super_admin" />} />
     </Route>
 

@@ -1,7 +1,7 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { ChevronLeft, Plus, Trash2, Upload, AlertCircle, CheckCircle2 } from "lucide-react";
-import { adminService } from "../../../services/adminService";
+import { useState, useEffect } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import { ChevronLeft, Plus, Trash2, Upload, AlertCircle, CheckCircle2, BadgeCheck } from "lucide-react";
+import apiBaseUrl from "../../../config/baseurl"; 
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -22,6 +22,19 @@ const INDIAN_STATES = [
   "Andaman and Nicobar Islands","Chandigarh","Dadra and Nagar Haveli and Daman and Diu",
   "Delhi","Jammu and Kashmir","Ladakh","Lakshadweep","Puducherry",
 ];
+
+// ─── Robust JSON Parser ──────────────────────────────────────────────────────
+const safeParseJSON = (data) => {
+  if (!data) return null;
+  if (typeof data === "object") return data;
+  try {
+    let parsed = JSON.parse(data);
+    if (typeof parsed === "string") parsed = JSON.parse(parsed);
+    return parsed;
+  } catch {
+    return null;
+  }
+};
 
 // ─── Validators ──────────────────────────────────────────────────────────────
 
@@ -53,10 +66,11 @@ function RequiredLabel({ children, hint }) {
   );
 }
 
-function OptionalLabel({ children }) {
+function OptionalLabel({ children, hint }) {
   return (
     <label className="block text-sm font-medium text-gray-700 mb-1">
       {children} <span className="text-xs text-gray-400 font-normal">(optional)</span>
+      {hint && <span className="ml-1 text-xs text-gray-400 font-normal">({hint})</span>}
     </label>
   );
 }
@@ -65,7 +79,7 @@ function Input({ type = "text", value, onChange, placeholder, error, className =
   return (
     <input
       type={type}
-      value={value}
+      value={value || ""}
       onChange={onChange}
       placeholder={placeholder}
       className={`w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition
@@ -78,7 +92,7 @@ function Input({ type = "text", value, onChange, placeholder, error, className =
 function Select({ value, onChange, children, error, className = "" }) {
   return (
     <select
-      value={value}
+      value={value || ""}
       onChange={onChange}
       className={`w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white transition
         ${error ? "border-red-400 bg-red-50" : "border-gray-300"} ${className}`}
@@ -88,7 +102,27 @@ function Select({ value, onChange, children, error, className = "" }) {
   );
 }
 
-function DocumentCard({ label, required, numberLabel, numberValue, onNumberChange, numberPlaceholder, onFileChange, error, fileError, numberHint }) {
+const FileInput = ({ value, onChange }) => (
+  <div className="flex items-center gap-2">
+    <input
+      type="file"
+      accept=".pdf,.jpg,.jpeg,.png"
+      onChange={onChange}
+      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+    />
+    {value instanceof File ? (
+      <span className="text-xs text-green-600 font-medium whitespace-nowrap">
+        ✓ {value.name.length > 15 ? value.name.substring(0, 15) + "…" : value.name}
+      </span>
+    ) : typeof value === 'string' && value.trim() !== '' ? (
+      <span className="text-xs text-blue-600 font-medium whitespace-nowrap flex items-center gap-1">
+        <BadgeCheck size={14} /> Uploaded
+      </span>
+    ) : null}
+  </div>
+);
+
+function DocumentCard({ label, required, numberLabel, numberValue, onNumberChange, numberPlaceholder, onFileChange, error, fileError, numberHint, docValue }) {
   return (
     <div className={`border rounded-xl p-4 bg-white transition ${error || fileError ? "border-red-300" : "border-gray-200"}`}>
       <label className="block text-sm font-semibold text-gray-700 mb-3">
@@ -103,13 +137,7 @@ function DocumentCard({ label, required, numberLabel, numberValue, onNumberChang
         </div>
         <div>
           <p className="text-xs text-gray-500 mb-1">Upload Document{required ? " *" : ""}</p>
-          <input
-            type="file"
-            accept=".pdf,.jpg,.jpeg,.png"
-            onChange={onFileChange}
-            className={`w-full text-xs file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 border rounded-lg p-1.5 transition
-              ${fileError ? "border-red-400 bg-red-50" : "border-gray-300"}`}
-          />
+          <FileInput value={docValue} onChange={onFileChange} />
           <FieldError msg={fileError} />
         </div>
       </div>
@@ -121,17 +149,26 @@ function DocumentCard({ label, required, numberLabel, numberValue, onNumberChang
 
 export default function InstituteForm() {
   const navigate = useNavigate();
+  const { id } = useParams(); 
+  const isEditMode = Boolean(id); 
+
   const [step, setStep] = useState(0);
   const [errors, setErrors] = useState({});
   const [hasAttempted, setHasAttempted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isFetching, setIsFetching] = useState(isEditMode); 
   const [hasBranch, setHasBranch] = useState(true);
   const [submitSuccess, setSubmitSuccess] = useState(false);
+
+  // 🚀 Determine User Role
+  const user = JSON.parse(localStorage.getItem("user") || "{}");
+  const normalizedRole = String(user?.role || "").toLowerCase().replace(/[^a-z]/g, '');
+  const isSuperAdmin = normalizedRole === "superadmin";
 
   const [form, setForm] = useState({
     organisation: {
       name: "", phone: "", altPhone: "", email: "", secondaryEmail: "",
-      password: "", // 🚀 ADDED PASSWORD STATE
+      password: "", 
       address1: "", address2: "", city: "", state: "", pin: "",
       headOffice: "", type: "",
     },
@@ -173,6 +210,77 @@ export default function InstituteForm() {
     return legal;
   }
 
+  // 🚀 FETCH EXISTING DATA IF IN EDIT MODE
+  useEffect(() => {
+    if (isEditMode) {
+      const fetchInstituteData = async () => {
+        try {
+          localStorage.setItem('managed_institute_id', id); 
+          const token = localStorage.getItem("token");
+          
+          const endpoint = isSuperAdmin
+            ? `/superadmin/institutes/${id}/full-details`
+            : `/admin/institutes/${id}/full-details`;
+
+          const res = await fetch(`${apiBaseUrl}${endpoint}`, {
+            method: 'GET',
+            headers: { 
+              "Authorization": `Bearer ${token}`,
+              "Content-Type": "application/json" 
+            }
+          });
+          
+          const json = await res.json();
+          
+          if (!res.ok || !json.success) {
+             throw new Error(json.message || `Server Error: ${res.status} Unauthorized/Not Found`);
+          }
+
+          const data = json.data;
+          if (!data) throw new Error("No data returned from the server.");
+
+          const rawOrg = safeParseJSON(data.organisation) || {};
+          const innerOrg = (typeof rawOrg === 'object' && rawOrg !== null) ? (rawOrg.organisation || rawOrg) : {};
+          
+          const parsedDir = safeParseJSON(data.directors) || [];
+          const parsedLegal = safeParseJSON(data.legal) || {};
+          const parsedBranches = safeParseJSON(data.branches) || [];
+
+          setForm({
+            organisation: {
+              name: innerOrg.name || rawOrg.name || data.name || "",
+              phone: innerOrg.phone || rawOrg.phone || data.phone || "",
+              altPhone: innerOrg.altPhone || rawOrg.altPhone || data.altPhone || "",
+              email: innerOrg.email || rawOrg.email || data.email || "",
+              secondaryEmail: innerOrg.secondaryEmail || rawOrg.secondaryEmail || data.secondaryEmail || "",
+              password: "", 
+              address1: innerOrg.address1 || rawOrg.address1 || data.address1 || "",
+              address2: innerOrg.address2 || rawOrg.address2 || data.address2 || "",
+              city: innerOrg.city || rawOrg.city || data.city || "",
+              state: innerOrg.state || rawOrg.state || data.state || "",
+              pin: innerOrg.pin || rawOrg.pin || data.pin || "",
+              headOffice: innerOrg.headOffice || rawOrg.headOffice || data.headOffice || "",
+              type: innerOrg.type || rawOrg.type || data.type || "College",
+            },
+            directors: parsedDir.length > 0 ? parsedDir : [createEmptyDirector(1)],
+            legal: { ...createEmptyLegal(), ...parsedLegal }, 
+            branches: parsedBranches.length > 0 ? parsedBranches : [createEmptyBranch(1)],
+          });
+
+          if (parsedBranches.length === 0) setHasBranch(false);
+
+        } catch (err) {
+          console.error("Failed to load institute for editing", err);
+          alert(`Error loading data: ${err.message}`);
+          navigate(-1); 
+        } finally {
+          setIsFetching(false);
+        }
+      };
+      fetchInstituteData();
+    }
+  }, [id, isEditMode, isSuperAdmin, navigate]);
+
   // ── Updaters ────────────────────────────────────────────────────────────────
 
   const updateOrg = (field, value) => {
@@ -192,10 +300,8 @@ export default function InstituteForm() {
   const updateDirectorNested = (idx, section, field, value) => {
     setForm(f => {
       const d = [...f.directors];
-      // Update the specific nested field
       d[idx] = { ...d[idx], [section]: { ...d[idx][section], [field]: value } };
       
-      // Keep permanent address synced if the user modifies current address while checkbox is active
       if (section === "currentAddress" && d[idx].sameAddress) {
         d[idx].permanentAddress = { ...d[idx].currentAddress };
       }
@@ -272,9 +378,11 @@ export default function InstituteForm() {
       else if (!isValidEmail(o.email))  newErrors.org_email      = "Enter a valid email address";
       if (o.secondaryEmail && !isValidEmail(o.secondaryEmail)) newErrors.org_secondaryEmail = "Enter a valid email address";
       
-      // 🚀 ADDED PASSWORD VALIDATION
-      if (!o.password.trim())           newErrors.org_password   = "Admin Login Password is required";
-      else if (o.password.length < 6)   newErrors.org_password   = "Password must be at least 6 characters";
+      if (!isEditMode && !o.password.trim()) {
+        newErrors.org_password = "Admin Login Password is required";
+      } else if (o.password.trim() && o.password.length < 6) {
+        newErrors.org_password = "Password must be at least 6 characters";
+      }
 
       if (!o.address1.trim())           newErrors.org_address1   = "Address line 1 is required";
       if (!o.city.trim())               newErrors.org_city       = "City is required";
@@ -285,13 +393,55 @@ export default function InstituteForm() {
     }
 
     if (step === 1) {
+      // 🚀 TRACK DUPLICATES ACROSS ALL DIRECTORS
+      const seenPrimaryEmails = new Set();
+      const seenSecondaryEmails = new Set();
+      const seenContacts = new Set();
+      const seenPANs = new Set();
+      const seenAadhaars = new Set();
+
       form.directors.forEach((d, i) => {
-        if (!d.name.trim())                newErrors[`dir${i}_name`]    = "Director name is required";
-        if (!d.email.trim())               newErrors[`dir${i}_email`]   = "Email is required";
-        else if (!isValidEmail(d.email))   newErrors[`dir${i}_email`]   = "Enter a valid email";
-        if (d.secondaryEmail && !isValidEmail(d.secondaryEmail)) newErrors[`dir${i}_secondaryEmail`] = "Enter a valid email";
-        if (!d.contact.trim())             newErrors[`dir${i}_contact`] = "Contact number is required";
-        else if (!isValidPhone(d.contact)) newErrors[`dir${i}_contact`] = "Enter a valid 10-digit number";
+        if (!d.name.trim()) newErrors[`dir${i}_name`] = "Director name is required";
+
+        // 1. Primary Email Validation
+        if (!d.email.trim()) {
+          newErrors[`dir${i}_email`] = "Email is required";
+        } else if (!isValidEmail(d.email)) {
+          newErrors[`dir${i}_email`] = "Enter a valid email";
+        } else {
+          const mail = d.email.trim().toLowerCase();
+          if (seenPrimaryEmails.has(mail) || seenSecondaryEmails.has(mail)) {
+            newErrors[`dir${i}_email`] = "Email must be unique among directors";
+          }
+          seenPrimaryEmails.add(mail);
+        }
+
+        // 2. Secondary Email Validation (🚀 FEATURE ADDED HERE)
+        if (d.secondaryEmail && d.secondaryEmail.trim() !== "") {
+          if (!isValidEmail(d.secondaryEmail)) {
+            newErrors[`dir${i}_secondaryEmail`] = "Enter a valid email";
+          } else {
+            const secMail = d.secondaryEmail.trim().toLowerCase();
+            if (seenSecondaryEmails.has(secMail) || seenPrimaryEmails.has(secMail)) {
+              newErrors[`dir${i}_secondaryEmail`] = "Secondary email must be unique";
+            }
+            seenSecondaryEmails.add(secMail);
+          }
+        }
+
+        // 3. Contact Number Validation
+        if (!d.contact.trim()) {
+          newErrors[`dir${i}_contact`] = "Contact number is required";
+        } else if (!isValidPhone(d.contact)) {
+          newErrors[`dir${i}_contact`] = "Enter a valid 10-digit number";
+        } else {
+          const phone = d.contact.trim();
+          if (seenContacts.has(phone)) {
+            newErrors[`dir${i}_contact`] = "Contact number must be unique";
+          }
+          seenContacts.add(phone);
+        }
+
         if (d.mobile && !isValidPhone(d.mobile))     newErrors[`dir${i}_mobile`]   = "Enter a valid 10-digit number";
         if (d.whatsapp && !isValidPhone(d.whatsapp)) newErrors[`dir${i}_whatsapp`] = "Enter a valid 10-digit number";
         if (!d.gender)                     newErrors[`dir${i}_gender`]  = "Gender is required";
@@ -311,13 +461,27 @@ export default function InstituteForm() {
           else if (!isValidPIN(d.permanentAddress.pin)) newErrors[`dir${i}_permanentAddress_pin`] = "PIN must be 6 digits";
         }
         
-        if (!d.documents.panNo.trim())               newErrors[`dir${i}_documents_panNo`]     = "PAN number is required";
-        else if (!isValidPAN(d.documents.panNo))     newErrors[`dir${i}_documents_panNo`]     = "Invalid PAN format (e.g. ABCDE1234F)";
-        if (!d.documents.panDoc)                     newErrors[`dir${i}_documents_panDoc`]    = "PAN document is required";
+        // 4. PAN Validation
+        if (!d.documents.panNo.trim()) {
+          newErrors[`dir${i}_documents_panNo`] = "PAN number is required";
+        } else if (!isValidPAN(d.documents.panNo)) {
+          newErrors[`dir${i}_documents_panNo`] = "Invalid PAN format (e.g. ABCDE1234F)";
+        } else {
+          const pan = d.documents.panNo.trim().toUpperCase();
+          if (seenPANs.has(pan)) newErrors[`dir${i}_documents_panNo`] = "PAN must be unique among directors";
+          seenPANs.add(pan);
+        }
         
-        if (!d.documents.aadhaarNo.trim())           newErrors[`dir${i}_documents_aadhaarNo`] = "Aadhaar number is required";
-        else if (!isValidAadhaar(d.documents.aadhaarNo)) newErrors[`dir${i}_documents_aadhaarNo`] = "Aadhaar must be 12 digits";
-        if (!d.documents.aadhaarDoc)                 newErrors[`dir${i}_documents_aadhaarDoc`] = "Aadhaar document is required";
+        // 5. Aadhaar Validation
+        if (!d.documents.aadhaarNo.trim()) {
+          newErrors[`dir${i}_documents_aadhaarNo`] = "Aadhaar number is required";
+        } else if (!isValidAadhaar(d.documents.aadhaarNo)) {
+          newErrors[`dir${i}_documents_aadhaarNo`] = "Aadhaar must be 12 digits";
+        } else {
+          const aadhaar = d.documents.aadhaarNo.trim();
+          if (seenAadhaars.has(aadhaar)) newErrors[`dir${i}_documents_aadhaarNo`] = "Aadhaar must be unique among directors";
+          seenAadhaars.add(aadhaar);
+        }
         
         if (!d.bank.bankName.trim())        newErrors[`dir${i}_bank_bankName`]      = "Bank name is required";
         if (!d.bank.accountNumber.trim())   newErrors[`dir${i}_bank_accountNumber`] = "Account number is required";
@@ -330,18 +494,12 @@ export default function InstituteForm() {
       const l = form.legal;
       if (!l.panNo.trim())              newErrors.legal_panNo      = "PAN number is required";
       else if (!isValidPAN(l.panNo))    newErrors.legal_panNo      = "Invalid PAN format";
-      if (!l.panDoc)                    newErrors.legal_panDoc     = "PAN document is required"; // FIXED: panDoc
       
       if (l.gstinNo && !isValidGSTIN(l.gstinNo)) newErrors.legal_gstinNo = "Invalid GSTIN format";
       
       if (!l.bankAccount.trim())        newErrors.legal_bankAccount    = "Bank account number is required";
-      if (!l.bankAccountDoc)            newErrors.legal_bankAccountDoc = "Bank account document is required";
-      
       if (!l.trustDeed.trim())          newErrors.legal_trustDeed      = "Trust Deed / Society registration number is required";
-      if (!l.trustDeedDoc)              newErrors.legal_trustDeedDoc   = "Trust Deed document is required";
-      
       if (!l.fireNOC.trim())            newErrors.legal_fireNOC        = "Fire NOC number is required";
-      if (!l.fireNOCDoc)                newErrors.legal_fireNOCDoc     = "Fire NOC document is required";
     }
 
     if (step === 3 && hasBranch) {
@@ -389,7 +547,6 @@ export default function InstituteForm() {
   const submit = async () => {
     setIsSubmitting(true);
     try {
-      // 🚀 CRITICAL FIX: Use FormData for physical file uploads
       const formData = new FormData();
 
       // Append Legal Files
@@ -408,32 +565,54 @@ export default function InstituteForm() {
         }
       });
 
-      // Append JSON strings (will safely ignore the actual File objects inside them)
       formData.append("organisation", JSON.stringify(form.organisation));
       formData.append("directors", JSON.stringify(form.directors));
       formData.append("legal", JSON.stringify(form.legal));
       formData.append("branches", JSON.stringify(hasBranch ? form.branches : []));
 
-      const response = await adminService.createInstitute(formData);
+      const token = localStorage.getItem("token");
+      const baseEndpoint = isSuperAdmin ? '/superadmin/institutes' : '/admin/institutes';
+      
+      const url = isEditMode 
+        ? `${apiBaseUrl}${baseEndpoint}/${id}` 
+        : `${apiBaseUrl}${baseEndpoint}`;
 
-      if (response && response.success) {
+      const res = await fetch(url, {
+        method: isEditMode ? 'PUT' : 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`
+        },
+        body: formData
+      });
+
+      const json = await res.json();
+
+      if (res.ok && json.success) {
         setSubmitSuccess(true);
         setTimeout(() => {
-          navigate("/super-admin/institutes");
+          navigate(isSuperAdmin ? "/super-admin/institutes" : "/admin/institute"); 
         }, 1500);
       } else {
-        throw new Error("Failed to save to database");
+        throw new Error(json.message || "Failed to save to database");
       }
 
     } catch (err) {
       console.error(err);
-      alert(err?.response?.data?.message || err?.message || "Failed to create institute. Please try again.");
+      alert(err?.message || "Failed to save institute. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  // ── Only surface errors after user has attempted to proceed ───────────────
+  // ── Loading Fallback ──────────────────────────────────────────────────────────
+  if (isFetching) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="w-10 h-10 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mx-auto mb-3" />
+      </div>
+    );
+  }
+
   const displayErrors = hasAttempted ? errors : {};
   const errorCount = Object.keys(displayErrors).length;
 
@@ -447,7 +626,9 @@ export default function InstituteForm() {
 
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-1">Add Organisation</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-1">
+            {isEditMode ? "Edit Organisation" : "Add Organisation"}
+          </h1>
           <p className="text-sm text-gray-500">Step {step + 1} of {STEPS.length} · {STEPS[step].title}</p>
         </div>
 
@@ -487,7 +668,7 @@ export default function InstituteForm() {
         {submitSuccess && (
           <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-xl flex items-center gap-2 text-green-700 text-sm">
             <CheckCircle2 size={16} className="flex-shrink-0" />
-            <span>Organisation created successfully! Redirecting…</span>
+            <span>{isEditMode ? "Organisation updated successfully!" : "Organisation created successfully!"} Redirecting…</span>
           </div>
         )}
 
@@ -535,11 +716,14 @@ export default function InstituteForm() {
                   <FieldError msg={displayErrors.org_secondaryEmail} />
                 </div>
 
-                {/* 🚀 PASSWORD FIELD ADDED HERE */}
                 <div>
-                  <RequiredLabel hint="min 6 chars">Admin Login Password</RequiredLabel>
+                  {isEditMode ? (
+                    <OptionalLabel hint="Leave blank to keep current password">Update Admin Password</OptionalLabel>
+                  ) : (
+                    <RequiredLabel hint="min 6 chars">Admin Login Password</RequiredLabel>
+                  )}
                   <Input type="text" value={form.organisation.password} onChange={e => updateOrg("password", e.target.value)}
-                    placeholder="Set initial password" error={displayErrors.org_password} />
+                    placeholder={isEditMode ? "Enter new password (optional)" : "Set initial password"} error={displayErrors.org_password} />
                   <FieldError msg={displayErrors.org_password} />
                 </div>
 
@@ -809,10 +993,10 @@ export default function InstituteForm() {
                       </div>
                       <div>
                         <RequiredLabel>Upload PAN Card</RequiredLabel>
-                        <input type="file" accept=".pdf,.jpg,.jpeg,.png"
+                        <FileInput
+                          value={director.documents.panDoc}
                           onChange={e => updateDirectorNested(dirIdx, "documents", "panDoc", e.target.files?.[0] || null)}
-                          className={`w-full text-xs file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 border rounded-lg p-1.5 transition
-                            ${displayErrors[`dir${dirIdx}_documents_panDoc`] ? "border-red-400 bg-red-50" : "border-gray-300"}`} />
+                        />
                         <FieldError msg={displayErrors[`dir${dirIdx}_documents_panDoc`]} />
                       </div>
                       <div>
@@ -824,10 +1008,10 @@ export default function InstituteForm() {
                       </div>
                       <div>
                         <RequiredLabel>Upload Aadhaar</RequiredLabel>
-                        <input type="file" accept=".pdf,.jpg,.jpeg,.png"
+                        <FileInput
+                          value={director.documents.aadhaarDoc}
                           onChange={e => updateDirectorNested(dirIdx, "documents", "aadhaarDoc", e.target.files?.[0] || null)}
-                          className={`w-full text-xs file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 border rounded-lg p-1.5 transition
-                            ${displayErrors[`dir${dirIdx}_documents_aadhaarDoc`] ? "border-red-400 bg-red-50" : "border-gray-300"}`} />
+                        />
                         <FieldError msg={displayErrors[`dir${dirIdx}_documents_aadhaarDoc`]} />
                       </div>
                     </div>
@@ -878,13 +1062,13 @@ export default function InstituteForm() {
               <section className="space-y-4">
                 <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wide border-l-4 border-gray-400 pl-3">Land & Building Documents</h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <DocumentCard label="Property Deed" numberLabel="Deed Reference / Number" numberValue={form.legal.propertyDeed}
+                  <DocumentCard label="Property Deed" numberLabel="Deed Reference / Number" numberValue={form.legal.propertyDeed} docValue={form.legal.propertyDeedDoc}
                     onNumberChange={e => updateLegal("propertyDeed", e.target.value)} onFileChange={e => updateLegal("propertyDeedDoc", e.target.files?.[0] || null)}
                     numberPlaceholder="Deed reference number" />
-                  <DocumentCard label="Building Approval" numberLabel="Approval Number" numberValue={form.legal.buildingApproval}
+                  <DocumentCard label="Building Approval" numberLabel="Approval Number" numberValue={form.legal.buildingApproval} docValue={form.legal.buildingApprovalDoc}
                     onNumberChange={e => updateLegal("buildingApproval", e.target.value)} onFileChange={e => updateLegal("buildingApprovalDoc", e.target.files?.[0] || null)}
                     numberPlaceholder="Approval number" />
-                  <DocumentCard label="Building Completion Certificate" numberLabel="Certificate Number" numberValue={form.legal.completionCertificate}
+                  <DocumentCard label="Building Completion Certificate" numberLabel="Certificate Number" numberValue={form.legal.completionCertificate} docValue={form.legal.completionCertificateDoc}
                     onNumberChange={e => updateLegal("completionCertificate", e.target.value)} onFileChange={e => updateLegal("completionCertificateDoc", e.target.files?.[0] || null)}
                     numberPlaceholder="Certificate number" />
                 </div>
@@ -893,19 +1077,19 @@ export default function InstituteForm() {
               <section className="space-y-4">
                 <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wide border-l-4 border-gray-400 pl-3">No Objection Certificates (NOCs)</h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <DocumentCard label="Fire Department NOC" required numberLabel="NOC Number" numberValue={form.legal.fireNOC}
+                  <DocumentCard label="Fire Department NOC" required numberLabel="NOC Number" numberValue={form.legal.fireNOC} docValue={form.legal.fireNOCDoc}
                     onNumberChange={e => updateLegal("fireNOC", e.target.value)} onFileChange={e => updateLegal("fireNOCDoc", e.target.files?.[0] || null)}
                     numberPlaceholder="NOC number" error={displayErrors.legal_fireNOC} fileError={displayErrors.legal_fireNOCDoc} />
-                  <DocumentCard label="Police NOC" numberLabel="NOC Number" numberValue={form.legal.policeNOC}
+                  <DocumentCard label="Police NOC" numberLabel="NOC Number" numberValue={form.legal.policeNOC} docValue={form.legal.policeNOCDoc}
                     onNumberChange={e => updateLegal("policeNOC", e.target.value)} onFileChange={e => updateLegal("policeNOCDoc", e.target.files?.[0] || null)}
                     numberPlaceholder="NOC number" />
-                  <DocumentCard label="Municipality NOC" numberLabel="NOC Number" numberValue={form.legal.municipalityNOC}
+                  <DocumentCard label="Municipality NOC" numberLabel="NOC Number" numberValue={form.legal.municipalityNOC} docValue={form.legal.municipalityNOCDoc}
                     onNumberChange={e => updateLegal("municipalityNOC", e.target.value)} onFileChange={e => updateLegal("municipalityNOCDoc", e.target.files?.[0] || null)}
                     numberPlaceholder="NOC number" />
-                  <DocumentCard label="Education Department NOC" numberLabel="NOC Number" numberValue={form.legal.educationDeptNOC}
+                  <DocumentCard label="Education Department NOC" numberLabel="NOC Number" numberValue={form.legal.educationDeptNOC} docValue={form.legal.educationDeptNOCDoc}
                     onNumberChange={e => updateLegal("educationDeptNOC", e.target.value)} onFileChange={e => updateLegal("educationDeptNOCDoc", e.target.files?.[0] || null)}
                     numberPlaceholder="NOC number" />
-                  <DocumentCard label="Pollution Control Board NOC" numberLabel="NOC Number" numberValue={form.legal.pollutionNOC}
+                  <DocumentCard label="Pollution Control Board NOC" numberLabel="NOC Number" numberValue={form.legal.pollutionNOC} docValue={form.legal.pollutionNOCDoc}
                     onNumberChange={e => updateLegal("pollutionNOC", e.target.value)} onFileChange={e => updateLegal("pollutionNOCDoc", e.target.files?.[0] || null)}
                     numberPlaceholder="NOC number" />
                 </div>
@@ -914,16 +1098,16 @@ export default function InstituteForm() {
               <section className="space-y-4">
                 <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wide border-l-4 border-gray-400 pl-3">Infrastructure & Safety</h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <DocumentCard label="Water Connection Certificate" numberLabel="Reference Number" numberValue={form.legal.waterConnection}
+                  <DocumentCard label="Water Connection Certificate" numberLabel="Reference Number" numberValue={form.legal.waterConnection} docValue={form.legal.waterConnectionDoc}
                     onNumberChange={e => updateLegal("waterConnection", e.target.value)} onFileChange={e => updateLegal("waterConnectionDoc", e.target.files?.[0] || null)}
                     numberPlaceholder="Reference number" />
-                  <DocumentCard label="Electricity Connection Certificate" numberLabel="Consumer Number" numberValue={form.legal.electricityConnection}
+                  <DocumentCard label="Electricity Connection Certificate" numberLabel="Consumer Number" numberValue={form.legal.electricityConnection} docValue={form.legal.electricityConnectionDoc}
                     onNumberChange={e => updateLegal("electricityConnection", e.target.value)} onFileChange={e => updateLegal("electricityConnectionDoc", e.target.files?.[0] || null)}
                     numberPlaceholder="Consumer number" />
-                  <DocumentCard label="Safety Audit Report" numberLabel="Audit Reference" numberValue={form.legal.safetyAudit}
+                  <DocumentCard label="Safety Audit Report" numberLabel="Audit Reference" numberValue={form.legal.safetyAudit} docValue={form.legal.safetyAuditDoc}
                     onNumberChange={e => updateLegal("safetyAudit", e.target.value)} onFileChange={e => updateLegal("safetyAuditDoc", e.target.files?.[0] || null)}
                     numberPlaceholder="Audit reference" />
-                  <DocumentCard label="Drainage System Certification" numberLabel="Certificate Number" numberValue={form.legal.drainageSystem}
+                  <DocumentCard label="Drainage System Certification" numberLabel="Certificate Number" numberValue={form.legal.drainageSystem} docValue={form.legal.drainageSystemDoc}
                     onNumberChange={e => updateLegal("drainageSystem", e.target.value)} onFileChange={e => updateLegal("drainageSystemDoc", e.target.files?.[0] || null)}
                     numberPlaceholder="Certificate number" />
                 </div>
@@ -932,7 +1116,7 @@ export default function InstituteForm() {
               <section className="space-y-4">
                 <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wide border-l-4 border-gray-400 pl-3">Financial & Administrative</h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <DocumentCard label="PAN Number" required numberLabel="PAN" numberHint="e.g. ABCDE1234F" numberValue={form.legal.panNo}
+                  <DocumentCard label="PAN Number" required numberLabel="PAN" numberHint="e.g. ABCDE1234F" numberValue={form.legal.panNo} docValue={form.legal.panDoc}
                     onNumberChange={e => updateLegal("panNo", e.target.value.toUpperCase())} onFileChange={e => updateLegal("panDoc", e.target.files?.[0] || null)}
                     numberPlaceholder="ABCDE1234F" error={displayErrors.legal_panNo} fileError={displayErrors.legal_panDoc} />
                   
@@ -944,14 +1128,13 @@ export default function InstituteForm() {
                       placeholder="22ABCDE1234F1Z5" error={displayErrors.legal_gstinNo} />
                     <FieldError msg={displayErrors.legal_gstinNo} />
                     <p className="text-xs text-gray-500 mt-2 mb-1">Upload Document</p>
-                    <input type="file" accept=".pdf,.jpg,.jpeg,.png" onChange={e => updateLegal("gstinDoc", e.target.files?.[0] || null)}
-                      className="w-full text-xs file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 border border-gray-300 rounded-lg p-1.5" />
+                    <FileInput value={form.legal.gstinDoc} onChange={e => updateLegal("gstinDoc", e.target.files?.[0] || null)} />
                   </div>
 
-                  <DocumentCard label="Bank Account Certificate" required numberLabel="Account Number" numberValue={form.legal.bankAccount}
+                  <DocumentCard label="Bank Account Certificate" required numberLabel="Account Number" numberValue={form.legal.bankAccount} docValue={form.legal.bankAccountDoc}
                     onNumberChange={e => updateLegal("bankAccount", e.target.value.replace(/\D/g, ""))} onFileChange={e => updateLegal("bankAccountDoc", e.target.files?.[0] || null)}
                     numberPlaceholder="Account number" error={displayErrors.legal_bankAccount} fileError={displayErrors.legal_bankAccountDoc} />
-                  <DocumentCard label="Trust Deed / Society Registration" required numberLabel="Document Number" numberValue={form.legal.trustDeed}
+                  <DocumentCard label="Trust Deed / Society Registration" required numberLabel="Document Number" numberValue={form.legal.trustDeed} docValue={form.legal.trustDeedDoc}
                     onNumberChange={e => updateLegal("trustDeed", e.target.value)} onFileChange={e => updateLegal("trustDeedDoc", e.target.files?.[0] || null)}
                     numberPlaceholder="Document number" error={displayErrors.legal_trustDeed} fileError={displayErrors.legal_trustDeedDoc} />
                 </div>
@@ -960,13 +1143,13 @@ export default function InstituteForm() {
               <section className="space-y-4">
                 <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wide border-l-4 border-blue-500 pl-3">Education Registration & Affiliation</h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <DocumentCard label="DISE Code" numberLabel="DISE Code" numberValue={form.legal.diseCode}
+                  <DocumentCard label="DISE Code" numberLabel="DISE Code" numberValue={form.legal.diseCode} docValue={form.legal.diseCodeDoc}
                     onNumberChange={e => updateLegal("diseCode", e.target.value)} onFileChange={e => updateLegal("disecodeDoc", e.target.files?.[0] || null)}
                     numberPlaceholder="DISE code" />
-                  <DocumentCard label="Provisional Recognition Certificate" numberLabel="Certificate Number" numberValue={form.legal.provisionalRecognition}
+                  <DocumentCard label="Provisional Recognition Certificate" numberLabel="Certificate Number" numberValue={form.legal.provisionalRecognition} docValue={form.legal.provisionalRecognitionDoc}
                     onNumberChange={e => updateLegal("provisionalRecognition", e.target.value)} onFileChange={e => updateLegal("provisionalRecognitionDoc", e.target.files?.[0] || null)}
                     numberPlaceholder="Certificate number" />
-                  <DocumentCard label="Board Affiliation Certificate" numberLabel="Affiliation Number" numberValue={form.legal.affiliation}
+                  <DocumentCard label="Board Affiliation Certificate" numberLabel="Affiliation Number" numberValue={form.legal.affiliation} docValue={form.legal.affiliationDoc}
                     onNumberChange={e => updateLegal("affiliation", e.target.value)} onFileChange={e => updateLegal("affiliationDoc", e.target.files?.[0] || null)}
                     numberPlaceholder="Affiliation number" />
                 </div>
@@ -975,16 +1158,16 @@ export default function InstituteForm() {
               <section className="space-y-4">
                 <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wide border-l-4 border-gray-400 pl-3">Mandatory Policies</h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <DocumentCard label="Child Protection Policy" numberLabel="Policy Reference" numberValue={form.legal.childProtectionPolicy}
+                  <DocumentCard label="Child Protection Policy" numberLabel="Policy Reference" numberValue={form.legal.childProtectionPolicy} docValue={form.legal.childProtectionPolicyDoc}
                     onNumberChange={e => updateLegal("childProtectionPolicy", e.target.value)} onFileChange={e => updateLegal("childProtectionPolicyDoc", e.target.files?.[0] || null)}
                     numberPlaceholder="Policy reference" />
-                  <DocumentCard label="Harassment Prevention Policy" numberLabel="Policy Reference" numberValue={form.legal.harassmentPolicy}
+                  <DocumentCard label="Harassment Prevention Policy" numberLabel="Policy Reference" numberValue={form.legal.harassmentPolicy} docValue={form.legal.harassmentPolicyDoc}
                     onNumberChange={e => updateLegal("harassmentPolicy", e.target.value)} onFileChange={e => updateLegal("harassmentPolicyDoc", e.target.files?.[0] || null)}
                     numberPlaceholder="Policy reference" />
-                  <DocumentCard label="Admission Policy" numberLabel="Policy Reference" numberValue={form.legal.admissionPolicy}
+                  <DocumentCard label="Admission Policy" numberLabel="Policy Reference" numberValue={form.legal.admissionPolicy} docValue={form.legal.admissionPolicyDoc}
                     onNumberChange={e => updateLegal("admissionPolicy", e.target.value)} onFileChange={e => updateLegal("admissionPolicyDoc", e.target.files?.[0] || null)}
                     numberPlaceholder="Policy reference" />
-                  <DocumentCard label="Fee Structure Document" numberLabel="Document Reference" numberValue={form.legal.feeStructure}
+                  <DocumentCard label="Fee Structure Document" numberLabel="Document Reference" numberValue={form.legal.feeStructure} docValue={form.legal.feeStructureDoc}
                     onNumberChange={e => updateLegal("feeStructure", e.target.value)} onFileChange={e => updateLegal("feeStructureDoc", e.target.files?.[0] || null)}
                     numberPlaceholder="Document reference" />
                 </div>
@@ -1122,7 +1305,9 @@ export default function InstituteForm() {
           {/* ───────────────────────── STEP 4 – FINALIZE ───────────────────────── */}
           {step === 4 && (
             <div className="space-y-6">
-              <h2 className="text-xl font-semibold text-gray-800 pb-3 border-b border-gray-100">Review & Finalize</h2>
+              <h2 className="text-xl font-semibold text-gray-800 pb-3 border-b border-gray-100">
+                {isEditMode ? "Review & Update" : "Review & Finalize"}
+              </h2>
 
               <div className="space-y-3">
                 {[
@@ -1156,7 +1341,7 @@ export default function InstituteForm() {
               </div>
 
               <div className="p-5 bg-blue-50 border border-blue-200 rounded-xl">
-                <h3 className="font-semibold text-sm text-gray-800 mb-3">Next Steps After Creation</h3>
+                <h3 className="font-semibold text-sm text-gray-800 mb-3">Next Steps After {isEditMode ? "Update" : "Creation"}</h3>
                 <ul className="space-y-1.5 text-sm text-gray-600">
                   {["Modules & permissions setup", "Team member assignments", "System configuration", "Go live with your organisation"].map((item, i) => (
                     <li key={i} className="flex items-center gap-2">
@@ -1168,7 +1353,7 @@ export default function InstituteForm() {
               </div>
 
               <div className="p-4 border border-amber-200 bg-amber-50 rounded-xl text-sm text-amber-800">
-                ⚠ By clicking "Create Organisation", you confirm that all submitted information is accurate and complete.
+                ⚠ By clicking "{isEditMode ? "Update Organisation" : "Create Organisation"}", you confirm that all submitted information is accurate and complete.
               </div>
             </div>
           )}
@@ -1202,7 +1387,7 @@ export default function InstituteForm() {
               ) : submitSuccess ? (
                 <><CheckCircle2 size={18} /> Saved!</>
               ) : (
-                <><Upload size={18} /> Create Organisation</>
+                <><Upload size={18} /> {isEditMode ? "Update Organisation" : "Create Organisation"}</>
               )}
             </button>
           )}

@@ -1,6 +1,6 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { ChevronLeft, Plus, Trash2, Upload } from "lucide-react";
+import { useState, useEffect } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import { ChevronLeft, Plus, Trash2, Upload, BadgeCheck } from "lucide-react";
 import api from "../../../services/api"; // ✅ Fixed: import api, not apiBaseUrl
 
 const STEPS = [
@@ -23,9 +23,13 @@ const Field = ({ label, required, error, children }) => (
 
 export default function InstituteForm() {
   const navigate = useNavigate();
+  const { id } = useParams(); // 🚀 Grabs the ID from the URL (e.g., "10")
+  const isEditMode = Boolean(id); // 🚀 If ID exists, we are in Edit Mode
+
   const [step, setStep] = useState(0);
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
+  const [isFetching, setIsFetching] = useState(isEditMode); // Loading state for edit mode
 
   const [form, setForm] = useState({
     organisation: {
@@ -41,7 +45,6 @@ export default function InstituteForm() {
         spouse: "", children: "",
         currentAddress: { line1: "", line2: "", city: "", state: "", pin: "" },
         permanentAddress: { line1: "", line2: "", city: "", state: "", pin: "" },
-        // ✅ panDoc and aadhaarDoc will hold actual File objects, not strings
         documents: { panNo: "", panDoc: null, aadhaarNo: "", aadhaarDoc: null },
         bank: { bankName: "", accountNumber: "", ifscCode: "" },
       },
@@ -80,6 +83,51 @@ export default function InstituteForm() {
       },
     ],
   });
+
+  // 🚀 FETCH EXISTING DATA IF EDITING
+  useEffect(() => {
+    if (isEditMode) {
+      const fetchInstituteData = async () => {
+        try {
+          localStorage.setItem('managed_institute_id', id); // Trigger interceptor
+          const res = await api.get(`/superadmin/institutes/${id}/full-details`);
+          const data = res.data?.data || res.data;
+
+          const parsedOrg = typeof data.organisation === 'string' ? JSON.parse(data.organisation) : data.organisation || {};
+          const parsedDir = typeof data.directors === 'string' ? JSON.parse(data.directors) : data.directors || [];
+          const parsedLegal = typeof data.legal === 'string' ? JSON.parse(data.legal) : data.legal || {};
+          const parsedBranches = typeof data.branches === 'string' ? JSON.parse(data.branches) : data.branches || [];
+
+          setForm({
+            organisation: {
+              name: parsedOrg.name || data.name || "",
+              phone: parsedOrg.phone || data.phone || "",
+              altPhone: parsedOrg.altPhone || "",
+              email: parsedOrg.email || data.email || "",
+              secondaryEmail: parsedOrg.secondaryEmail || "",
+              address1: parsedOrg.address1 || "",
+              address2: parsedOrg.address2 || "",
+              city: parsedOrg.city || "",
+              state: parsedOrg.state || "",
+              pin: parsedOrg.pin || "",
+              headOffice: parsedOrg.headOffice || "",
+              type: parsedOrg.type || data.type || "",
+            },
+            directors: parsedDir.length > 0 ? parsedDir : form.directors,
+            legal: { ...form.legal, ...parsedLegal }, 
+            branches: parsedBranches.length > 0 ? parsedBranches : form.branches,
+          });
+
+        } catch (err) {
+          console.error("Failed to load institute for editing", err);
+          alert("Could not load institute details.");
+        } finally {
+          setIsFetching(false);
+        }
+      };
+      fetchInstituteData();
+    }
+  }, [id, isEditMode]);
 
   // ── Update helpers ───────────────────────────────────────────────────────────
 
@@ -174,35 +222,33 @@ export default function InstituteForm() {
     try {
       const formData = new FormData();
 
-      // 1. Organisation & Branches — plain JSON (no files here)
+      // 1. Organisation & Branches
       formData.append("organisation", JSON.stringify(form.organisation));
       formData.append("branches", JSON.stringify(form.branches));
 
-      // 2. Legal — strip File objects out, append them separately
+      // 2. Legal 
       const legalData = {};
       Object.entries(form.legal).forEach(([key, value]) => {
         if (value instanceof File) {
-          // ✅ Append actual File with the field name backend expects: legal_<key>
           formData.append(`legal_${key}`, value);
-          legalData[key] = ""; // placeholder; backend will fill with saved path
+          legalData[key] = ""; 
         } else {
           legalData[key] = value ?? "";
         }
       });
       formData.append("legal", JSON.stringify(legalData));
 
-      // 3. Directors — strip File objects out, append them separately
+      // 3. Directors 
       const directorsData = form.directors.map((dir) => ({
         ...dir,
         documents: {
           ...dir.documents,
-          panDoc: "",     // will be filled by backend after file save
-          aadhaarDoc: "", // same
+          panDoc: "",    
+          aadhaarDoc: "", 
         },
       }));
 
       form.directors.forEach((dir, idx) => {
-        // ✅ dir.documents.panDoc is now a real File object (not a filename string)
         if (dir.documents.panDoc instanceof File) {
           formData.append(`director_${idx}_panDoc`, dir.documents.panDoc);
         }
@@ -213,17 +259,22 @@ export default function InstituteForm() {
 
       formData.append("directors", JSON.stringify(directorsData));
 
-      // 4. POST — do NOT set Content-Type manually; browser sets multipart boundary
-      const response = await api.post("/admin/institutes", formData);
-
-      if (response.data.success) {
-        navigate("/admin/institute");
+      // 🚀 DYNAMIC POST/PUT BASED ON EDIT MODE
+      let response;
+      if (isEditMode) {
+        response = await api.put(`/superadmin/institutes/${id}`, formData);
       } else {
-        alert(response.data.message || "Failed to create institute.");
+        response = await api.post("/superadmin/institutes", formData);
+      }
+
+      if (response.data.success || response.status === 200 || response.status === 201) {
+        navigate("/super-admin/institutes");
+      } else {
+        alert(response.data.message || `Failed to ${isEditMode ? "update" : "create"} institute.`);
       }
     } catch (error) {
-      console.error("Failed to create institute:", error);
-      alert(error.response?.data?.message || "Error creating institute. Check console.");
+      console.error(`Failed to ${isEditMode ? "update" : "create"} institute:`, error);
+      alert(error.response?.data?.message || `Error ${isEditMode ? "updating" : "creating"} institute. Check console.`);
     } finally {
       setSubmitting(false);
     }
@@ -232,7 +283,7 @@ export default function InstituteForm() {
   const inputCls = (hasError) =>
     `w-full px-3 sm:px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-400 focus:border-transparent text-sm ${hasError ? "border-red-500" : "border-gray-300"}`;
 
-  // ── File input helper — shows selected filename next to input ────────────────
+  // ── File input helper ────────────────────────────────────────────────────────
   const FileInput = ({ value, onChange, label }) => (
     <div className="flex items-center gap-2">
       <input
@@ -241,13 +292,26 @@ export default function InstituteForm() {
         onChange={onChange}
         className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
       />
-      {value instanceof File && (
+      {value instanceof File ? (
         <span className="text-xs text-green-600 font-medium whitespace-nowrap">
           ✓ {value.name.length > 15 ? value.name.substring(0, 15) + "…" : value.name}
         </span>
-      )}
+      ) : typeof value === 'string' && value.trim() !== '' ? (
+        <span className="text-xs text-blue-600 font-medium whitespace-nowrap flex items-center gap-1">
+          <BadgeCheck size={14} /> Uploaded
+        </span>
+      ) : null}
     </div>
   );
+
+  // 🚀 SHOW LOADER WHILE FETCHING EXISTING DATA
+  if (isFetching) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="w-10 h-10 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mx-auto mb-3" />
+      </div>
+    );
+  }
 
   return (
     <div className="w-full min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
@@ -256,7 +320,9 @@ export default function InstituteForm() {
 
           {/* Header */}
           <div className="mb-8">
-            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-blue-600 mb-2">Add Organisation</h1>
+            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-blue-600 mb-2">
+              {isEditMode ? "Edit Organisation" : "Add Organisation"}
+            </h1>
             <p className="text-sm text-gray-700">Step {step + 1} of {STEPS.length} : {STEPS[step].title}</p>
           </div>
 
@@ -463,7 +529,7 @@ export default function InstituteForm() {
                         </div>
                       </div>
 
-                      {/* Documents — ✅ FIXED: store File object, not filename string */}
+                      {/* Documents */}
                       <div>
                         <h4 className="font-semibold text-sm text-gray-700 mb-4">Documents</h4>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -473,10 +539,7 @@ export default function InstituteForm() {
                           <Field label="Upload PAN Document">
                             <FileInput
                               value={director.documents.panDoc}
-                              onChange={(e) =>
-                                // ✅ Store the actual File object
-                                updateDirectorNested(dirIdx, "documents", "panDoc", e.target.files?.[0] || null)
-                              }
+                              onChange={(e) => updateDirectorNested(dirIdx, "documents", "panDoc", e.target.files?.[0] || null)}
                             />
                           </Field>
                           <Field label="Aadhaar Number">
@@ -485,10 +548,7 @@ export default function InstituteForm() {
                           <Field label="Upload Aadhaar Document">
                             <FileInput
                               value={director.documents.aadhaarDoc}
-                              onChange={(e) =>
-                                // ✅ Store the actual File object
-                                updateDirectorNested(dirIdx, "documents", "aadhaarDoc", e.target.files?.[0] || null)
-                              }
+                              onChange={(e) => updateDirectorNested(dirIdx, "documents", "aadhaarDoc", e.target.files?.[0] || null)}
                             />
                           </Field>
                         </div>
@@ -526,7 +586,7 @@ export default function InstituteForm() {
                   {
                     sectionTitle: "Land & Building Documents",
                     fields: [
-                      { label: "Property Deed",                     numField: "propertyDeed",          docField: "propertyDeedDoc",          placeholder: "Deed reference/number" },
+                      { label: "Property Deed",                    numField: "propertyDeed",          docField: "propertyDeedDoc",          placeholder: "Deed reference/number" },
                       { label: "Building Approval",                  numField: "buildingApproval",       docField: "buildingApprovalDoc",       placeholder: "Approval number" },
                       { label: "Building Completion Certificate",    numField: "completionCertificate",  docField: "completionCertificateDoc",  placeholder: "Certificate number" },
                     ]
@@ -592,7 +652,6 @@ export default function InstituteForm() {
                             />
                           </Field>
                           <Field label={`Upload ${f.label}`}>
-                            {/* ✅ FIXED: Store actual File object, not filename string */}
                             <FileInput
                               value={form.legal[f.docField]}
                               onChange={(e) => updateLegal(f.docField, e.target.files?.[0] || null)}
@@ -674,12 +733,14 @@ export default function InstituteForm() {
             {/* STEP 5 – FINALIZE */}
             {step === 4 && (
               <div className="space-y-6 text-left">
-                <h2 className="text-lg sm:text-xl lg:text-2xl font-semibold text-gray-800 mb-6">Review & Finalize</h2>
+                <h2 className="text-lg sm:text-xl lg:text-2xl font-semibold text-gray-800 mb-6">
+                  {isEditMode ? "Review & Update" : "Review & Finalize"}
+                </h2>
                 <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-4 sm:p-6 space-y-4">
                   {[
                     { title: "Organisation Details", desc: `${form.organisation.name} - ${form.organisation.type} in ${form.organisation.city}, ${form.organisation.state}` },
                     { title: "Directors Added", desc: `${form.directors.length} director(s) added with contact details` },
-                    { title: "Legal Documents", desc: "All legal documents and certifications uploaded" },
+                    { title: "Legal Documents", desc: "All legal documents and certifications processed" },
                     { title: "Branches Configured", desc: `${form.branches.length} branch location(s) configured` },
                   ].map((item) => (
                     <div key={item.title} className="flex items-start gap-3">
@@ -718,7 +779,7 @@ export default function InstituteForm() {
                 disabled={submitting}
                 className="flex items-center justify-center gap-2 px-4 sm:px-6 py-2 sm:py-3 bg-green-600 hover:bg-green-700 disabled:opacity-60 disabled:cursor-not-allowed text-white rounded-lg font-semibold text-sm transition w-full sm:w-auto"
               >
-                <Upload size={20} /> {submitting ? "Creating..." : "Create Organisation"}
+                <Upload size={20} /> {submitting ? (isEditMode ? "Updating..." : "Creating...") : (isEditMode ? "Update Organisation" : "Create Organisation")}
               </button>
             )}
           </div>

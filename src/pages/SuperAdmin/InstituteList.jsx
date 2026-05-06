@@ -172,9 +172,12 @@ export const InstituteList = () => {
                     <td className="px-6 py-4 text-sm text-slate-500">{item.createdDate}</td>
                     <td className="px-6 py-4 text-right">
                       <div className="flex items-center justify-end gap-2">
-                        {/* View Action - Navigates to Profile */}
+                        {/* 🚀 CRITICAL FIX: View Action now sets the ID in Local Storage before navigating */}
                         <button 
-                          onClick={() => navigate("/super-admin/institutes/view")} 
+                          onClick={() => {
+                            localStorage.setItem('managed_institute_id', item.id);
+                            navigate("/super-admin/institute"); 
+                          }} 
                           className="p-1.5 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                           title="View Details"
                         >
@@ -199,7 +202,7 @@ export const InstituteList = () => {
                 ))
               ) : (
                 <tr>
-                  <td colspan="7" className="px-6 py-10 text-center text-slate-500">
+                  <td colSpan="7" className="px-6 py-10 text-center text-slate-500">
                     No institutes found matching your filters.
                   </td>
                 </tr>
