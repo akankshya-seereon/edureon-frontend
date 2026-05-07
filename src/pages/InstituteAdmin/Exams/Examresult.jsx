@@ -2,6 +2,19 @@ import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import axios from "axios";
 import apiBaseUrl from "../../../config/baseurl";
+
+// 🎯 HELPER: Safely grabs the token
+const getAuthConfig = () => {
+  let token = localStorage.getItem("token");
+  if (!token || token === "undefined") {
+    try {
+      const userObj = JSON.parse(localStorage.getItem("user") || "{}");
+      token = userObj?.token || userObj?.data?.token;
+    } catch (e) {}
+  }
+  return { headers: { Authorization: token ? `Bearer ${token}` : "" } };
+};
+
 // ─── Grade Calculator ─────────────────────────────────────────────────────────
 const getGrade = (marks, total) => {
   const pct = (marks / total) * 100;
@@ -22,7 +35,7 @@ export const Examresult = () => {
 
   const [exams, setExams]               = useState([]);
   const [selectedExam, setSelectedExam] = useState(defaultExam);
-  const [students, setStudents]         = useState([]); // 🚀 NEW: Real students from DB
+  const [students, setStudents]         = useState([]); 
   const [results, setResults]           = useState({});
   const [errors, setErrors]             = useState({});
   const [saved, setSaved]               = useState(false);
@@ -32,14 +45,10 @@ export const Examresult = () => {
   useEffect(() => {
     const fetchExams = async () => {
       try {
-        let token = localStorage.getItem('token'); 
-        if (!token || token === "undefined") {
-          const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
-          token = storedUser?.token || storedUser?.data?.token; 
-        }
-        const response = await axios.get(`${apiBaseUrl}/admin/exams`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
+        const config = getAuthConfig();
+        if (!config.headers.Authorization) return;
+
+        const response = await axios.get(`${apiBaseUrl}/admin/exams`, config);
         if (response.data.success) {
           setExams(response.data.data || []);
         }
@@ -60,15 +69,8 @@ export const Examresult = () => {
     const fetchStudents = async () => {
       setLoading(true);
       try {
-        let token = localStorage.getItem('token'); 
-        if (!token || token === "undefined") {
-          const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
-          token = storedUser?.token || storedUser?.data?.token; 
-        }
-        
-        const response = await axios.get(`${apiBaseUrl}/admin/exams/${selectedExam}/students`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
+        const config = getAuthConfig();
+        const response = await axios.get(`${apiBaseUrl}/admin/exams/${selectedExam}/students`, config);
 
         if (response.data.success) {
           const fetchedStudents = response.data.data || [];
@@ -78,7 +80,9 @@ export const Examresult = () => {
           const initialResults = {};
           fetchedStudents.forEach(student => {
             if (student.marks !== null && student.marks !== undefined) {
-               initialResults[student.id] = { marks: student.marks, absent: false };
+                // If they have 0 marks and an 'F' grade, they might be absent.
+               const isAbsent = student.marks === 0 && student.grade === 'F';
+               initialResults[student.id] = { marks: isAbsent ? "" : student.marks, absent: isAbsent };
             }
           });
           setResults({ [selectedExam]: initialResults });
@@ -145,16 +149,25 @@ export const Examresult = () => {
 
     const maxMarks = Number(exam.totalMarks || exam.total_marks);
 
-    const resultsPayload = students
-      .filter(student => {
+    // 🚀 FIXED: Now correctly handles absent students by passing 0 marks and an 'F' grade
+    const resultsPayload = students.map(student => {
          const row = examResults[student.id];
-         return row && row.marks !== "" && row.marks !== undefined;
-      })
-      .map(student => ({
-         studentId: student.id,
-         obtainedMarks: Number(examResults[student.id].marks),
-         grade: getGrade(Number(examResults[student.id].marks), maxMarks)?.grade || 'F'
-      }));
+         
+         // Handle explicitly absent students
+         if (row?.absent) {
+             return { studentId: student.id, obtainedMarks: 0, grade: 'F' };
+         }
+         
+         // Handle graded students
+         if (row && row.marks !== "" && row.marks !== undefined) {
+             return {
+                 studentId: student.id,
+                 obtainedMarks: Number(row.marks),
+                 grade: getGrade(Number(row.marks), maxMarks)?.grade || 'F'
+             };
+         }
+         return null;
+      }).filter(Boolean); // Removes nulls (students that weren't touched at all)
 
     if (resultsPayload.length === 0) {
         alert("No marks to save!");
@@ -162,18 +175,11 @@ export const Examresult = () => {
     }
 
     try {
-        let token = localStorage.getItem('token'); 
-        if (!token || token === "undefined") {
-          const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
-          token = storedUser?.token || storedUser?.data?.token; 
-        }
-
+        const config = getAuthConfig();
         await axios.post(`${apiBaseUrl}/admin/exams/results`, {
             examId: selectedExam,
             results: resultsPayload
-        }, { 
-            headers: { Authorization: `Bearer ${token}` } 
-        });
+        }, config);
 
         setSaved(true);
         setTimeout(() => setSaved(false), 3000);
@@ -237,7 +243,8 @@ export const Examresult = () => {
               <option value="">— Choose an exam —</option>
               {exams?.map?.((ex) => (
                 <option key={ex.id} value={ex.id}>
-                  {ex.title} | Sem {ex.semester} | Batch {ex.batch} | {ex.year}
+                  {/* 🚀 FIXED: Added the subject to make identifying exams easier */}
+                  {ex.title} | {ex.subject} | Sem {ex.semester} | Batch {ex.batch}
                 </option>
               ))}
             </select>
@@ -274,11 +281,11 @@ export const Examresult = () => {
           <div className="grid grid-cols-3 md:grid-cols-6 gap-3 mb-5">
             {[
               { label: "Total",    value: students.length, bg: "bg-gray-50",   text: "text-gray-700"   },
-              { label: "Appeared", value: appeared,            bg: "bg-blue-50",   text: "text-blue-700"   },
-              { label: "Absent",   value: absent,              bg: "bg-orange-50", text: "text-orange-600" },
-              { label: "Passed",   value: passed,              bg: "bg-green-50",  text: "text-green-700"  },
-              { label: "Failed",   value: failed,              bg: "bg-red-50",    text: "text-red-600"    },
-              { label: "Average",  value: avg,                 bg: "bg-purple-50", text: "text-purple-700" },
+              { label: "Appeared", value: appeared,        bg: "bg-blue-50",   text: "text-blue-700"   },
+              { label: "Absent",   value: absent,          bg: "bg-orange-50", text: "text-orange-600" },
+              { label: "Passed",   value: passed,          bg: "bg-green-50",  text: "text-green-700"  },
+              { label: "Failed",   value: failed,          bg: "bg-red-50",    text: "text-red-600"    },
+              { label: "Average",  value: avg,             bg: "bg-purple-50", text: "text-purple-700" },
             ].map(({ label, value, bg, text }) => (
               <div key={label} className={`${bg} rounded-xl p-3 border border-white shadow-sm`}>
                 <p className={`text-2xl font-bold ${text}`}>{value}</p>
@@ -379,4 +386,4 @@ export const Examresult = () => {
   );
 };
 
-// export default Examresult;
+export default Examresult;

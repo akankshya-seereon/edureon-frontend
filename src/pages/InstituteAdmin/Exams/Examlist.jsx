@@ -81,31 +81,40 @@ const StatCard = ({ label, value, icon, color }) => (
 export const Examlist = () => {
   const navigate = useNavigate();
   const [exams, setExams]       = useState([]);
+  const [dynamicBatches, setDynamicBatches] = useState([]); // 🚀 NEW: Store dynamic batches for the filter
   const [filters, setFilters]   = useState({ semester: "", batch: "", year: "", status: "" });
   const [deleteId, setDeleteId] = useState(null);
   const [loading, setLoading]   = useState(true); 
 
-  // 🚀 DYNAMIC FETCH FROM MYSQL
-  const fetchExams = async () => {
+  // 🚀 DYNAMIC FETCH FROM MYSQL (Exams + Dropdown Data)
+  const fetchData = async () => {
     setLoading(true);
     try {
       const config = getAuthConfig();
       if (!config.headers.Authorization) return;
 
-      const response = await axios.get(`${apiBaseUrl}/admin/exams`, config);
+      const [examsRes, formRes] = await Promise.all([
+        axios.get(`${apiBaseUrl}/admin/exams`, config),
+        axios.get(`${apiBaseUrl}/admin/exams/form-data`, config).catch(() => null)
+      ]);
 
-      if (response.data.success) {
-        setExams(response.data.data || []);
+      if (examsRes.data.success) {
+        setExams(examsRes.data.data || []);
+      }
+      
+      if (formRes?.data?.success) {
+        const batches = formRes.data.data.batches || [];
+        setDynamicBatches(batches.map(b => ({ value: b.name, label: b.name })));
       }
     } catch (err) {
-      console.error("Fetch Exams Error:", err);
+      console.error("Fetch Data Error:", err);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchExams();
+    fetchData();
   }, []);
 
   const setFilter = (field) => (e) =>
@@ -159,9 +168,16 @@ export const Examlist = () => {
 
   // Helper to cleanly format the hierarchical venue
   const getVenueString = (ex) => {
-    if (ex.building && ex.room) return `${ex.building}, Room ${ex.room}`;
-    if (ex.campus && ex.room) return `${ex.campus}, Room ${ex.room}`;
-    return ex.room || ex.venue || 'TBA';
+    const parts = [];
+    if (ex.campus) parts.push(ex.campus);
+    if (ex.building) parts.push(ex.building);
+    if (ex.block) parts.push(`Blk ${ex.block}`);
+    if (ex.floor) parts.push(`Fl ${ex.floor}`);
+    if (ex.room) parts.push(`Rm ${ex.room}`);
+    
+    // Fallback to legacy 'venue' if it exists, otherwise TBA
+    if (parts.length === 0) return ex.venue || 'TBA';
+    return parts.join(', ');
   };
 
   return (
@@ -196,7 +212,8 @@ export const Examlist = () => {
         <div className="bg-white rounded-2xl border border-gray-200 p-5 mb-6 flex flex-wrap gap-3 items-center shadow-sm">
           <span className="text-[11px] font-black uppercase tracking-widest text-gray-400 mr-2">Filter By:</span>
           <Select value={filters.semester} onChange={setFilter("semester")} options={SEMESTER_OPTIONS} placeholder="All Semesters" />
-          <Select value={filters.batch}    onChange={setFilter("batch")}    options={BATCH_OPTIONS}    placeholder="All Batches"   />
+          {/* 🚀 FIXED: Now uses real dynamic batches from your database! */}
+          <Select value={filters.batch}    onChange={setFilter("batch")}    options={dynamicBatches.length > 0 ? dynamicBatches : BATCH_OPTIONS} placeholder="All Batches"   />
           <Select value={filters.year}     onChange={setFilter("year")}     options={YEAR_OPTIONS}     placeholder="All Years"     />
           <Select
             value={filters.status}
@@ -244,8 +261,9 @@ export const Examlist = () => {
                   <div className="flex items-start justify-between mb-5">
                     <div className="flex-1 min-w-0 mr-3">
                       <p className="font-black text-lg text-gray-900 truncate tracking-tight">{ex.title}</p>
+                      {/* 🚀 NEW: Added the description field here */}
+                      {ex.description && <p className="text-[11px] text-gray-500 font-medium truncate mt-0.5 mb-1.5">{ex.description}</p>}
                       <p className="text-xs font-bold text-gray-500 mt-1.5 truncate">
-                        {/* 🚀 Added Specialization display here */}
                         {ex.specialization && <span className="text-blue-600">{ex.specialization}</span>}
                         {ex.specialization && <span className="mx-1.5 text-gray-300">•</span>}
                         {ex.subject} 
@@ -262,11 +280,11 @@ export const Examlist = () => {
                     </span>
                   </div>
 
-                  {/* Info grid 🚀 Expanded to support Shift & Venue */}
+                  {/* Info grid */}
                   <div className="grid grid-cols-2 gap-3 mb-6 flex-1">
                     {[
                       { label: "Batch & Sem", value: `${ex.batch || '-'} (Sem ${ex.semester || '-'})` },
-                      { label: "Shift",       value: ex.shift || '-' },
+                      { label: "Shift",       value: ex.examShift || '-' },
                       { label: "Date & Time", value: `${formatDate(ex.examDate || ex.exam_date)} • ${formatTime(ex.startTime || ex.start_time)}` },
                       { label: "Venue",       value: getVenueString(ex) },
                     ].map(({ label, value }) => (
@@ -355,3 +373,5 @@ export const Examlist = () => {
     </div>
   );
 };
+
+export default Examlist;

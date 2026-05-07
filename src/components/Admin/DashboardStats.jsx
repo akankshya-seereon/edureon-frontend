@@ -9,7 +9,7 @@ export const AdminDashboard = () => {
   const cards = [
     {
       title: 'Total Faculty',
-      value: dashboardData?.faculty_count || '0',
+      value: dashboardData?.faculty_count || '0', 
       subtitle: 'Active teachers',
       bgColor: 'bg-blue-100',
       textColor: 'text-blue-700',

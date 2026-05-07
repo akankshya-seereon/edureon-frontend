@@ -4,47 +4,58 @@ import {
   FileText, CheckCircle, Download, Trash2, Search, 
   Loader2, FileOutput, Users, Send
 } from 'lucide-react';
-import apiBaseUrl from "../../../config/baseurl"; // Base URL for API calls
+import apiBaseUrl from "../../../config/baseurl"; 
+
+// 🎯 HELPER: Safely grabs the token 
+const getAuthConfig = () => {
+  let token = localStorage.getItem("token");
+  if (!token || token === "undefined") {
+    try {
+      const userObj = JSON.parse(localStorage.getItem("user") || "{}");
+      token = userObj?.token || userObj?.data?.token;
+    } catch (e) {}
+  }
+  return { headers: { Authorization: token ? `Bearer ${token}` : "" } };
+};
+
+// 🎯 HELPER: Derives the backend root URL for serving static files (PDFs)
+const getStaticBaseUrl = () => {
+  return apiBaseUrl.replace(/\/api\/?$/, ''); 
+};
 
 export default function Certificates() {
-  const [activeTab, setActiveTab] = useState('generate'); // 'generate' or 'publish'
+  const [activeTab, setActiveTab] = useState('generate'); 
   const [loading, setLoading] = useState(false);
   const [processing, setProcessing] = useState(false);
 
-  // 🚀 ADDED 'year' to Filters State
   const [filters, setFilters] = useState({ courseId: '', year: '', batch: '', semester: '1' });
   
-  // Dynamic Data State (Fetched from DB)
+  // Dynamic Data State
   const [courses, setCourses] = useState([]);
   const [batches, setBatches] = useState([]);
-  const [students, setStudents] = useState([]); // For generation tab
-  const [documents, setDocuments] = useState([]); // For publish tab
-  const [selectedDocs, setSelectedDocs] = useState([]); // For bulk publish
+  const [students, setStudents] = useState([]); 
+  const [documents, setDocuments] = useState([]); 
+  const [selectedDocs, setSelectedDocs] = useState([]); 
 
-  // 🚀 Generate Dynamic Years (e.g., 2020 to 2030)
   const currentYear = new Date().getFullYear();
   const admissionYears = Array.from({ length: 10 }, (_, i) => currentYear - 4 + i);
 
-  const getHeaders = () => {
-    let token = localStorage.getItem('token') || JSON.parse(localStorage.getItem('user') || '{}')?.token;
-    return { Authorization: `Bearer ${token}` };
-  };
-
   // ==========================================
-  // 🚀 ON LOAD: FETCH COURSES & BATCHES
+  // 🚀 FIXED: USE THE RELIABLE FORM-DATA ENDPOINT
   // ==========================================
   useEffect(() => {
     const fetchInitialData = async () => {
       try {
-        const headers = getHeaders();
-        // Fetch Courses & Batches simultaneously
-        const [courseRes, batchRes] = await Promise.all([
-          axios.get(`${apiBaseUrl}/admin/courses`, { headers }).catch(() => ({ data: { courses: [] } })),
-          axios.get(`${apiBaseUrl}/admin/batches`, { headers }).catch(() => ({ data: { batches: [] } }))
-        ]);
+        const config = getAuthConfig();
+        
+        // 🚀 Pointing to our highly reliable Syllabus Form Data endpoint 
+        // which returns exactly the courses and batches from your DB!
+        const res = await axios.get(`${apiBaseUrl}/admin/syllabus/form-data`, config);
 
-        setCourses(courseRes.data.courses || courseRes.data.data || []);
-        setBatches(batchRes.data.batches || batchRes.data.data || []);
+        if (res.data?.success) {
+            setCourses(res.data.data.courses || []);
+            setBatches(res.data.data.batches || []);
+        }
       } catch (error) {
         console.error("Failed to fetch initial dropdown data:", error);
       }
@@ -57,24 +68,20 @@ export default function Certificates() {
   // TAB 1: FETCH REAL STUDENTS & GENERATE
   // ==========================================
   const fetchStudentsToGenerate = async () => {
-    // Ensuring Course, Semester, and either Batch or Year is selected
     if (!filters.courseId || !filters.semester || (!filters.batch && !filters.year)) {
       return alert("Please select a Course, Semester, and at least a Year or Batch.");
     }
     
     setLoading(true);
     try {
-      // 🚀 FETCH REAL STUDENTS matching the selected filters
-      // Added year to the query parameters
       let queryUrl = `${apiBaseUrl}/admin/students?courseId=${filters.courseId}`;
       if (filters.batch) queryUrl += `&batch=${filters.batch}`;
       if (filters.year) queryUrl += `&year=${filters.year}`;
 
-      const res = await axios.get(queryUrl, { headers: getHeaders() });
+      const res = await axios.get(queryUrl, getAuthConfig());
 
       const fetchedStudents = res.data.students || res.data.data || [];
 
-      // Map the DB data to the format our table expects
       const mappedStudents = fetchedStudents.map(s => ({
         id: s.id,
         name: s.name || s.full_name || `${s.first_name} ${s.last_name}`,
@@ -99,7 +106,7 @@ export default function Certificates() {
         studentName: student.name,
         courseId: filters.courseId,
         courseName: courses.find(c => String(c.id) === String(filters.courseId))?.name || 'Selected Course',
-        batch: filters.batch || filters.year, // Fallback to year if batch is empty
+        batch: filters.batch || filters.year, 
         semester: filters.semester,
         instituteName: "EduERP Excellence Academy", 
         marks: [
@@ -108,10 +115,9 @@ export default function Certificates() {
         ]
       };
 
-      await axios.post(`${apiBaseUrl}/admin/certificates/generate`, payload, { headers: getHeaders() });
+      await axios.post(`${apiBaseUrl}/admin/certificates/generate`, payload, getAuthConfig());
       alert(`✅ Draft Marksheet generated for ${student.name}`);
       
-      // Remove from 'needs generation' list
       setStudents(prev => prev.filter(s => s.id !== student.id));
     } catch (err) {
       alert(err.response?.data?.message || "Failed to generate marksheet.");
@@ -126,7 +132,7 @@ export default function Certificates() {
   const fetchDraftDocuments = async () => {
     setLoading(true);
     try {
-      const res = await axios.get(`${apiBaseUrl}/admin/certificates?status=Draft`, { headers: getHeaders() });
+      const res = await axios.get(`${apiBaseUrl}/admin/certificates?status=Draft`, getAuthConfig());
       setDocuments(res.data.data || []);
     } catch (err) {
       console.error(err);
@@ -150,7 +156,7 @@ export default function Certificates() {
     if (selectedDocs.length === 0) return;
     setProcessing(true);
     try {
-      await axios.put(`${apiBaseUrl}/admin/certificates/publish`, { documentIds: selectedDocs }, { headers: getHeaders() });
+      await axios.put(`${apiBaseUrl}/admin/certificates/publish`, { documentIds: selectedDocs }, getAuthConfig());
       alert(`✅ Successfully published ${selectedDocs.length} documents!`);
       fetchDraftDocuments();
       setSelectedDocs([]);
@@ -164,7 +170,7 @@ export default function Certificates() {
   const handleDeleteDraft = async (id) => {
     if (!window.confirm("Are you sure you want to delete this draft?")) return;
     try {
-      await axios.delete(`${apiBaseUrl}/admin/certificates/${id}`, { headers: getHeaders() });
+      await axios.delete(`${apiBaseUrl}/admin/certificates/${id}`, getAuthConfig());
       setDocuments(prev => prev.filter(d => d.id !== id));
     } catch (err) {
       alert("Failed to delete draft.");
@@ -186,7 +192,7 @@ export default function Certificates() {
       <div className="flex gap-4 mb-8 border-b border-slate-200">
         <button 
           onClick={() => setActiveTab('generate')}
-          className={`pb-3 px-4 text-sm font-black uppercase tracking-wider transition-all border-b-2 ${activeTab === 'generate' ? 'border-[#0F53D5] text-[#0F53D5]' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
+          className={`pb-3 px-4 text-sm font-black uppercase tracking-wider transition-all border-b-2 ${activeTab === 'generate' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
         >
           1. Generate Drafts
         </button>
@@ -207,17 +213,16 @@ export default function Certificates() {
           <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex flex-wrap gap-4 items-end">
             <div className="flex-1 min-w-[200px]">
               <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider mb-1 block">Course</label>
-              <select className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold outline-none focus:border-[#0F53D5]"
+              <select className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold outline-none focus:border-blue-500"
                 value={filters.courseId} onChange={e => setFilters({...filters, courseId: e.target.value})}>
                 <option value="">Select Course...</option>
                 {courses.map(c => <option key={c.id} value={c.id}>{c.name || c.course_name}</option>)}
               </select>
             </div>
 
-            {/* 🚀 NEW: Academic Year Dropdown */}
             <div className="w-[120px]">
               <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider mb-1 block">Year</label>
-              <select className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold outline-none focus:border-[#0F53D5]"
+              <select className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold outline-none focus:border-blue-500"
                 value={filters.year} onChange={e => setFilters({...filters, year: e.target.value})}>
                 <option value="">Year...</option>
                 {admissionYears.map(y => <option key={y} value={y}>{y}</option>)}
@@ -226,12 +231,12 @@ export default function Certificates() {
 
             <div className="flex-1 min-w-[150px]">
               <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider mb-1 block">Batch</label>
-              <select className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold outline-none focus:border-[#0F53D5]"
+              <select className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold outline-none focus:border-blue-500"
                 value={filters.batch} onChange={e => setFilters({...filters, batch: e.target.value})}>
                 <option value="">Select Batch...</option>
                 {batches.map(b => (
-                  <option key={b.id || b.batch_name || b} value={b.batch_name || b.name || b}>
-                    {b.batch_name || b.name || b}
+                  <option key={b.id || b.batch_name || b.name} value={b.batch_name || b.name}>
+                    {b.batch_name || b.name}
                   </option>
                 ))}
               </select>
@@ -239,7 +244,7 @@ export default function Certificates() {
 
             <div className="w-[100px]">
               <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider mb-1 block">Semester</label>
-              <input type="number" min="1" max="8" className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold outline-none focus:border-[#0F53D5]"
+              <input type="number" min="1" max="8" className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold outline-none focus:border-blue-500"
                 value={filters.semester} onChange={e => setFilters({...filters, semester: e.target.value})} />
             </div>
             
@@ -312,10 +317,10 @@ export default function Certificates() {
             {loading ? (
               <div className="p-12 flex justify-center text-slate-400"><Loader2 className="animate-spin" size={32} /></div>
             ) : documents.length === 0 ? (
-              <div className="p-12 text-center flex flex-col items-center justify-center text-slate-400">
+              <div className="p-16 text-center flex flex-col items-center justify-center text-slate-400">
                 <FileOutput size={48} className="mb-4 text-slate-200" />
-                <p className="font-bold text-lg">No Drafts Found</p>
-                <p className="text-sm">Go to the Generate tab to create marksheets.</p>
+                <p className="font-bold text-lg text-slate-600">No Drafts Found</p>
+                <p className="text-sm font-medium mt-1">Go to the Generate tab to create marksheets.</p>
               </div>
             ) : (
               <table className="w-full text-left">
@@ -351,12 +356,12 @@ export default function Certificates() {
                       <td className="p-4 font-bold text-slate-800">{doc.student_name || `Student ID: ${doc.student_id}`}</td>
                       <td className="p-4">
                         <p className="text-xs font-bold text-slate-600">{doc.course_name || `Course ID: ${doc.course_id}`}</p>
-                        <p className="text-[10px] font-black text-slate-400 uppercase">Batch: {doc.batch} • Sem: {doc.semester}</p>
+                        <p className="text-[10px] font-black text-slate-400 uppercase mt-0.5">Batch: {doc.batch} • Sem: {doc.semester}</p>
                       </td>
                       <td className="p-4 pr-6 text-right">
                         <div className="flex justify-end gap-2">
                           <a 
-                            href={`http://localhost:5000${doc.file_url}`} 
+                            href={`${getStaticBaseUrl()}${doc.file_url}`} 
                             target="_blank" rel="noreferrer"
                             className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                             title="Preview PDF"

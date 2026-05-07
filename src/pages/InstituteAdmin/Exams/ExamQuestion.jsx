@@ -3,6 +3,10 @@ import axios from "axios";
 import {
   QUESTION_TYPE_OPTIONS,
   DIFFICULTY_OPTIONS,
+  SEMESTER_OPTIONS, 
+  BATCH_OPTIONS,
+  YEAR_OPTIONS,
+  SUBJECT_OPTIONS // 🚀 FIXED: Imported static fallback for subjects
 } from "./Examstorage.jsx";
 import apiBaseUrl from "../../../config/baseurl";
 
@@ -28,7 +32,7 @@ const INITIAL_FORM = {
   semester:      "",
   batch:         "",
   year:          "",
-  specialization:"", // 🚀 Added Specialization for cascading
+  specialization:"", 
   subject:       "",
   questionType:  "",
   difficulty:    "",
@@ -97,8 +101,8 @@ const formatBytes = (bytes) => {
 };
 
 const FileBadge = ({ file, onRemove }) => {
-  const isPdf = file.type === "application/pdf" || file.name.endsWith(".pdf");
-  const isDoc = file.name.endsWith(".doc") || file.name.endsWith(".docx");
+  const isPdf = file?.type === "application/pdf" || file?.name?.endsWith(".pdf");
+  const isDoc = file?.name?.endsWith(".doc") || file?.name?.endsWith(".docx");
   const ext    = isPdf ? "PDF" : isDoc ? "DOC" : "FILE";
   const colors = isPdf
     ? "bg-red-100 text-red-700 border-red-200"
@@ -173,9 +177,8 @@ export const ExamQuestion = () => {
   const [activeTab, setActiveTab] = useState("create");
   const [expandedFiles, setExpandedFiles] = useState({});
 
-  // 🚀 New unified dropdown state loaded from MySQL
   const [dropdownData, setDropdownData] = useState({
-    subjects: [], specializations: [], batches: [], academicYears: [], semesters: []
+    subjects: [], departments: [], batches: [] 
   });
 
   const [toast, setToast]   = useState(null);
@@ -185,21 +188,18 @@ export const ExamQuestion = () => {
   const isMCQ = form.questionType === "MCQ";
   const isTF  = form.questionType === "TRUE_FALSE";
 
-  // 🚀 Fetch real dropdown data on load
   useEffect(() => {
     const fetchSetupData = async () => {
       try {
         const config = getAuthConfig(); 
-        const res = await axios.get(`${apiBaseUrl}/admin/classes/form-data`, config);
+        const res = await axios.get(`${apiBaseUrl}/admin/exams/form-data`, config);
         
         if (res.data?.success) {
           const data = res.data.data;
           setDropdownData({
             subjects: data.subjects?.map(s => ({ value: s.name, label: s.name, spec: s.specialization })) || [],
-            specializations: data.specializations?.map(s => ({ value: s.name, label: s.name })) || [],
+            departments: data.departments?.map(d => ({ value: d.name, label: d.name })) || [],
             batches: data.batches?.map(b => ({ value: b.name, label: b.name })) || [],
-            academicYears: data.academicYears?.map(y => ({ value: y.name, label: y.name })) || [],
-            semesters: data.semesters?.map(s => ({ value: s.name, label: s.name, batchId: s.batch_id })) || [],
           });
         }
       } catch (error) {
@@ -209,19 +209,27 @@ export const ExamQuestion = () => {
     fetchSetupData();
   }, []);
 
-  // 🚀 Cascading Logic: Filter subjects based on specialization
+  // 🚀 FIXED: Smart filter logic that won't break if the DB doesn't have specifications assigned to subjects yet
   const filteredSubjects = useMemo(() => {
     if (!form.specialization) return dropdownData.subjects;
+    
+    // Check if any subjects even have a spec. If not, just return all of them to prevent a blank dropdown!
+    const hasSpecs = dropdownData.subjects.some(s => s.spec);
+    if (!hasSpecs) return dropdownData.subjects;
+
     return dropdownData.subjects.filter(s => s.spec === form.specialization);
   }, [form.specialization, dropdownData.subjects]);
 
   const set = (field) => (e) => {
     const value = e.target.value;
     
-    // Auto-clear subject if specialization changes
     if (field === 'specialization') {
       setForm((prev) => ({ ...prev, specialization: value, subject: '' }));
-    } else {
+    } 
+    else if (field === 'questionType') {
+      setForm((prev) => ({ ...prev, questionType: value, correctAnswer: '' }));
+    } 
+    else {
       setForm((prev) => ({ ...prev, [field]: value }));
     }
     
@@ -274,7 +282,6 @@ export const ExamQuestion = () => {
 
     setQuestions((prev) => [newQ, ...prev]);
 
-    // Keep context, clear specific question details
     setForm((prev) => ({
       ...prev,
       marks:         "",
@@ -368,29 +375,36 @@ export const ExamQuestion = () => {
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
               <div>
                 <Label required>Semester</Label>
-                <Select value={form.semester} onChange={set("semester")} options={dropdownData.semesters} placeholder="Select Semester" />
+                <Select value={form.semester} onChange={set("semester")} options={SEMESTER_OPTIONS} placeholder="Select Semester" />
                 {err("semester")}
               </div>
               <div>
                 <Label required>Batch</Label>
-                <Select value={form.batch} onChange={set("batch")} options={dropdownData.batches} placeholder="Select Batch" />
+                <Select value={form.batch} onChange={set("batch")} options={dropdownData.batches.length > 0 ? dropdownData.batches : BATCH_OPTIONS} placeholder="Select Batch" />
                 {err("batch")}
               </div>
               <div>
                 <Label required>Academic Year</Label>
-                <Select value={form.year} onChange={set("year")} options={dropdownData.academicYears} placeholder="Select Year" />
+                <Select value={form.year} onChange={set("year")} options={YEAR_OPTIONS} placeholder="Select Year" />
                 {err("year")}
               </div>
             </div>
             
             <div className="grid grid-cols-1 sm:grid-cols-4 gap-5 mt-5">
               <div className="sm:col-span-2">
-                <Label>Specialization</Label>
-                <Select value={form.specialization} onChange={set("specialization")} options={dropdownData.specializations} placeholder="All Specializations" />
+                <Label>Department</Label>
+                <Select value={form.specialization} onChange={set("specialization")} options={dropdownData.departments} placeholder="All Departments" />
               </div>
               <div className="sm:col-span-2">
                 <Label required>Subject</Label>
-                <Select value={form.subject} onChange={set("subject")} options={filteredSubjects} placeholder="Select Subject" disabled={!form.specialization && dropdownData.specializations.length > 0} />
+                {/* 🚀 FIXED: Now safely uses SUBJECT_OPTIONS if DB returns zero subjects */}
+                <Select 
+                  value={form.subject} 
+                  onChange={set("subject")} 
+                  options={filteredSubjects.length > 0 ? filteredSubjects : SUBJECT_OPTIONS} 
+                  placeholder="Select Subject" 
+                  disabled={!form.specialization && dropdownData.departments.length > 0} 
+                />
                 {err("subject")}
               </div>
               <div className="sm:col-span-2">
@@ -622,3 +636,5 @@ export const ExamQuestion = () => {
     </div>
   );
 };
+
+export default ExamQuestion;
